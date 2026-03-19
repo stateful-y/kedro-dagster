@@ -9,10 +9,10 @@ requires = [
 name = "kedro-dagster"
 dynamic = ["version"]
 authors = [
-  { name = "Guillaume Tauzin", email = "gtauzin.github@pm.me" },
+  { name = "Guillaume Tauzin", email = "gtauzin@stateful-y.io" },
 ]
 maintainers = [
-  { name = "Guillaume Tauzin", email = "gtauzin.github@pm.me" }
+  { name = "Guillaume Tauzin", email = "gtauzin@stateful-y.io" }
 ]
 description = "Kedro-Dagster makes it easy to deploy Kedro projects to Dagster"
 license = "Apache-2.0"
@@ -28,10 +28,10 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
 ]
-urls."Bug Tracker" = "https://github.com/gtauzin/kedro-dagster/issues"
-urls."Changelog" = "https://github.com/gtauzin/kedro-dagster/releases"
-urls.Documentation = "https://github.com/gtauzin/kedro-dagster/"
-urls."Source Code" = "https://github.com/gtauzin/kedro-dagster"
+urls."Bug Tracker" = "https://github.com/stateful-y/kedro-dagster/issues"
+urls."Changelog" = "https://github.com/stateful-y/kedro-dagster/releases"
+urls.Documentation = "https://github.com/stateful-y/kedro-dagster/"
+urls."Source Code" = "https://github.com/stateful-y/kedro-dagster"
 dependencies = [
     "kedro>=0.19,<2.0",
     "kedro-datasets",
@@ -84,7 +84,7 @@ source = "vcs"
 fallback-version = "0.0.0"
 
 [tool.hatch.metadata.hooks.vcs.urls]
-source_archive = "https://github.com/gtauzin/kedro-dagster/archive/{commit_hash}.zip"
+source_archive = "https://github.com/stateful-y/kedro-dagster/archive/{commit_hash}.zip"
 
 [tool.ruff]
 line-length = 120

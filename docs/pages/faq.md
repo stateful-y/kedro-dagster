@@ -349,9 +349,9 @@ Or use the Dagster UI to materialize a single asset and check if the issue is pi
 
 ### 4. Search GitHub Issues
 
-Search [Kedro-Dagster Issues](https://github.com/gtauzin/kedro-dagster/issues) for similar problems.
+Search [Kedro-Dagster Issues](https://github.com/stateful-y/kedro-dagster/issues) for similar problems.
 
-If not found, [open a new issue](https://github.com/gtauzin/kedro-dagster/issues/new) with:
+If not found, [open a new issue](https://github.com/stateful-y/kedro-dagster/issues/new) with:
 
 - Versions: `kedro --version`, `dagster --version`, `pip show kedro-dagster`
 - Minimal reproducible example
@@ -364,14 +364,14 @@ If not found, [open a new issue](https://github.com/gtauzin/kedro-dagster/issues
 
 ### How do I contribute to Kedro-Dagster?
 
-We welcome contributions! See [CONTRIBUTING.md](https://github.com/gtauzin/kedro-dagster/blob/main/CONTRIBUTING.md) for:
+We welcome contributions! See [CONTRIBUTING.md](https://github.com/stateful-y/kedro-dagster/blob/main/CONTRIBUTING.md) for:
 
 - Setting up development environment
 - Running tests
 - Code style guidelines
 - Submitting pull requests
 
-For major features, [open an issue](https://github.com/gtauzin/kedro-dagster/issues/new) first to discuss design.
+For major features, [open an issue](https://github.com/stateful-y/kedro-dagster/issues/new) first to discuss design.
 
 ---
 
@@ -379,8 +379,8 @@ For major features, [open an issue](https://github.com/gtauzin/kedro-dagster/iss
 
 - **Documentation**: [Full Documentation](../index.md)
 - **Community**: [Kedro Slack](https://slack.kedro.org/)
-- **Discussions**: [GitHub Discussions](https://github.com/gtauzin/kedro-dagster/discussions)
-- **Bug Reports**: [GitHub Issues](https://github.com/gtauzin/kedro-dagster/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/stateful-y/kedro-dagster/discussions)
+- **Bug Reports**: [GitHub Issues](https://github.com/stateful-y/kedro-dagster/issues)
 
 When asking for help, include:
 
