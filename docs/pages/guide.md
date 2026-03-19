@@ -359,7 +359,7 @@ upstream_dataset:
 ```
 
 !!! info "Need Support for other Dagster partitions?"
-    If you have a use case that requires any unsupported partition types, please [open an issue](https://github.com/gtauzin/kedro-dagster/issues) describing your requirements.
+    If you have a use case that requires any unsupported partition types, please [open an issue](https://github.com/stateful-y/kedro-dagster/issues) describing your requirements.
 
 ### `DagsterNothingDataset`
 
@@ -382,7 +382,7 @@ See the API reference for [`DagsterNothingDataset`](reference.md#dagsternothingd
 
 Support for additional partition types may be added in future releases. Track progress and request features at:
 
-- [Kedro-Dagster Issue Tracker](https://github.com/gtauzin/kedro-dagster/issues)
+- [Kedro-Dagster Issue Tracker](https://github.com/stateful-y/kedro-dagster/issues)
 
 If you have a use case requiring specific partition types, please open a feature request with your requirements.
 
