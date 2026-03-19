@@ -598,7 +598,7 @@ def test_list_defs_real_subprocess_returns_definitions(kedro_project_exec_fileba
 
     # Verify at least one asset is present
     assets = output.get("assets", [])
-    asset_keys = [asset["key"] for asset in assets]
+    asset_keys = [asset.get("asset_key") or asset["key"] for asset in assets]
     assert len(asset_keys) >= 1, f"Expected at least 1 asset in {asset_keys}"
 
 
@@ -640,5 +640,5 @@ def test_list_defs_real_subprocess_with_local_env(kedro_project_exec_filebacked_
 
     # Should have assets
     assets = output.get("assets", [])
-    asset_keys = [asset["key"] for asset in assets]
+    asset_keys = [asset.get("asset_key") or asset["key"] for asset in assets]
     assert len(asset_keys) >= 1, f"Expected at least 1 asset, got {asset_keys}"

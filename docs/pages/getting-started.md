@@ -33,7 +33,7 @@ The Kedro-Dagster plugin can be installed using different package managers.
     Alternatively, you can install the latest development version directly from GitHub:
 
     ```bash
-    pip install --upgrade git+https://github.com/gtauzin/kedro-dagster.git
+    pip install --upgrade git+https://github.com/stateful-y/kedro-dagster.git
     ```
 
 === "uv"
@@ -47,7 +47,7 @@ The Kedro-Dagster plugin can be installed using different package managers.
     Alternatively, you can install the latest development version directly from GitHub:
 
     ```bash
-    uv pip install --upgrade git+https://github.com/gtauzin/kedro-dagster.git
+    uv pip install --upgrade git+https://github.com/stateful-y/kedro-dagster.git
     ```
 
 === "conda-forge"

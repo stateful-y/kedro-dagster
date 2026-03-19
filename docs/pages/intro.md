@@ -74,7 +74,7 @@ Enable key-based [Dagster partitions](https://docs.dagster.io/guides/build/parti
 While Kedro‑Dagster's objective is to provide a powerful bridge between Kedro and Dagster, there are a few important points to consider:
 
 1. **Evolving feature parity:**
-   Kedro‑Dagster is evolving rapidly, but as a recent package maintained as a side project, not all Dagster features are yet exposed in Kedro‑Dagster. We encourage you to contribute or raise issues on our [Issue Tracker](https://github.com/gtauzin/kedro-dagster/issues) so that missing functionalities can be prioritized.
+   Kedro‑Dagster is evolving rapidly, but as a recent package maintained as a side project, not all Dagster features are yet exposed in Kedro‑Dagster. We encourage you to contribute or raise issues on our [Issue Tracker](https://github.com/stateful-y/kedro-dagster/issues) so that missing functionalities can be prioritized.
 
 2. **Compatibility:**
    Both Kedro and Dagster are under active development. Breaking changes in either framework can temporarily affect Kedro‑Dagster integration until a new plugin release addresses them. Always pin your Kedro, Dagster, and Kedro‑Dagster versions and test changes before upgrading them.
@@ -83,9 +83,9 @@ While Kedro‑Dagster's objective is to provide a powerful bridge between Kedro 
 
 We welcome contributions, feedback, and questions:
 
-- **Report issues or request features:** [GitHub Issues](https://github.com/gtauzin/kedro-dagster/issues)
+- **Report issues or request features:** [GitHub Issues](https://github.com/stateful-y/kedro-dagster/issues)
 - **Join the discussion:** [Kedro Slack](https://slack.kedro.org/)
-- **Contributing guide:** [CONTRIBUTING.md](https://github.com/gtauzin/kedro-dagster/blob/main/CONTRIBUTING.md)
+- **Contributing guide:** [CONTRIBUTING.md](https://github.com/stateful-y/kedro-dagster/blob/main/CONTRIBUTING.md)
 
 If you are interested in becoming a maintainer of Kedro‑Dagster or taking a more active role in its development, please reach out to Guillaume Tauzin on the [Kedro Slack](https://slack.kedro.org/).
 

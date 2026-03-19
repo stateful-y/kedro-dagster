@@ -1,6 +1,6 @@
 # Example
 
-This section introduces an advanced Kedro project with Dagster hosted on the [Kedro-Dagster example repository](https://github.com/gtauzin/kedro-dagster-example). You can find a visualization of the pipelines defined in this project below in the [shared Kedro-Viz page](https://gtauzin.github.io/kedro-dagster-example/).
+This section introduces an advanced Kedro project with Dagster hosted on the [Kedro-Dagster example repository](https://github.com/stateful-y/kedro-dagster-example). You can find a visualization of the pipelines defined in this project below in the [shared Kedro-Viz page](https://stateful-y.github.io/kedro-dagster-example/).
 
 ## Project overview
 
@@ -20,7 +20,7 @@ Additionally, the project features:
 1. **Clone the repository**:
 
    ```bash
-   git clone https://github.com/gtauzin/kedro-dagster-example.git
+   git clone https://github.com/stateful-y/kedro-dagster-example.git
    cd kedro-dagster-example
    ```
 
@@ -105,7 +105,7 @@ kedro dagster dev -e "dev"
 
 When you launch the UI, Kedro‑Dagster constructs Dagster jobs from the active environment’s `dagster.yml` (filters, executor, schedules) and reads datasets from that environment’s `catalog.yml`. Changing the Kedro environment switches both the configuration and the set of dynamic pipelines considered, which in turn changes the jobs that appear in the UI.
 
-Pipelines are built dynamically and parameterized by namespace and tags. Rather than introducing a custom `merge` resolver, parameters are namespaced via YAML inheritance, which keeps the configuration simple and makes per‑environment overrides straightforward. The split of dynamic pipelines across environments is orchestrated in the example’s [`settings.py`](https://github.com/gtauzin/kedro-dagster-example/blob/main/src/kedro_dagster_example/settings.py), which defines which pipelines are active per environment:
+Pipelines are built dynamically and parameterized by namespace and tags. Rather than introducing a custom `merge` resolver, parameters are namespaced via YAML inheritance, which keeps the configuration simple and makes per‑environment overrides straightforward. The split of dynamic pipelines across environments is orchestrated in the example’s [`settings.py`](https://github.com/stateful-y/kedro-dagster-example/blob/main/src/kedro_dagster_example/settings.py), which defines which pipelines are active per environment:
 
 ```python
 if KEDRO_ENV == "local":
@@ -135,7 +135,7 @@ else:
     raise ValueError(f"Unknown KEDRO_ENV value: {KEDRO_ENV}")
 ```
 
- and [`pipeline_registry.py`](https://github.com/gtauzin/kedro-dagster-example/blob/main/src/kedro_dagster_example/pipeline_registry.py), which registers only the pipelines relevant to the active environment:
+ and [`pipeline_registry.py`](https://github.com/stateful-y/kedro-dagster-example/blob/main/src/kedro_dagster_example/pipeline_registry.py), which registers only the pipelines relevant to the active environment:
 
 ```python
 def register_pipelines() -> dict[str, Pipeline]:
@@ -430,7 +430,7 @@ Models and artifacts are tracked via Kedro-MLflow datasets in the catalog, e.g.:
    artifact_path: "{namespace}/{variant}/regressor"
 ```
 
-Additionally, we show how to use MLflow alongside Optuna in a Kedro project throught the use of the Optuna's `MLflowCallback`, which logs Optuna trials as MLflow runs. The callback is added to the study in the [tuning node](https://github.com/gtauzin/kedro-dagster-example/blob/main/src/kedro_dagster_example/pipelines/model_tuning/nodes.py#L72-L112). This creates a nested MLflow run for each Optuna trial, allowing you to track hyperparameter optimization experiments directly in MLflow.
+Additionally, we show how to use MLflow alongside Optuna in a Kedro project throught the use of the Optuna's `MLflowCallback`, which logs Optuna trials as MLflow runs. The callback is added to the study in the [tuning node](https://github.com/stateful-y/kedro-dagster-example/blob/main/src/kedro_dagster_example/pipelines/model_tuning/nodes.py#L72-L112). This creates a nested MLflow run for each Optuna trial, allowing you to track hyperparameter optimization experiments directly in MLflow.
 
 ### Common pitfalls and troubleshooting
 
