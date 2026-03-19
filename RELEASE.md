@@ -3,12 +3,26 @@
 ## Major features and improvements
 
 ## Bug fixes and other changes
+
+## Breaking changes to the API
+
+## Thanks for supporting contributions
+
+We are also grateful to everyone who advised and supported us, filed issues or helped resolve them, asked and answered questions and were part of inspiring discussions.
+
+# Release 0.5.4
+
+## Major features and improvements
+
+## Bug fixes and other changes
 - Update all repository references from `gtauzin` to `stateful-y` org by @gtauzin.
 - Handle Dagster 1.12 `asset_key` rename in `dg list defs` test output by @gtauzin.
 
 ## Breaking changes to the API
 
 ## Thanks for supporting contributions
+
+- @gtauzin
 
 We are also grateful to everyone who advised and supported us, filed issues or helped resolve them, asked and answered questions and were part of inspiring discussions.
 
