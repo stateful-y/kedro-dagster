@@ -1,16 +1,16 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/gtauzin/kedro-dagster/main/docs/images/logo_light.png">
-    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/gtauzin/kedro-dagster/main/docs/images/logo_dark.png">
-    <img src="https://raw.githubusercontent.com/gtauzin/kedro-dagster/main/docs/images/logo_light.png" alt="Kedro-Dagster">
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/stateful-y/kedro-dagster/main/docs/images/logo_light.png">
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/stateful-y/kedro-dagster/main/docs/images/logo_dark.png">
+    <img src="https://raw.githubusercontent.com/stateful-y/kedro-dagster/main/docs/images/logo_light.png" alt="Kedro-Dagster">
   </picture>
 </p>
 
 [![Python Version](https://img.shields.io/pypi/pyversions/kedro-dagster)](https://pypi.org/project/kedro-dagster/)
-[![License](https://img.shields.io/github/license/gtauzin/kedro-dagster)](https://github.com/gtauzin/kedro-dagster/blob/main/LICENSE.md)
+[![License](https://img.shields.io/github/license/stateful-y/kedro-dagster)](https://github.com/stateful-y/kedro-dagster/blob/main/LICENSE.md)
 [![PyPI Version](https://img.shields.io/pypi/v/kedro-dagster)](https://pypi.org/project/kedro-dagster/)
 [![Conda Version](https://img.shields.io/conda/vn/conda-forge/kedro-dagster.svg)](https://anaconda.org/conda-forge/kedro-dagster)
-[![CodeCov](https://codecov.io/gh/gtauzin/kedro-dagster/branch/main/graph/badge.svg)](https://codecov.io/gh/gtauzin/kedro-dagster/branch/main)
+[![CodeCov](https://codecov.io/gh/stateful-y/kedro-dagster/branch/main/graph/badge.svg)](https://codecov.io/gh/stateful-y/kedro-dagster/branch/main)
 
 [![Powered by Kedro](https://img.shields.io/badge/powered_by-kedro-ffc900?logo=kedro)](https://kedro.org)
 [![Slack Organisation](https://img.shields.io/badge/slack-chat-blueviolet.svg?label=Kedro%20Slack&logo=slack)](https://slack.kedro.org)
@@ -21,9 +21,9 @@ The Kedro-Dagster plugin enables seamless integration between [Kedro](https://ke
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/gtauzin/kedro-dagster/main/docs/images/example/local_asset_graph_light.png">
-    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/gtauzin/kedro-dagster/main/docs/images/example/local_asset_graph_dark.png">
-    <img src="https://raw.githubusercontent.com/gtauzin/kedro-dagster/main/docs/images/example/local_asset_graph_light.png" alt="Kedro-Dagster Asset Graph">
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/stateful-y/kedro-dagster/main/docs/images/example/local_asset_graph_light.png">
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/stateful-y/kedro-dagster/main/docs/images/example/local_asset_graph_dark.png">
+    <img src="https://raw.githubusercontent.com/stateful-y/kedro-dagster/main/docs/images/example/local_asset_graph_light.png" alt="Kedro-Dagster Asset Graph">
   </picture>
 </p>
 
@@ -126,7 +126,7 @@ kedro dagster dev --env <ENV_NAME>
 
 The Dagster UI will be available at http://127.0.0.1:3000.
 
-For a concrete use-case, see the [Kedro-Dagster example repository](https://github.com/gtauzin/kedro-dagster-example).
+For a concrete use-case, see the [Kedro-Dagster example repository](https://github.com/stateful-y/kedro-dagster-example).
 
 ## How do I use Kedro-Dagster?
 
@@ -136,22 +136,26 @@ Full documentation is available at [https://kedro-dagster.readthedocs.io/en/late
 
 We welcome contributions, feedback, and questions:
 
-- **Report issues or request features:** [GitHub Issues](https://github.com/gtauzin/kedro-dagster/issues)
+- **Report issues or request features:** [GitHub Issues](https://github.com/stateful-y/kedro-dagster/issues)
 - **Join the discussion:** [Kedro Slack](https://slack.kedro.org/)
-- **Contributing Guide:** [CONTRIBUTING.md](https://github.com/gtauzin/kedro-dagster/blob/main/CONTRIBUTING.md)
+- **Contributing Guide:** [CONTRIBUTING.md](https://github.com/stateful-y/kedro-dagster/blob/main/CONTRIBUTING.md)
 
-If you are interested in becoming a maintainer or taking a more active role, please reach out to Guillaume Tauzin on the [Kedro Slack](https://slack.kedro.org/).
+If you are interested in becoming a maintainer or taking a more active role, please reach out to Guillaume Tauzin on [GitHub Discussions](https://github.com/stateful-y/kedro-dagster/discussions).
 
 ## Where can I learn more?
 
-There is a growing community around the Kedro project and we encourage you to become part of it. To ask and answer technical questions on the Kedro [Slack](https://slack.kedro.org/) and bookmark the [Linen archive of past discussions](https://linen-slack.kedro.org/). For questions related specifically to Kedro-Dagster, you can also open a [discussion](https://github.com/gtauzin/kedro-dagster/discussions).
+There is a growing community around the Kedro project and we encourage you to become part of it. To ask and answer technical questions on the Kedro [Slack](https://slack.kedro.org/) and bookmark the [Linen archive of past discussions](https://linen-slack.kedro.org/). For questions related specifically to Kedro-Dagster, you can also open a [discussion](https://github.com/stateful-y/kedro-dagster/discussions).
 
 ## License
 
-This project is licensed under the terms of the [Apache 2.0 License](https://github.com/gtauzin/kedro-dagster/blob/main/LICENSE.md).
+This project is licensed under the terms of the [Apache 2.0 License](https://github.com/stateful-y/kedro-dagster/blob/main/LICENSE.md).
 
 ## Acknowledgements
 
-This plugin is developed and maintained by [Guillaume Tauzin](https://github.com/gtauzin).
+This plugin is inspired by existing Kedro plugins such as the [official Kedro plugins](https://github.com/kedro-org/kedro-plugins), [kedro-kubeflow](https://github.com/getindata/kedro-kubeflow), and [kedro-mlflow](https://github.com/Galileo-Galilei/kedro-mlflow).
 
-It is inspired by existing Kedro plugins such as the [official Kedro plugins](https://github.com/kedro-org/kedro-plugins), [kedro-kubeflow](https://github.com/getindata/kedro-kubeflow), [kedro-mlflow](https://github.com/Galileo-Galilei/kedro-mlflow).
+<p align="center">
+  <a href="https://stateful-y.io">
+    <img src="docs/assets/made_by_stateful-y.png" alt="Made by stateful-y" width="200">
+  </a>
+</p>

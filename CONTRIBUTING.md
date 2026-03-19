@@ -10,21 +10,21 @@ The Kedro team pledges to foster and maintain a welcoming and friendly community
 
 ## Get started
 
-We use [GitHub Issues](https://github.com/gtauzin/kedro-dagster/issues) to keep track of known bugs. We keep a close eye on them and try to make it clear when we have an internal fix in progress. Before reporting a new issue, please do your best to ensure your problem hasn't already been reported. If so, it's often better to just leave a comment on an existing issue, rather than create a new one. Old issues also can often include helpful tips and solutions to common problems.
+We use [GitHub Issues](https://github.com/stateful-y/kedro-dagster/issues) to keep track of known bugs. We keep a close eye on them and try to make it clear when we have an internal fix in progress. Before reporting a new issue, please do your best to ensure your problem hasn't already been reported. If so, it's often better to just leave a comment on an existing issue, rather than create a new one. Old issues also can often include helpful tips and solutions to common problems.
 
 If you are looking for help with your code, please consider posting a question on the [Kedro Slack organisation](https://slack.kedro.org/). You can post your questions to the `#questions` or the `#plugins-integrations` channel. Past questions and discussions from the Kedro Slack organisation are accessible on [Linen](https://linen-slack.kedro.org/). In the interest of community engagement we also believe that help is much more valuable if it's shared publicly, so that more people can benefit from it.
 
-If you have already checked the [existing issues](https://github.com/gtauzin/kedro-dagster/issues) on GitHub and are still convinced that you have found odd or erroneous behaviour then please file a [new issue](https://github.com/gtauzin/kedro-dagster/issues/new/choose). We have a template that helps you provide the necessary information we'll need in order to address your query.
+If you have already checked the [existing issues](https://github.com/stateful-y/kedro-dagster/issues) on GitHub and are still convinced that you have found odd or erroneous behaviour then please file a [new issue](https://github.com/stateful-y/kedro-dagster/issues/new/choose). We have a template that helps you provide the necessary information we'll need in order to address your query.
 
 ## Feature requests
 
 ### Suggest a new feature
 
-If you have new ideas for Kedro-Dagster functionality then please open a [GitHub issue](https://github.com/gtauzin/kedro-dagster/issues) with the label `enhancement`. Please describe in your own words the feature you would like to see, why you need it, and how it should work.
+If you have new ideas for Kedro-Dagster functionality then please open a [GitHub issue](https://github.com/stateful-y/kedro-dagster/issues) with the label `enhancement`. Please describe in your own words the feature you would like to see, why you need it, and how it should work.
 
 ### Contribute a new feature
 
-If you're unsure where to begin contributing to Kedro-Dagster, please start by looking through the `good first issue` and `help wanted` on [GitHub](https://github.com/gtauzin/kedro-dagster/issues).
+If you're unsure where to begin contributing to Kedro-Dagster, please start by looking through the `good first issue` and `help wanted` on [GitHub](https://github.com/stateful-y/kedro-dagster/issues).
 
 Typically, small contributions to `kedro-dagster` are more preferable due to an easier review process, but we accept any new features if they prove to be essential for the functioning of the plugin or if we believe that they are used by most projects.
 
