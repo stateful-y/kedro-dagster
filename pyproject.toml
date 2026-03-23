@@ -263,3 +263,6 @@ exclude = ["CHANGELOG.md", "site", "htmlcov", ".nox", ".venv"]
 "README.md" = ["MD041"]  # README starts with logo, not heading
 "docs/index.md" = ["MD041"]  # Landing page starts with logo, not heading
 "CONTRIBUTING.md" = ["MD057"]  # Relative link to docs/ is valid at project level
+"docs/pages/getting-started.md" = ["MD057"]  # Links to auto-generated API docs (docs/pages/api/ is gitignored)
+"docs/pages/example.md" = ["MD057"]  # Links to auto-generated API docs (docs/pages/api/ is gitignored)
+"docs/pages/user-guide.md" = ["MD057"]  # Links to auto-generated API docs (docs/pages/api/ is gitignored)
