@@ -55,6 +55,6 @@ jobs:
         shell: bash
         run: |
           # Parameter order must match Nox's generated session names: (with_mlflow, dagster_spec, kedro_spec)
-          nox -s "tests_versions-${{ matrix.python-version }}(with_mlflow=True, dagster_spec='${{ matrix.dagster_spec }}', kedro_spec='${{ matrix.kedro_spec }}')"
+          nox -s "test_versions-${{ matrix.python-version }}(with_mlflow=True, dagster_spec='${{ matrix.dagster_spec }}', kedro_spec='${{ matrix.kedro_spec }}')"
         env:
           PYTEST_XDIST_AUTO_NUM_WORKERS: 0

@@ -66,7 +66,7 @@ The Kedro-Dagster plugin can be installed using different package managers.
 
 ## 3. Initialize the Kedro-Dagster plugin
 
-Use [`kedro dagster init`](reference.md#kedro-dagster-init) to initialize Kedro‑Dagster:
+Use [`kedro dagster init`](api/generated/kedro_dagster.cli.init.md) to initialize Kedro‑Dagster:
 
 ```bash
 kedro dagster init --env local
@@ -148,11 +148,11 @@ jobs:
 
 Here, we have added a "parallel_data_processing" and a "data_science" job to the jobs configuration. The first one makes use of the `node_names` Kedro pipeline filter argument to create a sub-pipeline of the Kedro "data_processing" pipeline from a list of two Kedro nodes: "preprocess_companies_node" and "preprocess_shuttles_node". Both jobs are to run daily using the "daily" schedule based on the `cron_schedule` "0 0 * * *". "parallel_data_processing" is to run using a "multiprocess" executor with 2 `max_concurrent` and "data_science" will run sequentially.
 
-See the [user guide](guide.md) for more on customizing the Dagster configuration file.
+See the [user guide](user-guide.md) for more on customizing the Dagster configuration file.
 
 ## 5. Browse the Dagster UI
 
-Use [`kedro dagster dev`](reference.md#kedro-dagster-dev) to start the Dagster development server:
+Use [`kedro dagster dev`](api/cli.md) to start the Dagster development server:
 
 ```bash
 kedro dagster dev --env local
@@ -177,25 +177,25 @@ The Dagster UI will be available at [http://127.0.0.1:3000](http://127.0.0.1:300
         return processed_data
     ```
 
-    For complete logging configuration and best practices, see the [Logging section](guide.md#logging) in the user guide.
+    For complete logging configuration and best practices, see the [Logging section](user-guide.md#logging) in the user guide.
 
 ### Assets
 
 Moving to the "Assets" tab leads to the list of assets generated from the Kedro datasets that are involved in the filtered pipelines specified in `dagster.yml`.
 
 <figure markdown>
-![List of assets involved in the specified jobs](../images/getting-started/asset_list_dark.png#only-dark){data-gallery="assets-dark"}
-![List of assets involved in the specified jobs](../images/getting-started/asset_list_light.png#only-light){data-gallery="assets-light"}
+![List of assets involved in the specified jobs](../assets/getting-started/asset_list_dark.png#only-dark){data-gallery="assets-dark"}
+![List of assets involved in the specified jobs](../assets/getting-started/asset_list_light.png#only-light){data-gallery="assets-light"}
 <figcaption>Asset List.</figcaption>
 </figure>
 
-Each asset is prefixed by the Kedro environment that was passed to the [`KedroProjectTranslator`](reference.md#kedroprojecttranslator) in [`definitions.py`](guide.md#definitionspy). If the Kedro dataset was generated from a [dataset factory](https://docs.kedro.org/en/stable/catalog-data/kedro_dataset_factories/#kedro-dataset-factories), the namespace that prefixed its name will also appear as a prefix, allowing easy browsing of assets per environment and per namespace.
+Each asset is prefixed by the Kedro environment that was passed to the [`KedroProjectTranslator`](api/generated/kedro_dagster.translator.KedroProjectTranslator.md) in [`definitions.py`](user-guide.md#definitionspy). If the Kedro dataset was generated from a [dataset factory](https://docs.kedro.org/en/stable/catalog-data/kedro_dataset_factories/#kedro-dataset-factories), the namespace that prefixed its name will also appear as a prefix, allowing easy browsing of assets per environment and per namespace.
 
 Clicking on the "Asset lineage" link at the top right of the window leads to the Dagster asset lineage graph, where you can observe the dependencies between assets and check their status and description.
 
 <figure markdown>
-![Lineage graph of assets involved in the specified jobs](../images/getting-started/asset_graph_dark.png#only-dark){data-gallery="assets-dark"}
-![Lineage graph of assets involved in the specified jobs](../images/getting-started/asset_graph_light.png#only-light){data-gallery="assets-light"}
+![Lineage graph of assets involved in the specified jobs](../assets/getting-started/asset_graph_dark.png#only-dark){data-gallery="assets-dark"}
+![Lineage graph of assets involved in the specified jobs](../assets/getting-started/asset_graph_light.png#only-light){data-gallery="assets-light"}
 <figcaption>Asset Lineage Graph.</figcaption>
 </figure>
 
@@ -207,8 +207,8 @@ Clicking on the "Asset lineage" link at the top right of the window leads to the
 Kedro‑Dagster defines one Dagster IO Manager per Kedro Dataset to interface with their `save` and `load` method. As with assets, they are defined per Kedro environment and their name is prefixed with the environment followed by a double underscore separator.
 
 <figure markdown>
-![List of the resources involved in the specified jobs](../images/getting-started/resource_list_dark.png#only-dark){data-gallery="resources-dark"}
-![List of the resources involved in the specified jobs](../images/getting-started/resource_list_light.png#only-light){data-gallery="resources-light"}
+![List of the resources involved in the specified jobs](../assets/getting-started/resource_list_dark.png#only-dark){data-gallery="resources-dark"}
+![List of the resources involved in the specified jobs](../assets/getting-started/resource_list_light.png#only-light){data-gallery="resources-light"}
 <figcaption>Resource list.</figcaption>
 </figure>
 
@@ -217,8 +217,8 @@ Kedro‑Dagster defines one Dagster IO Manager per Kedro Dataset to interface wi
 Moving to the "Automation" tab, you can see a list of the defined schedules and sensors. Kedro-Dagster preserve Kedro hooks and uses a sensor to enable the `on_pipeline_error` hook.
 
 <figure markdown>
-![List of the schedules and sensors involved in the specified jobs](../images/getting-started/automation_list_dark.png#only-dark){data-gallery="automation-dark"}
-![List of the schedules and sensors involved in the specified jobs](../images/getting-started/automation_list_light.png#only-light){data-gallery="automation-light"}
+![List of the schedules and sensors involved in the specified jobs](../assets/getting-started/automation_list_dark.png#only-dark){data-gallery="automation-dark"}
+![List of the schedules and sensors involved in the specified jobs](../assets/getting-started/automation_list_light.png#only-light){data-gallery="automation-light"}
 <figcaption>Schedule and Sensor List.</figcaption>
 </figure>
 
@@ -227,30 +227,30 @@ Moving to the "Automation" tab, you can see a list of the defined schedules and 
 To see the different jobs defined in `dagster.yml`, click on the "Jobs" tab. You'll see the list of the defined jobs with names prefixed by the Kedro environment followed by a double underscore.
 
 <figure markdown>
-![List of the specified jobs](../images/getting-started/job_list_dark.png#only-dark){data-gallery="jobs-dark"}
-![List of the specified jobs](../images/getting-started/job_list_light.png#only-light){data-gallery="jobs-light"}
+![List of the specified jobs](../assets/getting-started/job_list_dark.png#only-dark){data-gallery="jobs-dark"}
+![List of the specified jobs](../assets/getting-started/job_list_light.png#only-light){data-gallery="jobs-light"}
 <figcaption>Job List.</figcaption>
 </figure>
 
 Clicking on the "parallel_data_processing" job brings you to a graph representation of the corresponding Dagster-translated Kedro pipeline. `before_pipeline_run` and `after_pipeline_run` are included as the first and final nodes of the job graph. As for the schedule, each of them has its name prefixed with the name of the job it is applied and a double underscore to so that they can be applied independently.
 
 <figure markdown>
-![Graph describing the "parallel_data_processing" job](../images/getting-started/job_graph_dark.png#only-dark){data-gallery="jobs-dark"}
-![Graph describing the "parallel_data_processing" job](../images/getting-started/job_graph_light.png#only-light){data-gallery="jobs-light"}
+![Graph describing the "parallel_data_processing" job](../assets/getting-started/job_graph_dark.png#only-dark){data-gallery="jobs-dark"}
+![Graph describing the "parallel_data_processing" job](../assets/getting-started/job_graph_light.png#only-light){data-gallery="jobs-light"}
 <figcaption>Job Graph.</figcaption>
 </figure>
 
 The job can be run by clicking on the "Launchpad" sub-tab. The Kedro pipeline, its parameters (mapped to Dagster Config), and the Kedro datasets (mapped to IO managers) can be modified before launching a run.
 
 <figure markdown>
-![Launchpad for the "parallel_data_processing" job](../images/getting-started/job_launchpad_dark.png#only-dark){data-gallery="jobs-dark"}
-![Launchpad for the "parallel_data_processing" job](../images/getting-started/job_launchpad_light.png#only-light){data-gallery="jobs-light"}
+![Launchpad for the "parallel_data_processing" job](../assets/getting-started/job_launchpad_dark.png#only-dark){data-gallery="jobs-dark"}
+![Launchpad for the "parallel_data_processing" job](../assets/getting-started/job_launchpad_light.png#only-light){data-gallery="jobs-light"}
 <figcaption>Job Launchpad.</figcaption>
 </figure>
 
 <figure markdown>
-![Running the "parallel_data_processing" job](../images/getting-started/job_running_dark.png#only-dark){data-gallery="jobs-dark"}
-![Running the "parallel_data_processing" job](../images/getting-started/job_running_light.png#only-light){data-gallery="jobs-light"}
+![Running the "parallel_data_processing" job](../assets/getting-started/job_running_dark.png#only-dark){data-gallery="jobs-dark"}
+![Running the "parallel_data_processing" job](../assets/getting-started/job_running_light.png#only-light){data-gallery="jobs-light"}
 <figcaption>Job Run Timeline.</figcaption>
 </figure>
 
@@ -259,5 +259,5 @@ The job can be run by clicking on the "Launchpad" sub-tab. The Kedro pipeline, i
 ## Next steps
 
 - **Advanced example:** Visit the [example](example.md) section for a more advanced example.
-- **User guide:** Explore the [user guide](guide.md) for advanced configuration and customization.
-- **Reference:** See the [Kedro-Dagster reference](reference.md) for details on available classes and functions.
+- **User guide:** Explore the [user guide](user-guide.md) for advanced configuration and customization.
+- **Reference:** See the [Kedro-Dagster reference](api-reference.md) for details on available classes and functions.

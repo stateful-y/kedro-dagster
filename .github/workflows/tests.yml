@@ -1,0 +1,159 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Fast tests run on every push and PR across all OS and Python versions
+  test-fast:
+    name: Fast tests (Python ${{ matrix.python-version }} on ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # Draft PRs: Ubuntu only, min+max Python versions
+        # Ready PRs: All OS, min+max Python versions
+        os: ${{ github.event.pull_request.draft && fromJSON('["ubuntu-latest"]') || fromJSON('["ubuntu-latest", "windows-latest", "macos-latest"]') }}
+        python-version: ["3.10", "3.13"]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          lfs: true
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
+
+      - name: Add .local/bin to Windows PATH
+        if: matrix.os == 'windows-latest'
+        shell: bash
+        run: echo "$USERPROFILE/.local/bin" >> $GITHUB_PATH
+
+      - name: Install nox
+        run: uv tool install nox
+
+      - name: Set up Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
+
+      - name: Run fast tests (excluding slow/integration tests)
+        run: nox -s test_fast --python ${{ matrix.python-version }}
+
+  # Full test suite runs on Ubuntu when PR is not draft or on main branch
+  test-full:
+    name: Full test suite (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    if: |
+      github.ref == 'refs/heads/main' ||
+      (github.event_name == 'pull_request' && github.event.pull_request.draft == false)
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    env:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          lfs: true
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
+
+      - name: Install nox
+        run: uv tool install nox
+
+      - name: Set up Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
+
+      - name: Run tests with coverage
+        if: matrix.python-version == '3.10'
+        run: nox -s test_coverage --python ${{ matrix.python-version }}
+
+      - name: Run tests
+        if: matrix.python-version != '3.10'
+        run: nox -s test --python ${{ matrix.python-version }}
+
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() && matrix.python-version == '3.10' && env.CODECOV_TOKEN != '' }}
+        uses: codecov/test-results-action@v1
+        with:
+          token: ${{ env.CODECOV_TOKEN }}
+          file: '${{ github.workspace }}/junit.${{ matrix.python-version }}.xml'
+
+      - name: Upload coverage report to Codecov
+        uses: codecov/codecov-action@v5
+        if: ${{ matrix.python-version == '3.10' && env.CODECOV_TOKEN != '' }}
+        with:
+          token: ${{ env.CODECOV_TOKEN }}
+          files: '${{ github.workspace }}/coverage.${{ matrix.python-version }}.xml'
+          env_vars: OS,PYTHON
+          fail_ci_if_error: true
+
+  lint:
+    name: Lint and format
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          lfs: true
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
+
+      - name: Install nox
+        run: uv tool install nox
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Run pre-commit with nox
+        run: |
+          uvx nox -s fix
+
+
+  test_docstrings:
+    name: Docstring examples
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          lfs: true
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
+
+      - name: Install nox
+        run: uv tool install nox
+
+      - name: Set up Python
+        run: uv python install 3.10
+
+      - name: Run docstring tests
+        run: nox -s test_docstrings

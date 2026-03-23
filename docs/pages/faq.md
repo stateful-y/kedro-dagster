@@ -83,7 +83,7 @@ The Kedro-Dagster CLI wrapper (`kedro dagster <command>`) automatically sets the
 
 Kedro-Dagster respects Kedro environments. Create different configurations per environment:
 
-```
+```text
 conf/
   ├── local/
   │   ├── catalog.yml
@@ -271,7 +271,7 @@ def process_data(data):
     return processed_data
 ```
 
-Module-level loggers won't capture Dagster context. See [Logging documentation](guide.md#logging) for details.
+Module-level loggers won't capture Dagster context. See [Logging documentation](user-guide.md#logging) for details.
 
 ---
 
@@ -282,9 +282,9 @@ Kedro-Dagster converts dots (`.`) to double underscores (`__`) in asset names to
 **Kedro**: `namespace.my_dataset`
 **Dagster**: `local__namespace__my_dataset`
 
-This is automatic and reversible—Kedro-Dagster maps them back internally. Prefer using underscores and dots in Kedro dataset names to avoid issues with other special characters.
+This is automatic and reversible. Kedro-Dagster maps them back internally. Prefer using underscores and dots in Kedro dataset names to avoid issues with other special characters.
 
-See [Naming Conventions](guide.md#naming-conventions) for details.
+See [Naming Conventions](user-guide.md#naming-conventions) for details.
 
 ---
 
@@ -297,7 +297,7 @@ You're likely using an unsupported partition type:
 
 **Solution**: Use `StaticPartitionsDefinition` with explicit partition keys, or use Dagster schedules for time-based execution.
 
-See [Partitions documentation](guide.md#integrating-dagster-partitions) for examples.
+See [Partitions documentation](user-guide.md#integrating-dagster-partitions) for examples.
 
 ---
 

@@ -55,27 +55,32 @@ def init(env: str, force: bool, silent: bool) -> None:
     The Python package name is inferred from the Kedro project metadata.
 
     Created/updated templates:
-    * ``conf/<env>/dagster.yml`` – Dagster run parametrization for Kedro-Dagster.
-    * ``src/<python_package>/definitions.py`` – Dagster ``Definitions`` entry-point.
-    * ``dg.toml`` – Dagster ``dg`` CLI configuration (Dagster >= 1.10.6 only).
+    * ``conf/<env>/dagster.yml``: Dagster run parametrization for Kedro-Dagster.
+    * ``src/<python_package>/definitions.py``: Dagster ``Definitions`` entry-point.
+    * ``dg.toml``: Dagster ``dg`` CLI configuration (Dagster >= 1.10.6 only).
 
-    Args:
-        env (str): Kedro environment under ``conf`` where ``dagster.yml`` is written. Defaults to ``"base"``.
-        force (bool): Overwrite existing files without prompting. Defaults to ``False``.
-        silent (bool): Suppress success messages for a quieter output. Defaults to ``False``.
+    Parameters
+    ----------
+    env : str
+        Kedro environment under ``conf`` where ``dagster.yml`` is written. Defaults to ``"base"``.
+    force : bool
+        Overwrite existing files without prompting. Defaults to ``False``.
+    silent : bool
+        Suppress success messages for a quieter output. Defaults to ``False``.
 
-    Examples:
-        Basic initialization in the base config environment:
+    Examples
+    --------
+    Basic initialization in the base config environment:
 
-        >>> kedro dagster init --env base
+    >>> kedro dagster init --env base
 
-        Force overwrite existing integration files:
+    Force overwrite existing integration files:
 
-        >>> kedro dagster init -e base --force
+    >>> kedro dagster init -e base --force
 
-        Run silently (no success messages):
+    Run silently (no success messages):
 
-        >>> kedro dagster init -e base --silent
+    >>> kedro dagster init -e base --silent
     """
     # Lazy import to avoid circular dependency
     from kedro.framework.project import settings
@@ -314,22 +319,30 @@ else:
         Kedro-Dagster configuration, and invokes ``dagster dev`` with the provided options.
         Use this for local development to iterate on assets, jobs, schedules, sensors.
 
-        Args:
-            env (str): Kedro configuration environment to load (e.g., ``"local"``, ``"base"``, ``"prod"``).
-            log_level (Literal["debug", "info", "warning", "error", "critical"]): Log verbosity for Dagster.
-            log_format (Literal["color", "json", "default"]): Output format for logs.
-            port (str): HTTP port to bind the Dagster web UI.
-            host (str): Interface or IP to bind (e.g., ``"127.0.0.1"`` or ``"0.0.0.0"``).
-            live_data_poll_rate (str): Polling interval in seconds when live data is enabled.
+        Parameters
+        ----------
+        env : str
+            Kedro configuration environment to load (e.g., ``"local"``, ``"base"``, ``"prod"``).
+        log_level : Literal["debug", "info", "warning", "error", "critical"]
+            Log verbosity for Dagster.
+        log_format : Literal["color", "json", "default"]
+            Output format for logs.
+        port : str
+            HTTP port to bind the Dagster web UI.
+        host : str
+            Interface or IP to bind (e.g., ``"127.0.0.1"`` or ``"0.0.0.0"``).
+        live_data_poll_rate : str
+            Polling interval in seconds when live data is enabled.
 
-        Examples:
-            Start the UI with the local environment on default port:
+        Examples
+        --------
+        Start the UI with the local environment on default port:
 
-            >>> kedro dagster dev -e local
+        >>> kedro dagster dev -e local
 
-            Use JSON logs and custom port:
+        Use JSON logs and custom port:
 
-            >>> kedro dagster dev -e local --log-format json --log-level info --port 3000
+        >>> kedro dagster dev -e local --log-format json --log-level info --port 3000
 
         """
         # Lazy import to avoid circular dependency

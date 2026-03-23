@@ -1,7 +1,6 @@
 """Configuration definitions for Kedro-Dagster loggers.
 
-Defines the schema for logger entries referenced by jobs in `dagster.yml`.
-"""
+Defines the schema for logger entries referenced by jobs in ``dagster.yml``."""
 
 from typing import Any, Literal
 
@@ -16,12 +15,21 @@ LogLevel = Literal["CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG", "NOTSET"]
 class LoggerOptions(BaseModel):
     """Options for defining Dagster loggers.
 
-    Attributes:
-        log_level (LogLevel): Logging level (CRITICAL/ERROR/WARNING/INFO/DEBUG/NOTSET).
-        handlers (list[dict[str, Any]]): List of handler config dicts.
-        formatters (dict[str, dict[str, Any]]): Formatter configs, name→config.
-        filters (dict[str, dict[str, Any]]): Filter configs, name→config.
+    Attributes
+    ----------
+    log_level : LogLevel
+        Logging level (CRITICAL/ERROR/WARNING/INFO/DEBUG/NOTSET).
+    handlers : list[dict[str, Any]]
+        List of handler config dicts.
+    formatters : dict[str, dict[str, Any]]
+        Formatter configs, name to config.
+    filters : dict[str, dict[str, Any]]
+        Filter configs, name to config.
 
+    See Also
+    --------
+    `kedro_dagster.dagster.LoggerCreator` :
+        Creates Dagster logger definitions from these options.
     """
 
     log_level: LogLevel = Field(
@@ -52,14 +60,20 @@ class LoggerOptions(BaseModel):
     def normalize_log_level(cls, v: str) -> str:
         """Normalize log level to uppercase for case-insensitive matching.
 
-        Args:
-            v: Log level string to normalize.
+        Parameters
+        ----------
+        v : str
+            Log level string to normalize.
 
-        Returns:
+        Returns
+        -------
+        str
             Normalized log level in uppercase.
 
-        Raises:
-            ValueError: If log level is not a valid string.
+        Raises
+        ------
+        ValueError
+            If log level is not a valid string.
         """
         if not isinstance(v, str):
             raise ValueError("Log level must be a string")
@@ -80,14 +94,20 @@ class LoggerOptions(BaseModel):
     def validate_handlers(cls, v: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Validate handler configurations.
 
-        Args:
-            v: Handler configurations to validate.
+        Parameters
+        ----------
+        v : list[dict[str, Any]]
+            Handler configurations to validate.
 
-        Returns:
+        Returns
+        -------
+        list[dict[str, Any]]
             Validated handler configurations.
 
-        Raises:
-            ValueError: If handler configuration is invalid.
+        Raises
+        ------
+        ValueError
+            If handler configuration is invalid.
         """
         for i, handler in enumerate(v):
             if "class" not in handler:
@@ -103,14 +123,20 @@ class LoggerOptions(BaseModel):
     def validate_formatters(cls, v: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
         """Validate formatter configurations.
 
-        Args:
-            v: Formatter configurations to validate.
+        Parameters
+        ----------
+        v : dict[str, dict[str, Any]]
+            Formatter configurations to validate.
 
-        Returns:
+        Returns
+        -------
+        dict[str, dict[str, Any]]
             Validated formatter configurations.
 
-        Raises:
-            ValueError: If formatter configuration is invalid.
+        Raises
+        ------
+        ValueError
+            If formatter configuration is invalid.
         """
         for name, formatter in v.items():
             # Require either 'format' for standard formatter or '()' for custom class
@@ -134,14 +160,20 @@ class LoggerOptions(BaseModel):
     def validate_filters(cls, v: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
         """Validate filter configurations.
 
-        Args:
-            v: Filter configurations to validate.
+        Parameters
+        ----------
+        v : dict[str, dict[str, Any]]
+            Filter configurations to validate.
 
-        Returns:
+        Returns
+        -------
+        dict[str, dict[str, Any]]
             Validated filter configurations.
 
-        Raises:
-            ValueError: If filter configuration is invalid.
+        Raises
+        ------
+        ValueError
+            If filter configuration is invalid.
         """
         for name, filter_config in v.items():
             # Require either custom callable/class path via '()' or a class path via 'class'
@@ -166,11 +198,15 @@ class LoggerOptions(BaseModel):
     def validate_references(self) -> "LoggerOptions":
         """Validate that handler/formatter/filter references are consistent.
 
-        Returns:
+        Returns
+        -------
+        LoggerOptions
             Self after validation.
 
-        Raises:
-            ValueError: If there are inconsistent references.
+        Raises
+        ------
+        ValueError
+            If there are inconsistent references.
         """
         # Collect available formatter and filter names
         available_formatters = set(self.formatters.keys()) if self.formatters else set()

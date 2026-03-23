@@ -19,73 +19,73 @@ Additionally, the project features:
 
 1. **Clone the repository**:
 
-   ```bash
+    ```bash
    git clone https://github.com/stateful-y/kedro-dagster-example.git
    cd kedro-dagster-example
-   ```
+    ```
 
 2. **Install dependencies** (using [uv](https://github.com/astral-sh/uv) for reproducible environments):
 
-   ```bash
+    ```bash
    uv sync
    source .venv/bin/activate
-   ```
+    ```
 
 3. **Run Kedro pipelines** as usual:
 
-   ```bash
+    ```bash
    uv run kedro run --env <KEDRO_ENV>
-   ```
+    ```
 
-   Replace `<KEDRO_ENV>` with your target environment (e.g., `local`).
+    Replace `<KEDRO_ENV>` with your target environment (e.g., `local`).
 
 4. (Optional) This example repository is already initialized for Kedro-Dagster
 
-   You do not need to run `kedro dagster init` for this repo; `definitions.py` and per‑environment `conf/<ENV>/dagster.yml` are already present.
+    You do not need to run `kedro dagster init` for this repo; `definitions.py` and per‑environment `conf/<ENV>/dagster.yml` are already present.
 
 5. **List generated Dagster definitions** for each Kedro environment.
 
-   For the `local` environment:
+    For the `local` environment:
 
-   ```bash
+    ```bash
    kedro dagster list defs --env "local"
-   ```
+    ```
 
    !!! note
-      By default, logs from Kedro/Kedro-Dagster and Dagster are displayed in different formats on the terminal. You can configure Kedro/Kedro-Dagster logging to match Dagster's format by making use of Dagster formatters in your Kedro project's `logging.yml`. For more information, see the [Logging](guide.md#logging) section in the user guide.
+      By default, logs from Kedro/Kedro-Dagster and Dagster are displayed in different formats on the terminal. You can configure Kedro/Kedro-Dagster logging to match Dagster's format by making use of Dagster formatters in your Kedro project's `logging.yml`. For more information, see the [Logging](user-guide.md#logging) section in the user guide.
 
 6. **Explore pipelines in Dagster UI**:
 
-   ```bash
+    ```bash
    kedro dagster dev -e "local"
-   ```
+    ```
 
-   The `dev` environment requires a Postgres database. You can run one locally using Docker:
+    The `dev` environment requires a Postgres database. You can run one locally using Docker:
 
-   ```bash
+    ```bash
    docker compose -f docker/dev.docker-compose.yml up -d
-   ```
+    ```
 
-   Then, set the appropriate environment variables so that the Kedro catalog can connect to the database:
+    Then, set the appropriate environment variables so that the Kedro catalog can connect to the database:
 
-   ```bash
+    ```bash
    export POSTGRES_USER=dev_db
    export POSTGRES_PASSWORD=dev_password
    export POSTGRES_HOST=localhost
    export POSTGRES_PORT=5432
-   ```
+    ```
 
-   Your Kedro datasets appear as Dagster assets and pipelines as Dagster jobs.
+    Your Kedro datasets appear as Dagster assets and pipelines as Dagster jobs.
 
 <figure markdown>
-![Lineage graph of assets](../images/example/local_asset_graph_dark.png#only-dark){data-gallery="assets-dark"}
-![Lineage graph of assets](../images/example/local_asset_graph_light.png#only-light){data-gallery="assets-light"}
+![Lineage graph of assets](../assets/example/local_asset_graph_dark.png#only-dark){data-gallery="assets-dark"}
+![Lineage graph of assets](../assets/example/local_asset_graph_light.png#only-light){data-gallery="assets-light"}
 <figcaption>Dagster Asset Lineage Graph generated from the example Kedro project.</figcaption>
 </figure>
 
 <figure markdown>
-![List of assets](../images/example/local_asset_list_dark.png#only-dark){data-gallery="assets-dark"}
-![List of assets](../images/example/local_asset_list_light.png#only-light){data-gallery="assets-light"}
+![List of assets](../assets/example/local_asset_list_dark.png#only-dark){data-gallery="assets-dark"}
+![List of assets](../assets/example/local_asset_list_light.png#only-light){data-gallery="assets-light"}
 <figcaption>Dagster Asset List generated from the example Kedro project.</figcaption>
 </figure>
 
@@ -178,7 +178,7 @@ from kedro_dagster.logging import getLogger
    The `getLogger` function call must happen within the Kedro node function so that the Dagster context is accessible. Avoid defining loggers at the module level.
 
 Additionally, Kedro-Dagster provides configuration to customize Dagster run loggers via the `dagster.yml` file.
-This is done by configuring a [`LoggerCreator`](reference.md#loggercreator) that reads the `loggers` section of `dagster.yml` and creates the corresponding Dagster `LoggerDefinition`.
+This is done by configuring a [`LoggerCreator`](api/generated/kedro_dagster.dagster.LoggerCreator.md) that reads the `loggers` section of `dagster.yml` and creates the corresponding Dagster `LoggerDefinition`.
 
 ### Environments configuration at a glance
 
@@ -267,7 +267,7 @@ jobs:
 
 In practice, each Dagster job is generated from a filtered Kedro pipeline (selected by `pipeline_name` and optionally narrowed by `node_namespaces` or `tags`). The job uses the configured executor (`in_process`, `multiprocess`, and so on). When you run `kedro dagster dev -e local`, the UI listens on `127.0.0.1:3000` and prints colored logs, as specified above.
 
-See also the API reference entries for filtering and execution options: [`PipelineOptions`](reference.md#pipelineoptions) and executor models.
+See also the API reference entries for filtering and execution options: [`PipelineOptions`](api/generated/kedro_dagster.config.job.PipelineOptions.md) and executor models.
 
 ### Partitions in practice
 
@@ -369,7 +369,7 @@ In this example, two backends are demonstrated:
 
 - SQLite for `local` (stored under `data/`)
 
-   ```yaml
+    ```yaml
    "{namespace}.{variant}.study":
    type: kedro_datasets_experimental.optuna.StudyDataset
    backend: sqlite
@@ -382,11 +382,11 @@ In this example, two backends are demonstrated:
          n_ei_candidates: 5
       pruner:
          class: NopPruner
-   ```
+    ```
 
 - PostgreSQL for `dev` (backed by the provided Docker Compose service and credentials).
 
-   ```yaml
+    ```yaml
    "{namespace}.{variant}.study":
    type: kedro_datasets_experimental.optuna.StudyDataset
    backend: postgresql
@@ -401,19 +401,19 @@ In this example, two backends are demonstrated:
          class: NopPruner
    versioned: true
    credentials: dev_optuna
-   ```
+    ```
 
 For the `dev` environment you must:
 
 1) Start Postgres: `docker compose -f docker/dev.docker-compose.yml up -d`
 2) Export connection env vars (username/password/host/port)
 
-   ```bash
+    ```bash
    export POSTGRES_USER=dev_db
    export POSTGRES_PASSWORD=dev_password
    export POSTGRES_HOST=localhost
    export POSTGRES_PORT=5432
-   ```
+    ```
 
 3) Run `kedro dagster dev`
 
@@ -442,5 +442,5 @@ Additionally, we show how to use MLflow alongside Optuna in a Kedro project thro
 
 ## Next steps
 
-- **User guide:** Explore the full [user guide](guide.md) for mapping details and configuration models.
-- **Reference:** See the [Kedro-Dagster reference](reference.md) for API and CLI details.
+- **User guide:** Explore the full [user guide](user-guide.md) for mapping details and configuration models.
+- **Reference:** See the [Kedro-Dagster reference](api-reference.md) for API and CLI details.

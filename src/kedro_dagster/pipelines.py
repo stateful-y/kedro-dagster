@@ -1,10 +1,9 @@
 """Translation of Kedro pipelines to Dagster jobs.
 
-This module contains :class:`PipelineTranslator`, which takes Kedro pipelines
-and produces fully wired Dagster jobs. It supports static fan-out of
-partitioned nodes, Kedro hook invocation via dedicated hook ops, and resource
-overrides per job.
-"""
+This module contains `kedro_dagster.pipelines.PipelineTranslator`,
+which takes Kedro pipelines and produces fully wired Dagster jobs. It supports
+static fan-out of partitioned nodes, Kedro hook invocation via dedicated hook
+ops, and resource overrides per job."""
 
 import warnings
 from logging import getLogger
@@ -39,20 +38,41 @@ LOGGER = getLogger(__name__)
 class PipelineTranslator:
     """Translator for Kedro pipelines to Dagster jobs.
 
-    Args:
-        dagster_config (KedroDagsterConfig): Parsed configuration of the Dagster repository.
-        context (KedroContext): Active Kedro context (provides catalog and hooks).
-        catalog (DataCatalog): Kedro data catalog.
-        project_path (str): Path to the Kedro project.
-        env (str): Kedro environment used for namespacing.
-        run_id (str): Kedro run ID. In Kedro < 1.0, this is called `session_id`.
-        named_assets (dict[str, dg.AssetsDefinition]): Mapping of asset name -> asset.
-        asset_partitions (dict[str, Any]): Mapping of asset name -> partition definitions/mappings.
-        named_op_factories (dict[str, dg.OpDefinition]): Mapping of graph-op name -> op factory.
-        named_resources (dict[str, dg.ResourceDefinition]): Mapping of resource name -> resource def.
-        named_executors (dict[str, dg.ExecutorDefinition]): Mapping of executor name -> executor def.
-        named_loggers (dict[str, dg.LoggerDefinition]): Mapping of logger name -> logger def.
-        enable_mlflow (bool): Whether MLflow integration is enabled.
+    Parameters
+    ----------
+    dagster_config : KedroDagsterConfig
+        Parsed configuration of the Dagster repository.
+    context : KedroContext
+        Active Kedro context (provides catalog and hooks).
+    catalog : CatalogProtocol
+        Kedro data catalog.
+    project_path : str
+        Path to the Kedro project.
+    env : str
+        Kedro environment used for namespacing.
+    run_id : str
+        Kedro run ID. In Kedro < 1.0, this is called ``session_id``.
+    named_assets : dict[str, AssetsDefinition]
+        Mapping of asset name to asset.
+    asset_partitions : dict[str, Any]
+        Mapping of asset name to partition definitions/mappings.
+    named_op_factories : dict[str, OpDefinition]
+        Mapping of graph-op name to op factory.
+    named_resources : dict[str, ResourceDefinition]
+        Mapping of resource name to resource definition.
+    named_executors : dict[str, ExecutorDefinition]
+        Mapping of executor name to executor definition.
+    named_loggers : dict[str, LoggerDefinition]
+        Mapping of logger name to logger definition.
+    enable_mlflow : bool
+        Whether MLflow integration is enabled.
+
+    See Also
+    --------
+    `kedro_dagster.translator.KedroProjectTranslator` :
+        Orchestrates the full project translation.
+    `kedro_dagster.nodes.NodeTranslator` :
+        Translates individual Kedro nodes.
     """
 
     def __init__(
@@ -89,14 +109,26 @@ class PipelineTranslator:
     def _enumerate_partition_keys(self, partitions_def: dg.PartitionsDefinition | None) -> list[str]:
         """Enumerate partition keys for an asset.
 
-        Note: This method assumes the partition definition has already been validated
-        by `DagsterPartitionedDataset`. Only `StaticPartitionsDefinition` should reach here.
+        This method assumes the partition definition has already been validated
+        by ``DagsterPartitionedDataset``. Only ``StaticPartitionsDefinition``
+        should reach here.
 
-        Args:
-            partitions_def (PartitionsDefinition | None): Partitions definition of the asset to enumerate.
+        Parameters
+        ----------
+        partitions_def : PartitionsDefinition or None
+            Partitions definition of the asset to enumerate.
 
-        Returns:
-            list[str]: Partition keys.
+        Returns
+        -------
+        list[str]
+            Partition keys.
+
+        See Also
+        --------
+        `kedro_dagster.pipelines.PipelineTranslator._get_node_partition_keys` :
+            Calls this to enumerate keys for partition mapping.
+        `kedro_dagster.datasets.partitioned_dataset.DagsterPartitionedDataset` :
+            Provides the partition definitions enumerated here.
         """
         if not partitions_def:
             return []
@@ -106,12 +138,26 @@ class PipelineTranslator:
     def _get_node_partition_keys(self, node: "Node") -> dict[str, str]:
         """Compute downstream partition key per upstream partition for a node.
 
-        Returns a mapping of "upstream_asset|partition_key" to "downstream_asset|partition_key".
-        If the node is unpartitioned, returns an empty mapping.
+        Returns a mapping of ``"upstream_asset|partition_key"`` to
+        ``"downstream_asset|partition_key"``. If the node is unpartitioned,
+        returns an empty mapping.
 
-        Args:
-            node: Kedro node to analyze.
+        Parameters
+        ----------
+        node : Node
+            Kedro node to analyze.
 
+        Returns
+        -------
+        dict[str, str]
+            Mapping from upstream to downstream partition keys.
+
+        See Also
+        --------
+        `kedro_dagster.pipelines.PipelineTranslator._enumerate_partition_keys` :
+            Enumerates partition keys for each asset.
+        `kedro_dagster.utils.get_partition_mapping` :
+            Resolves the partition mapping between upstream and downstream.
         """
         # Check partitioning consistency among output datasets
         # Output datasets can be either all partitioned or all non-partitioned (excluding nothing datasets)
@@ -181,13 +227,17 @@ class PipelineTranslator:
     def _create_before_pipeline_run_hook(self, job_name: str, pipeline: Pipeline) -> dg.OpDefinition:
         """Create the pipeline hook op executed before the pipeline run.
 
-        Args:
-            job_name (str): Job name.
-            pipeline (Pipeline): Kedro pipeline.
+        Parameters
+        ----------
+        job_name : str
+            Job name.
+        pipeline : Pipeline
+            Kedro pipeline.
 
-        Returns:
-            dg.OpDefinition: Op that triggers before-pipeline-run hooks.
-
+        Returns
+        -------
+        OpDefinition
+            Op that triggers before-pipeline-run hooks.
         """
         required_resource_keys = {"kedro_run"}
         # Only require mlflow if provided in named resources
@@ -221,13 +271,19 @@ class PipelineTranslator:
     ) -> dg.OpDefinition:
         """Create the pipeline hook op executed after the pipeline run.
 
-        Args:
-            job_name (str): Job name.
-            pipeline (Pipeline): Kedro pipeline.
-            after_pipeline_run_asset_names (list[str]): Names of Nothing inputs to fan-in.
+        Parameters
+        ----------
+        job_name : str
+            Job name.
+        pipeline : Pipeline
+            Kedro pipeline.
+        after_pipeline_run_asset_names : list[str]
+            Names of Nothing inputs to fan-in.
 
-        Returns:
-            dg.OpDefinition: Op that triggers after-pipeline-run hooks.
+        Returns
+        -------
+        OpDefinition
+            Op that triggers after-pipeline-run hooks.
         """
         after_pipeline_run_hook_ins: dict[str, dg.In] = {}
         for asset_name in after_pipeline_run_asset_names:
@@ -283,21 +339,40 @@ class PipelineTranslator:
         """Translate a Kedro pipeline into a Dagster job with partition support.
 
         This method implements static fan-out for partitioned datasets:
-        - Nodes with partitioned outputs/inputs are cloned for each partition key
-        - Partition mappings define relationships between upstream and downstream partitions
-        - Identity mapping is used by default (same partition key across assets)
 
-        Args:
-            pipeline (Pipeline): Kedro pipeline.
-            pipeline_name (str): Name of the Kedro pipeline.
-            filter_params (dict[str, Any]): Filter parameters for the pipeline.
-            job_name (str): Name of the job.
-            executor_def (ExecutorDefinition | None): Executor definition.
-            logger_defs (dict[str, LoggerDefinition] | None): Logger definitions.
-            loggers_config (dict[str, Any] | None): Logger configurations.
+        - Nodes with partitioned outputs/inputs are cloned for each partition
+          key.
+        - Partition mappings define relationships between upstream and
+          downstream partitions.
+        - Identity mapping is used by default (same partition key across
+          assets).
 
-        Returns:
-            dg.JobDefinition: Dagster job definition with partition-aware ops.
+        Parameters
+        ----------
+        pipeline : Pipeline
+            Kedro pipeline.
+        pipeline_name : str
+            Name of the Kedro pipeline.
+        filter_params : dict[str, Any]
+            Filter parameters for the pipeline.
+        job_name : str
+            Name of the job.
+        executor_def : ExecutorDefinition or None, optional
+            Executor definition.
+        logger_defs : dict[str, LoggerDefinition] or None, optional
+            Logger definitions.
+        loggers_config : dict[str, Any] or None, optional
+            Logger configurations.
+
+        Returns
+        -------
+        JobDefinition
+            Dagster job definition with partition-aware ops.
+
+        See Also
+        --------
+        `kedro_dagster.pipelines.PipelineTranslator.to_dagster` :
+            Iterates over configured jobs and calls this method.
         """
         before_pipeline_run_hook_op = self._create_before_pipeline_run_hook(job_name, pipeline)
 
@@ -361,7 +436,7 @@ class PipelineTranslator:
                             dataset_name = unformat_asset_name(asset_name)
                             if asset_name in base_op.ins and is_nothing_asset_name(self._catalog, dataset_name):
                                 partition_keys_per_in_asset_names[asset_name] = [
-                                    format_partition_key(partition_key) for partition_key in asset_partitions_val.keys()
+                                    format_partition_key(partition_key) for partition_key in asset_partitions_val
                                 ]
                                 for partition_key, asset_partition_val in asset_partitions_val.items():
                                     formatted_partition_key = format_partition_key(partition_key)
@@ -474,8 +549,15 @@ class PipelineTranslator:
     def to_dagster(self) -> dict[str, dg.JobDefinition]:
         """Translate the Kedro pipelines into Dagster jobs.
 
-        Returns:
-            dict[str, dg.JobDefinition]: Translated Dagster jobs.
+        Returns
+        -------
+        dict[str, JobDefinition]
+            Translated Dagster jobs keyed by job name.
+
+        See Also
+        --------
+        `kedro_dagster.pipelines.PipelineTranslator.translate_pipeline` :
+            Translates a single Kedro pipeline.
         """
         LOGGER.info("Translating Kedro pipelines to Dagster jobs...")
         # Lazy import to avoid circular dependency

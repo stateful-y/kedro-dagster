@@ -424,7 +424,9 @@ def test_warning_filtering_context_manager():
 
         # This should trigger the warning we want to validate
         warnings.warn(
-            "Argument(s) 'run_result' which are declared in the hookspec cannot be found in this hook call", UserWarning
+            "Argument(s) 'run_result' which are declared in the hookspec cannot be found in this hook call",
+            UserWarning,
+            stacklevel=2,
         )
 
         # Validate that the warning was captured

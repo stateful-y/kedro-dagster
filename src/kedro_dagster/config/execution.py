@@ -1,8 +1,7 @@
 """Configuration definitions for Dagster executors.
 
 These pydantic models define the parameters accepted by Dagster executors when
-declared in `dagster.yml` under the `executors` section.
-"""
+declared in ``dagster.yml`` under the ``executors`` section."""
 
 from logging import getLogger
 from typing import Any
@@ -15,21 +14,30 @@ LOGGER = getLogger(__name__)
 class InProcessExecutorOptions(BaseModel):
     """Options for the in-process executor.
 
-    Attributes:
-        retries (RetriesEnableOptions | RetriesDisableOptions): Retry configuration for the executor.
+    Attributes
+    ----------
+    retries : RetriesEnableOptions or RetriesDisableOptions
+        Retry configuration for the executor.
 
-    Example:
+    Examples
+    --------
+    ```yaml
+    executors:
+        local_inproc:
+            in_process: {}
+    jobs:
+        my_job:
+            pipeline:
+                pipeline_name: my_pipeline
+            executor: local_inproc
+    ```
 
-        ```yaml
-        executors:
-            local_inproc:
-                in_process: {}
-        jobs:
-            my_job:
-                pipeline:
-                    pipeline_name: my_pipeline
-                executor: local_inproc
-        ```
+    See Also
+    --------
+    `kedro_dagster.config.execution.MultiprocessExecutorOptions` :
+        Extends this class with concurrency settings.
+    `kedro_dagster.dagster.ExecutorCreator` :
+        Builds Dagster executor definitions from these options.
     """
 
     class RetriesEnableOptions(BaseModel):
@@ -51,23 +59,33 @@ class InProcessExecutorOptions(BaseModel):
 class MultiprocessExecutorOptions(InProcessExecutorOptions):
     """Options for the multiprocess executor.
 
-    Attributes:
-        retries (RetriesEnableOptions | RetriesDisableOptions): Retry configuration for the executor.
-        max_concurrent (int): Maximum number of concurrent processes.
+    Attributes
+    ----------
+    retries : RetriesEnableOptions or RetriesDisableOptions
+        Retry configuration for the executor.
+    max_concurrent : int
+        Maximum number of concurrent processes.
 
-    Example:
+    Examples
+    --------
+    ```yaml
+    executors:
+        local_multi:
+            multiprocess:
+                max_concurrent: 4
+    jobs:
+        heavy_job:
+            pipeline:
+                pipeline_name: heavy_pipeline
+            executor: local_multi
+    ```
 
-        ```yaml
-        executors:
-            local_multi:
-                multiprocess:
-                    max_concurrent: 4
-        jobs:
-            heavy_job:
-                pipeline:
-                    pipeline_name: heavy_pipeline
-                executor: local_multi
-        ```
+    See Also
+    --------
+    `kedro_dagster.config.execution.InProcessExecutorOptions` :
+        Base class providing retry configuration.
+    `kedro_dagster.dagster.ExecutorCreator` :
+        Builds Dagster executor definitions from these options.
     """
 
     max_concurrent: int = Field(
@@ -82,18 +100,35 @@ class MultiprocessExecutorOptions(InProcessExecutorOptions):
 class DaskClusterConfig(BaseModel):
     """Configuration for the Dask cluster.
 
-    Attributes:
-        existing (dict[str, str] | None): Connect to an existing scheduler.
-        local (dict[str, Any] | None): Local cluster configuration.
-        yarn (dict[str, Any] | None): YARN cluster configuration.
-        ssh (dict[str, Any] | None): SSH cluster configuration.
-        pbs (dict[str, Any] | None): PBS cluster configuration.
-        moab (dict[str, Any] | None): Moab cluster configuration.
-        sge (dict[str, Any] | None): SGE cluster configuration.
-        lsf (dict[str, Any] | None): LSF cluster configuration.
-        slurm (dict[str, Any] | None): SLURM cluster configuration.
-        oar (dict[str, Any] | None): OAR cluster configuration.
-        kube (dict[str, Any] | None): Kubernetes cluster configuration.
+    Attributes
+    ----------
+    existing : dict[str, str] or None
+        Connect to an existing scheduler.
+    local : dict[str, Any] or None
+        Local cluster configuration.
+    yarn : dict[str, Any] or None
+        YARN cluster configuration.
+    ssh : dict[str, Any] or None
+        SSH cluster configuration.
+    pbs : dict[str, Any] or None
+        PBS cluster configuration.
+    moab : dict[str, Any] or None
+        Moab cluster configuration.
+    sge : dict[str, Any] or None
+        SGE cluster configuration.
+    lsf : dict[str, Any] or None
+        LSF cluster configuration.
+    slurm : dict[str, Any] or None
+        SLURM cluster configuration.
+    oar : dict[str, Any] or None
+        OAR cluster configuration.
+    kube : dict[str, Any] or None
+        Kubernetes cluster configuration.
+
+    See Also
+    --------
+    `kedro_dagster.config.execution.DaskExecutorOptions` :
+        Uses this as its cluster configuration.
     """
 
     existing: dict[str, str] | None = Field(default=None, description="Connect to an existing scheduler.")
@@ -112,25 +147,34 @@ class DaskClusterConfig(BaseModel):
 class DaskExecutorOptions(BaseModel):
     """Options for the Dask executor.
 
-    Attributes:
-        cluster (DaskClusterConfig): Configuration for the Dask cluster.
+    Attributes
+    ----------
+    cluster : DaskClusterConfig
+        Configuration for the Dask cluster.
 
-    Example:
+    Examples
+    --------
+    ```yaml
+    executors:
+        dask_cluster:
+            dask_executor:
+                cluster:
+                    local:
+                        n_workers: 4
+                        threads_per_worker: 2
+    jobs:
+        dask_job:
+            pipeline:
+                pipeline_name: dask_enabled_pipeline
+            executor: dask_cluster
+    ```
 
-        ```yaml
-        executors:
-            dask_cluster:
-                dask_executor:
-                    cluster:
-                        local:
-                            n_workers: 4
-                            threads_per_worker: 2
-        jobs:
-            dask_job:
-                pipeline:
-                    pipeline_name: dask_enabled_pipeline
-                executor: dask_cluster
-        ```
+    See Also
+    --------
+    `kedro_dagster.config.execution.DaskClusterConfig` :
+        Cluster configuration consumed by this executor.
+    `kedro_dagster.dagster.ExecutorCreator` :
+        Builds Dagster executor definitions from these options.
     """
 
     cluster: DaskClusterConfig = Field(default=DaskClusterConfig(), description="Configuration for the Dask cluster.")
@@ -139,31 +183,47 @@ class DaskExecutorOptions(BaseModel):
 class DockerExecutorOptions(MultiprocessExecutorOptions):
     """Options for the Docker-based executor.
 
-    Attributes:
-        retries (RetriesEnableOptions | RetriesDisableOptions): Retry configuration for the executor.
-        max_concurrent (int | None): Maximum number of concurrent processes.
-        image (str | None): Docker image to use.
-        network (str | None): Name of the network to connect the container at creation time.
-        registry (dict[str, str] | None): Information for using a non local/public docker registry.
-        env_vars (list[str]): Environment variables for the container.
-        container_kwargs (dict[str, Any] | None): Key-value pairs for containers.create.
-        networks (list[str]): Names of the networks to connect the container at creation time.
+    Attributes
+    ----------
+    retries : RetriesEnableOptions or RetriesDisableOptions
+        Retry configuration for the executor.
+    max_concurrent : int or None
+        Maximum number of concurrent processes.
+    image : str or None
+        Docker image to use.
+    network : str or None
+        Name of the network to connect the container at creation time.
+    registry : dict[str, str] or None
+        Information for using a non local/public docker registry.
+    env_vars : list[str]
+        Environment variables for the container.
+    container_kwargs : dict[str, Any] or None
+        Key-value pairs for ``containers.create``.
+    networks : list[str]
+        Names of the networks to connect the container at creation time.
 
-    Example:
+    Examples
+    --------
+    ```yaml
+    executors:
+        docker_exec:
+            docker_executor:
+                image: "myrepo/app:latest"
+                max_concurrent: 3
+                env_vars: ["ENV=prod", "LOG_LEVEL=INFO"]
+    jobs:
+        docker_job:
+            pipeline:
+                pipeline_name: batch_pipeline
+            executor: docker_exec
+    ```
 
-        ```yaml
-        executors:
-            docker_exec:
-                docker_executor:
-                    image: "myrepo/app:latest"
-                    max_concurrent: 3
-                    env_vars: ["ENV=prod", "LOG_LEVEL=INFO"]
-        jobs:
-            docker_job:
-                pipeline:
-                    pipeline_name: batch_pipeline
-                executor: docker_exec
-        ```
+    See Also
+    --------
+    `kedro_dagster.config.execution.MultiprocessExecutorOptions` :
+        Base class providing concurrency and retry settings.
+    `kedro_dagster.dagster.ExecutorCreator` :
+        Builds Dagster executor definitions from these options.
     """
 
     image: str | None = Field(
@@ -199,29 +259,44 @@ class DockerExecutorOptions(MultiprocessExecutorOptions):
 class CeleryExecutorOptions(BaseModel):
     """Options for the Celery-based executor.
 
-    Attributes:
-        broker (str | None): Celery broker URL.
-        backend (str | None): Celery backend URL.
-        include (list[str]): List of modules every worker should import.
-        config_source (dict[str, Any] | None): Additional settings for the Celery app.
-        retries (int | None): Number of retries for the Celery tasks.
+    Attributes
+    ----------
+    broker : str or None
+        Celery broker URL.
+    backend : str or None
+        Celery backend URL.
+    include : list[str]
+        List of modules every worker should import.
+    config_source : dict[str, Any] or None
+        Additional settings for the Celery app.
+    retries : int or None
+        Number of retries for the Celery tasks.
 
-    Example:
+    Examples
+    --------
+    ```yaml
+    executors:
+        celery_exec:
+            celery_executor:
+                broker: "pyamqp://guest@localhost//"
+                backend: "rpc://"
+                include: ["my_project.workers"]
+                retries: 2
+    jobs:
+        async_job:
+            pipeline:
+                pipeline_name: async_pipeline
+            executor: celery_exec
+    ```
 
-        ```yaml
-        executors:
-            celery_exec:
-                celery_executor:
-                    broker: "pyamqp://guest@localhost//"
-                    backend: "rpc://"
-                    include: ["my_project.workers"]
-                    retries: 2
-        jobs:
-            async_job:
-                pipeline:
-                    pipeline_name: async_pipeline
-                executor: celery_exec
-        ```
+    See Also
+    --------
+    `kedro_dagster.config.execution.CeleryDockerExecutorOptions` :
+        Combines Celery with Docker container settings.
+    `kedro_dagster.config.execution.CeleryK8sJobExecutorOptions` :
+        Combines Celery with Kubernetes job settings.
+    `kedro_dagster.dagster.ExecutorCreator` :
+        Builds Dagster executor definitions from these options.
     """
 
     broker: str | None = Field(
@@ -244,41 +319,35 @@ class CeleryExecutorOptions(BaseModel):
 class CeleryDockerExecutorOptions(CeleryExecutorOptions, DockerExecutorOptions):
     """Options for the Celery-based executor which launches tasks as Docker containers.
 
-    Uses fields from both CeleryExecutorOptions and DockerExecutorOptions to configure
-    Celery workers running in Docker.
+    Uses fields from both ``CeleryExecutorOptions`` and ``DockerExecutorOptions``
+    to configure Celery workers running in Docker.
 
-    Attributes:
-        broker (str | None): Celery broker URL.
-        backend (str | None): Celery backend URL.
-        include (list[str]): List of modules every worker should import.
-        config_source (dict[str, Any] | None): Additional settings for the Celery app.
-        retries (int | None): Number of retries for the Celery tasks.
-        image (str | None): Docker image to use.
-        network (str | None): Name of the network to connect the container at creation time.
-        registry (dict[str, str] | None): Information for using a non local/public docker registry.
-        env_vars (list[str]): Environment variables for the container.
-        container_kwargs (dict[str, Any] | None): Key-value pairs for containers.create.
-        networks (list[str]): Names of the networks to connect the container at creation time.
-        max_concurrent (int | None): Maximum number of concurrent processes.
-        retries (RetriesEnableOptions | RetriesDisableOptions): Retry configuration for the executor.
+    Examples
+    --------
+    ```yaml
+    executors:
+        celery_docker_exec:
+            celery_docker_executor:
+                image: "myrepo/celery-worker:latest"
+                broker: "redis://redis:6379/0"
+                backend: "rpc://"
+                include: ["my_project.workers"]
+                env_vars: ["WORKER_POOL=default"]
+    jobs:
+        celery_docker_job:
+            pipeline:
+                pipeline_name: async_docker_pipeline
+            executor: celery_docker_exec
+    ```
 
-    Example:
-
-        ```yaml
-        executors:
-            celery_docker_exec:
-                celery_docker_executor:
-                    image: "myrepo/celery-worker:latest"
-                    broker: "redis://redis:6379/0"
-                    backend: "rpc://"
-                    include: ["my_project.workers"]
-                    env_vars: ["WORKER_POOL=default"]
-        jobs:
-            celery_docker_job:
-                pipeline:
-                    pipeline_name: async_docker_pipeline
-                executor: celery_docker_exec
-        ```
+    See Also
+    --------
+    `kedro_dagster.config.execution.CeleryExecutorOptions` :
+        Provides Celery broker and backend configuration.
+    `kedro_dagster.config.execution.DockerExecutorOptions` :
+        Provides Docker container configuration.
+    `kedro_dagster.dagster.ExecutorCreator` :
+        Builds Dagster executor definitions from these options.
     """
 
     pass
@@ -287,45 +356,55 @@ class CeleryDockerExecutorOptions(CeleryExecutorOptions, DockerExecutorOptions):
 class K8sJobConfig(BaseModel):
     """Configuration for Kubernetes jobs.
 
-    Attributes:
-        container_config (dict[str, Any]): Configuration for the Kubernetes container.
-        pod_spec_config (dict[str, Any]): Configuration for the Pod specification.
-        pod_template_spec_metadata (dict[str, Any]): Metadata for the Pod template specification.
-        job_spec_config (dict[str, Any]): Configuration for the Job specification.
-        job_metadata (dict[str, Any]): Metadata for the Job.
+    Attributes
+    ----------
+    container_config : dict[str, Any]
+        Configuration for the Kubernetes container.
+    pod_spec_config : dict[str, Any]
+        Configuration for the Pod specification.
+    pod_template_spec_metadata : dict[str, Any]
+        Metadata for the Pod template specification.
+    job_spec_config : dict[str, Any]
+        Configuration for the Job specification.
+    job_metadata : dict[str, Any]
+        Metadata for the Job.
 
-    Example YAML snippet (used inside `k8s_job_executor`):
-
-        ```yaml
-        executors:
-            k8s_exec:
-                k8s_job_executor:
-                    step_k8s_config:
+    Examples
+    --------
+    ```yaml
+    executors:
+        k8s_exec:
+            k8s_job_executor:
+                step_k8s_config:
+                    container_config:
+                        image: "python:3.11-slim"
+                        env:
+                            - name: "KEDRO_ENV"
+                              value: "prod"
+                    pod_spec_config:
+                        nodeSelector:
+                            nodepool: cpu
+                    pod_template_spec_metadata:
+                        labels:
+                            app: dagster-step
+                    job_spec_config:
+                        backoffLimit: 3
+                    job_metadata:
+                        labels:
+                            team: platform
+                per_step_k8s_config:
+                    op_name_overridden:
                         container_config:
-                            image: "python:3.11-slim"
-                            env:
-                                - name: "KEDRO_ENV"
-                                  value: "prod"
-                        pod_spec_config:
-                            nodeSelector:
-                                nodepool: cpu
-                        pod_template_spec_metadata:
-                            labels:
-                                app: dagster-step
-                        job_spec_config:
-                            backoffLimit: 3
-                        job_metadata:
-                            labels:
-                                team: platform
-                    # Optional per-op overrides
-                    per_step_k8s_config:
-                        op_name_overridden:
-                            container_config:
-                                resources:
-                                    limits:
-                                        cpu: "2"
-                                        memory: "2Gi"
-        ```
+                            resources:
+                                limits:
+                                    cpu: "2"
+                                    memory: "2Gi"
+    ```
+
+    See Also
+    --------
+    `kedro_dagster.config.execution.K8sJobExecutorOptions` :
+        Uses this as its step and per-step configuration.
     """
 
     container_config: dict[str, Any] = Field(default={}, description="Configuration for the Kubernetes container.")
@@ -344,51 +423,80 @@ class K8sJobConfig(BaseModel):
 class K8sJobExecutorOptions(MultiprocessExecutorOptions):
     """Options for the Kubernetes-based executor.
 
-    Attributes:
-        retries (RetriesEnableOptions | RetriesDisableOptions): Retry configuration for the executor.
-        max_concurrent (int | None): Maximum number of concurrent processes.
-        job_namespace (str): Kubernetes namespace for jobs.
-        load_incluster_config (bool): Whether the executor is running within a k8s cluster.
-        kubeconfig_file (str | None): Path to a kubeconfig file to use.
-        step_k8s_config (K8sJobConfig): Raw Kubernetes configuration for each step.
-        per_step_k8s_config (dict[str, K8sJobConfig]): Per op k8s configuration overrides.
-        image_pull_policy (str | None): Image pull policy for Pods.
-        image_pull_secrets (list[dict[str, str]] | None): Credentials for pulling images.
-        service_account_name (str | None): Kubernetes service account name.
-        env_config_maps (list[str] | None): ConfigMapEnvSource names for environment variables.
-        env_secrets (list[str] | None): Secret names for environment variables.
-        env_vars (list[str] | None): Environment variables for the job.
-        volume_mounts (list[dict[str, str]]): Volume mounts for the container.
-        volumes (list[dict[str, str]]): Volumes for the Pod.
-        labels (dict[str, str]): Labels for created pods.
-        resources (dict[str, dict[str, str]] | None): Compute resource requirements.
-        scheduler_name (str | None): Custom Kubernetes scheduler for Pods.
-        security_context (dict[str, str]): Security settings for the container.
+    Attributes
+    ----------
+    retries : RetriesEnableOptions or RetriesDisableOptions
+        Retry configuration for the executor.
+    max_concurrent : int or None
+        Maximum number of concurrent processes.
+    job_namespace : str
+        Kubernetes namespace for jobs.
+    load_incluster_config : bool
+        Whether the executor is running within a k8s cluster.
+    kubeconfig_file : str or None
+        Path to a kubeconfig file to use.
+    step_k8s_config : K8sJobConfig
+        Raw Kubernetes configuration for each step.
+    per_step_k8s_config : dict[str, K8sJobConfig]
+        Per op k8s configuration overrides.
+    image_pull_policy : str or None
+        Image pull policy for Pods.
+    image_pull_secrets : list[dict[str, str]] or None
+        Credentials for pulling images.
+    service_account_name : str or None
+        Kubernetes service account name.
+    env_config_maps : list[str] or None
+        ``ConfigMapEnvSource`` names for environment variables.
+    env_secrets : list[str] or None
+        Secret names for environment variables.
+    env_vars : list[str] or None
+        Environment variables for the job.
+    volume_mounts : list[dict[str, str]]
+        Volume mounts for the container.
+    volumes : list[dict[str, str]]
+        Volumes for the Pod.
+    labels : dict[str, str]
+        Labels for created pods.
+    resources : dict[str, dict[str, str]] or None
+        Compute resource requirements.
+    scheduler_name : str or None
+        Custom Kubernetes scheduler for Pods.
+    security_context : dict[str, str]
+        Security settings for the container.
 
-    Example:
+    Examples
+    --------
+    ```yaml
+    executors:
+        k8s_exec:
+            k8s_job_executor:
+                job_namespace: "dagster"
+                max_concurrent: 2
+                image_pull_policy: IfNotPresent
+                resources:
+                    limits:
+                        cpu: "1"
+                        memory: "1Gi"
+                    requests:
+                        cpu: "500m"
+                        memory: "512Mi"
+                labels:
+                    team: platform
+    jobs:
+        k8s_job:
+            pipeline:
+                pipeline_name: k8s_pipeline
+            executor: k8s_exec
+    ```
 
-        ```yaml
-        executors:
-            k8s_exec:
-                k8s_job_executor:
-                    job_namespace: "dagster"
-                    max_concurrent: 2
-                    image_pull_policy: IfNotPresent
-                    resources:
-                        limits:
-                            cpu: "1"
-                            memory: "1Gi"
-                        requests:
-                            cpu: "500m"
-                            memory: "512Mi"
-                    labels:
-                        team: platform
-        jobs:
-            k8s_job:
-                pipeline:
-                    pipeline_name: k8s_pipeline
-                executor: k8s_exec
-        ```
+    See Also
+    --------
+    `kedro_dagster.config.execution.K8sJobConfig` :
+        Kubernetes job configuration consumed by this executor.
+    `kedro_dagster.config.execution.CeleryK8sJobExecutorOptions` :
+        Combines Celery with Kubernetes job settings.
+    `kedro_dagster.dagster.ExecutorCreator` :
+        Builds Dagster executor definitions from these options.
     """
 
     job_namespace: str = Field(default="dagster")
@@ -469,49 +577,38 @@ class K8sJobExecutorOptions(MultiprocessExecutorOptions):
 class CeleryK8sJobExecutorOptions(CeleryExecutorOptions, K8sJobExecutorOptions):
     """Options for the Celery-based executor which launches tasks as Kubernetes jobs.
 
-    Attributes:
-        broker (str | None): Celery broker URL.
-        backend (str | None): Celery backend URL.
-        include (list[str]): List of modules every worker should import.
-        config_source (dict[str, Any] | None): Additional settings for the Celery app.
-        retries (int | None): Number of retries for the Celery tasks.
-        job_namespace (str | None): Kubernetes namespace for jobs.
-        load_incluster_config (bool | None): Whether the executor is running within a k8s cluster.
-        kubeconfig_file (str | None): Path to a kubeconfig file to use.
-        step_k8s_config (K8sJobConfig): Raw Kubernetes configuration for each step.
-        per_step_k8s_config (dict[str, K8sJobConfig]): Per op k8s configuration overrides.
-        image_pull_policy (str | None): Image pull policy for Pods.
-        image_pull_secrets (list[dict[str, str]] | None): Credentials for pulling images.
-        service_account_name (str | None): Kubernetes service account name.
-        env_config_maps (list[str] | None): ConfigMapEnvSource names for environment variables.
-        env_secrets (list[str] | None): Secret names for environment variables.
-        env_vars (list[str] | None): Environment variables for the job.
-        volume_mounts (list[dict[str, str]]): Volume mounts for the container.
-        volumes (list[dict[str, str]]): Volumes for the Pod.
-        labels (dict[str, str]): Labels for created pods.
-        resources (dict[str, dict[str, str]] | None): Compute resource requirements.
-        scheduler_name (str | None): Custom Kubernetes scheduler for Pods.
-        security_context (dict[str, str]): Security settings for the container.
-        job_wait_timeout (float): Wait time in seconds for a job to complete before marking as failed.
+    Attributes
+    ----------
+    job_wait_timeout : float
+        Wait time in seconds for a job to complete before marking as failed.
 
-    Example:
+    Examples
+    --------
+    ```yaml
+    executors:
+        celery_k8s_exec:
+            celery_k8s_job_executor:
+                broker: "pyamqp://guest@broker//"
+                backend: "rpc://"
+                job_namespace: "dagster"
+                job_wait_timeout: 43200
+                env_vars: ["ENV=prod"]
+                include: ["my_project.workers"]
+    jobs:
+        celery_k8s_job:
+            pipeline:
+                pipeline_name: hybrid_async_pipeline
+            executor: celery_k8s_exec
+    ```
 
-        ```yaml
-        executors:
-            celery_k8s_exec:
-                celery_k8s_job_executor:
-                    broker: "pyamqp://guest@broker//"
-                    backend: "rpc://"
-                    job_namespace: "dagster"
-                    job_wait_timeout: 43200
-                    env_vars: ["ENV=prod"]
-                    include: ["my_project.workers"]
-        jobs:
-            celery_k8s_job:
-                pipeline:
-                    pipeline_name: hybrid_async_pipeline
-                executor: celery_k8s_exec
-        ```
+    See Also
+    --------
+    `kedro_dagster.config.execution.CeleryExecutorOptions` :
+        Provides Celery broker and backend configuration.
+    `kedro_dagster.config.execution.K8sJobExecutorOptions` :
+        Provides Kubernetes job configuration.
+    `kedro_dagster.dagster.ExecutorCreator` :
+        Builds Dagster executor definitions from these options.
     """
 
     job_wait_timeout: float = Field(

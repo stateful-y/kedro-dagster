@@ -1,22 +1,55 @@
 repos:
--   repo: https://github.com/pre-commit/pre-commit-hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
-    -   id: check-yaml
-    -   id: check-merge-conflict
-    -   id: end-of-file-fixer
-    -   id: trailing-whitespace
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+      - id: check-json
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: debug-statements
+      - id: mixed-line-ending
 
--   repo: https://github.com/astral-sh/ruff-pre-commit
+  # Enforce conventional commit messages
+  - repo: https://github.com/commitizen-tools/commitizen
+    rev: v4.3.0
+    hooks:
+      - id: commitizen
+        stages: [commit-msg]
+
+  - repo: https://github.com/econchick/interrogate
+    rev: 1.7.0
+    hooks:
+    -   id: interrogate
+        types: [python]
+        files: ^src/
+        exclude: .*_version\.py$
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.9.9
     hooks:
-    -   id: ruff
-        args: ["--fix", "--output-format=full"]
-    -   id: ruff-format
+      # Run the linter
+      - id: ruff
+        args: [--fix]
+      # Run the formatter
+      - id: ruff-format
 
--   repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.15.0
+  # Type checking with ty
+  - repo: local
     hooks:
-    -   id: mypy
-        args: ["--strict", "src"]
+      - id: ty
+        name: ty
+        entry: uv run ty check src
+        language: system
+        types: [python]
+        files: ^src/
         pass_filenames: false
+
+  # Markdown linting and formatting with rumdl
+  - repo: https://github.com/rvben/rumdl-pre-commit
+    rev: v0.1.57
+    hooks:
+      - id: rumdl
+      - id: rumdl-fmt

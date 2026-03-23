@@ -1,5 +1,5 @@
-![](images/logo_dark.png#only-dark){width=800}
-![](images/logo_light.png#only-light){width=800}
+![](assets/logo_dark.png#only-dark){width=800}
+![](assets/logo_light.png#only-light){width=800}
 
 # Welcome to Kedro-Dagster's documentation
 
@@ -7,7 +7,7 @@ Kedro-Dagster is a [Kedro](https://kedro.readthedocs.io/) plugin that enables se
 
 <div class="grid cards" markdown>
 
--   __Get Started in 5 Minutes__
+-   **Get Started in 5 Minutes**
 
     ---
 
@@ -17,7 +17,7 @@ Kedro-Dagster is a [Kedro](https://kedro.readthedocs.io/) plugin that enables se
 
     [Getting Started](pages/getting-started.md)
 
--   __Need Help?__
+-   **Need Help?**
 
     ---
 
@@ -25,15 +25,15 @@ Kedro-Dagster is a [Kedro](https://kedro.readthedocs.io/) plugin that enables se
 
     [FAQ & Troubleshooting](pages/faq.md)
 
--   __Learn the Concepts__
+-   **Learn the Concepts**
 
     ---
 
     Understand how Kedro and Dagster work together
 
-    [Introduction](pages/intro.md) · [User guide](pages/guide.md)
+    [Introduction](pages/intro.md) · [User guide](pages/user-guide.md)
 
--   __See It In Action__
+-   **See It In Action**
 
     ---
 
@@ -44,8 +44,8 @@ Kedro-Dagster is a [Kedro](https://kedro.readthedocs.io/) plugin that enables se
 </div>
 
 <figure markdown>
-![Lineage graph of assets involved in the specified jobs](images/getting-started/asset_graph_dark.png#only-dark)
-![Lineage graph of assets involved in the specified jobs](images/getting-started/asset_graph_light.png#only-light)
+![Lineage graph of assets involved in the specified jobs](assets/getting-started/asset_graph_dark.png#only-dark)
+![Lineage graph of assets involved in the specified jobs](assets/getting-started/asset_graph_light.png#only-light)
 <figcaption>Example of a Dagster Asset Lineage Graph generated from a Kedro project.</figcaption>
 </figure>
 
@@ -57,7 +57,7 @@ Kedro-Dagster is a [Kedro](https://kedro.readthedocs.io/) plugin that enables se
 
 - [What Is Kedro?](pages/intro.md#what-is-kedro)
 - [What Is Dagster?](pages/intro.md#what-is-dagster)
-- [Why Kedro‑Dagster?](pages/intro.md#why-kedrodagster)
+- [Why Kedro-Dagster?](pages/intro.md#why-kedrodagster)
 - [Key features](pages/intro.md#key-features)
 - [Limitations & considerations](pages/intro.md#limitations-and-considerations)
 - [Contributing & community](pages/intro.md#contributing-and-community)
@@ -78,22 +78,19 @@ Kedro-Dagster is a [Kedro](https://kedro.readthedocs.io/) plugin that enables se
 
 - [Project overview](pages/example.md#project-overview)
 - [Quick start](pages/example.md#quick-start)
-- [User guide](pages/guide.md#user-guide)
+- [User guide](pages/user-guide.md#user-guide)
 
-### [User guide](pages/guide.md)
+### [User guide](pages/user-guide.md)
 
   *In-depth documentation on the design, architecture, and core concepts of the plugin.*
 
-- [Project configuration](pages/guide.md#project-configuration)
-- [Kedro-Dagster concept mapping](pages/guide.md#kedro-dagster-concept-mapping)
-- [Compatibility notes between Kedro and Dagster](pages/guide.md#compatibility-notes-between-kedro-and-dagster)
+- [Project configuration](pages/user-guide.md#project-configuration)
+- [Kedro-Dagster concept mapping](pages/user-guide.md#kedro-dagster-concept-mapping)
+- [Compatibility notes between Kedro and Dagster](pages/user-guide.md#compatibility-notes-between-kedro-and-dagster)
 
-### [Reference](pages/reference.md)
+### [Reference](pages/api-reference.md)
 
-  *Detailed reference for the Kedro-Dagster CLI and API, including classes, functions, and configuration options.*
-
-- [Kedro-Dagster CLI](pages/reference.md#kedro-dagster-cli)
-- [Kedro-Dagster API](pages/reference.md#kedro-dagster-api)
+  *Complete API reference for all Kedro-Dagster classes and functions with searchable index.*
 
 ## License
 

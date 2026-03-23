@@ -1,9 +1,8 @@
 """Configuration definitions for Kedro-Dagster jobs.
 
-These pydantic models describe the shape of the `dagster.yml` entries used to
+These pydantic models describe the shape of the ``dagster.yml`` entries used to
 translate Kedro pipelines into Dagster jobs, including pipeline filtering and
-executor/schedule selection.
-"""
+executor/schedule selection."""
 
 from pydantic import BaseModel
 
@@ -17,32 +16,47 @@ from .logging import LoggerOptions
 class PipelineOptions(BaseModel):
     """Options for filtering and configuring Kedro pipelines within a Dagster job.
 
-    Attributes:
-        pipeline_name (str): Name of the Kedro pipeline to run. Defaults to `__default__`.
-        from_nodes (list[str] | None): List of node names to start execution from.
-        to_nodes (list[str] | None): List of node names to end execution at.
-        node_names (list[str] | None): List of specific node names to include in the pipeline.
-        from_inputs (list[str] | None): List of dataset names to use as entry points.
-        to_outputs (list[str] | None): List of dataset names to use as exit points.
-        node_namespace(s) (list[str] | None): Namespace(s) to filter nodes by. For Kedro >= 1.0, the
-            filter key is "node_namespaces" (plural) and must be a list of strings; for older
-            versions, it is "node_namespace" (singular string).
-        tags (list[str] | None): List of tags to filter nodes by.
+    Attributes
+    ----------
+    pipeline_name : str
+        Name of the Kedro pipeline to run. Defaults to ``__default__``.
+    from_nodes : list[str] or None
+        List of node names to start execution from.
+    to_nodes : list[str] or None
+        List of node names to end execution at.
+    node_names : list[str] or None
+        List of specific node names to include in the pipeline.
+    from_inputs : list[str] or None
+        List of dataset names to use as entry points.
+    to_outputs : list[str] or None
+        List of dataset names to use as exit points.
+    node_namespaces : list[str] or None
+        Namespace(s) to filter nodes by (Kedro >= 1.0). For older Kedro
+        versions, the field is ``node_namespace`` (singular string).
+    tags : list[str] or None
+        List of tags to filter nodes by.
 
-    Example:
-
+    Examples
+    --------
     ```yaml
     jobs:
       sales_etl:
         pipeline:
           pipeline_name: etl
-          node_namespaces: ["sales", "shared"]  # or node_namespace: "sales" for Kedro < 1.0
+          node_namespaces: ["sales", "shared"]
           tags: ["daily", "priority"]
           from_nodes: ["extract_raw_sales"]
           to_nodes: ["publish_clean_sales"]
           from_inputs: ["raw_sales"]
           to_outputs: ["clean_sales"]
     ```
+
+    See Also
+    --------
+    `kedro_dagster.config.job.JobOptions` :
+        Wraps this model alongside executor and schedule settings.
+    `kedro_dagster.utils.get_filter_params_dict` :
+        Extracts filter parameters from this configuration.
     """
 
     pipeline_name: str = "__default__"
@@ -70,15 +84,20 @@ class PipelineOptions(BaseModel):
 class JobOptions(BaseModel):
     """Configuration options for a Dagster job.
 
-    Attributes:
-        pipeline (PipelineOptions): PipelineOptions specifying which pipeline and nodes to run.
-        executor (ExecutorOptions | str | None): ExecutorOptions instance or string key referencing an executor.
-        schedule (ScheduleOptions | str | None): ScheduleOptions instance or string key referencing a schedule.
-        loggers (list[LoggerOptions | str] | None): List of logger configurations (inline LoggerOptions)
-            or list of logger names (strings) to attach to the job. Can mix both types.
+    Attributes
+    ----------
+    pipeline : PipelineOptions
+        Pipeline options specifying which pipeline and nodes to run.
+    executor : ExecutorOptions or str or None
+        Executor options instance or string key referencing an executor.
+    schedule : ScheduleOptions or str or None
+        Schedule options instance or string key referencing a schedule.
+    loggers : list[LoggerOptions or str] or None
+        List of logger configurations (inline ``LoggerOptions``) or
+        logger names (strings) to attach to the job.
 
-    Example:
-
+    Examples
+    --------
     ```yaml
     jobs:
       my_data_processing:
@@ -86,10 +105,21 @@ class JobOptions(BaseModel):
           pipeline_name: data_processing
           node_namespaces: [price_predictor]
           tags: [test1]
-        executor: multiprocessing   # references an executor name defined under executors:
-        schedule: daily_schedule    # optional, references a schedule name defined under schedules:
+        executor: multiprocessing
+        schedule: daily_schedule
         loggers: [console, file_logger]
     ```
+
+    See Also
+    --------
+    `kedro_dagster.config.job.PipelineOptions` :
+        Pipeline filtering options within this job.
+    `kedro_dagster.config.automation.ScheduleOptions` :
+        Schedule options referenced by this job.
+    `kedro_dagster.config.logging.LoggerOptions` :
+        Logger options referenced by this job.
+    `kedro_dagster.config.kedro_dagster.KedroDagsterConfig` :
+        Top-level config that holds a dict of these job options.
     """
 
     pipeline: PipelineOptions

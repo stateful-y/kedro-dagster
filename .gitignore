@@ -1,44 +1,8 @@
-# CMake
-cmake-build-debug/
-
-## File-based project format:
-*.iws
-
-## Plugin-specific files:
-
-# IntelliJ
-.idea/
-*.iml
-out/
-
-### macOS
-*.DS_Store
-.AppleDouble
-.LSOverride
-.Trashes
-
-# mpeltonen/sbt-idea plugin
-.idea_modules/
-
-# JIRA plugin
-atlassian-ide-plugin.xml
-
-# Crashlytics plugin (for Android Studio and IntelliJ)
-com_crashlytics_export_strings.xml
-crashlytics.properties
-crashlytics-build.properties
-fabric.properties
-
-### Python template
-# Byte-compiled / optimized / DLL files
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
-
-# C extensions
 *.so
-
-# Distribution / packaging
 .Python
 build/
 develop-eggs/
@@ -52,92 +16,117 @@ parts/
 sdist/
 var/
 wheels/
+share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
 MANIFEST
 
-# PyInstaller
-#  Usually these files are written by a python script from a template
-#  before PyInstaller builds the exe, so as to inject date/other infos into it.
-*.manifest
-*.spec
-
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Unit test / coverage reports
-htmlcov/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.*xml
-junit.*xml
-*.cover
-.hypothesis/
-fake-project
-
-# Translations
-*.mo
-*.pot
-
-# Django
-*.log
-.static_storage/
-.media/
-local_settings.py
-
-# Flask
-instance/
-.webassets-cache
-
-# Scrapy
-.scrapy
-
-# PyBuilder
-target/
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# pyenv
-.python-version
-
-# Celery beat schedule file
-celerybeat-schedule
-
-# SageMath parsed files
-*.sage.py
-
-# Environments
-.env
-.venv
-env/
+# Virtual environments
 venv/
 ENV/
-env.bak/
-venv.bak/
+env/
+.venv
+.python-version
 
-# uv
-uv.lock
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
 
-# Spyder project settings
-.spyderproject
-.spyproject
+# Testing
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+*.cover
+*.log
+.hypothesis/
+junit.*.xml
+coverage.*.xml
+coverage.xml
 
-# Rope project settings
-.ropeproject
-
-# MkDocs documentation
-/site
-
-# mypy
+# Type checking
+.ty_cache/
+.pytype/
+.pyre/
 .mypy_cache/
 
-# Visual Studio Code
-.vscode/
+# Documentation
+docs/_build/
+site/
+.mkdocs_cache/
+
+# Distribution
+*.whl
+
+# Environment
+.env
+.env.local
+
+# Ruff
+.ruff_cache/
+
+# build
+uv.lock
+src/kedro_dagster/_version.py
+
+# Auto-generated API submodule pages (created by docs/hooks.py)
+docs/pages/api/
+
+# AI Assistant Instructions
+CLAUDE.md
+CLAUDE_INSTRUCTIONS.md
+.claude.md
+claude-instructions.md
+claude-config.md
+claude-prompt.md
+
+# GitHub Copilot
+COPILOT.md
+COPILOT_INSTRUCTIONS.md
+.copilot.md
+copilot-instructions.md
+copilot-config.md
+copilot-prompt.md
+
+# ChatGPT / OpenAI
+CHATGPT.md
+GPT.md
+OPENAI.md
+chatgpt-instructions.md
+gpt-instructions.md
+openai-instructions.md
+
+# Generic AI/LLM instructions
+AI.md
+AI_INSTRUCTIONS.md
+LLM.md
+LLM_INSTRUCTIONS.md
+.ai-instructions.md
+.llm-instructions.md
+ai-prompt.md
+llm-prompt.md
+assistant-instructions.md
+
+# Custom instructions directories
+.ai/
+.llm/
+.copilot/
+.claude/
+ai-instructions/
+llm-instructions/
+
+# Project-specific AI context (that you want to keep private)
+.cursorrules
+.cursor/
+.aider*
+.continue/
 # end to end tests assets
 
 # Vim

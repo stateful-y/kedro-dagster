@@ -1,37 +1,25 @@
-[build-system]
-build-backend = "hatchling.build"
-requires = [
-  "hatch-vcs>=0.4",
-  "hatchling>=1.25",
-]
-
 [project]
-name = "kedro-dagster"
+name = "kedro_dagster"
 dynamic = ["version"]
-authors = [
-  { name = "Guillaume Tauzin", email = "gtauzin@stateful-y.io" },
-]
-maintainers = [
-  { name = "Guillaume Tauzin", email = "gtauzin@stateful-y.io" }
-]
 description = "Kedro-Dagster makes it easy to deploy Kedro projects to Dagster"
-license = "Apache-2.0"
-readme.content-type = "text/markdown"
-readme.file = "README.md"
-requires-python = ">=3.10, <3.14"
-classifiers = [
-  "Operating System :: OS Independent",
-  "Programming Language :: Python",
-  "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.10",
-  "Programming Language :: Python :: 3.11",
-  "Programming Language :: Python :: 3.12",
-  "Programming Language :: Python :: 3.13",
+readme = "README.md"
+maintainers = [
+    { name = "Guillaume Tauzin", email = "gtauzin@stateful-y.io" }
 ]
-urls."Bug Tracker" = "https://github.com/stateful-y/kedro-dagster/issues"
-urls."Changelog" = "https://github.com/stateful-y/kedro-dagster/releases"
-urls.Documentation = "https://github.com/stateful-y/kedro-dagster/"
-urls."Source Code" = "https://github.com/stateful-y/kedro-dagster"
+authors = [
+    { name = "Guillaume Tauzin", email = "gtauzin@stateful-y.io" }
+]
+license = { text = "Apache-2.0" }
+requires-python = ">=3.10"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
 dependencies = [
     "kedro>=0.19,<2.0",
     "kedro-datasets",
@@ -41,54 +29,81 @@ dependencies = [
     "pydantic>=1.0.0,<3.0.0",
 ]
 
+# [ADDITION] project-specific optional dependency
 [project.optional-dependencies]
 mlflow = [
-  "kedro-mlflow>=0.13",
-  "mlflow>=2.20",
-  "dagster-mlflow",
+    "kedro-mlflow>=0.13",
+    "mlflow>=2.20",
+    "dagster-mlflow",
 ]
 
 [dependency-groups]
 dev = [
-  { include-group = "docs" },
-  { include-group = "tests" },
-  { include-group = "fix" },
-]
-docs = [
-  "mkdocs-material==9.7.5",
-  "mkdocs-git-revision-date-localized-plugin==1.5.1",
-  "mkdocstrings==1.0.3",
-  "mkdocstrings-python==2.0.3",
-  "mkdocs-glightbox==0.5.2",
-  "pymdown-extensions==10.21",
-  "black==26.3.1",
-]
-fix = [
-  "pre-commit-uv>=4.1",
+    {include-group = "tests"},
+    {include-group = "lint"},
+    {include-group = "docs"},
+    {include-group = "fix"},
 ]
 tests = [
-  "pytest>=8.3",
-  "pytest-mock>=3.14",
-  "pytest-cov>=7.0",
-  "covdefaults>=2.3",
-  "psutil>=6.1",
-  "pyaml>=25.1",
-  "pandas>=2.3",
+    "pytest>=8.3",
+    "pytest-cov>=7.0",
+    "pytest-mock>=3.14",
+    "pytest-xdist>=3.8",
+    "covdefaults>=2.3",
+    "hypothesis>=6.100",
+    # [ADDITION] project-specific test deps
+    "psutil>=6.1",
+    "pyaml>=25.1",
+    "pandas>=2.3",
+]
+lint = [
+    "ruff>=0.8.0",
+    "ty>=0.0.12",
+]
+docs = [
+    "mkdocs>=1.6.0",
+    "mkdocs-autorefs>=1.0",
+    "mkdocs-material>=9.7",
+    "mkdocstrings[python]>=0.26.0",
+    "pymdown-extensions>=10.20.1",
+    # [ADDITION] project-specific docs plugins
+    "mkdocs-git-revision-date-localized-plugin>=1.5",
+    "mkdocs-glightbox>=0.5",
+]
+fix = [
+    "pre-commit-uv>=4.1",
 ]
 
+# [ADDITION] Kedro CLI plugin registration
 [project.entry-points."kedro.project_commands"]
 dagster = "kedro_dagster.cli:commands"
+
+[project.urls]
+Homepage = "https://github.com/stateful-y/kedro-dagster"
+Documentation = "https://kedro-dagster.readthedocs.io"
+Repository = "https://github.com/stateful-y/kedro-dagster"
+"Bug Tracker" = "https://github.com/stateful-y/kedro-dagster/issues"
+
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/kedro_dagster"]
 
 [tool.hatch.version]
 source = "vcs"
 fallback-version = "0.0.0"
 
-[tool.hatch.metadata.hooks.vcs.urls]
-source_archive = "https://github.com/stateful-y/kedro-dagster/archive/{commit_hash}.zip"
+[tool.hatch.build.hooks.vcs]
+version-file = "src/kedro_dagster/_version.py"
 
 [tool.ruff]
 line-length = 120
+target-version = "py310"
+src = ["src", "tests"]
 show-fixes = true
+exclude = ["src/kedro_dagster/_version.py"]
 
 [tool.ruff.format]
 preview = true
@@ -96,22 +111,26 @@ docstring-code-format = true
 docstring-code-line-length = 100
 
 [tool.ruff.lint]
-exclude = ["docs/**", "features/**"]
-# all rules can be found here: https://beta.ruff.rs/docs/rules/
 select = [
-    "F",   # Pyflakes
-    "W",   # pycodestyle
-    "E",   # pycodestyle
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
     "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
     "UP",  # pyupgrade
+    "ARG", # flake8-unused-arguments
+    "SIM", # flake8-simplify
     "PL",  # Pylint
-    "T201", # Print Statement
+    "T201", # Print statement
 ]
-ignore=[
-    "E203", # space before : (needed for how black formats slicing)
-    "E731", # do not assign a lambda expression, use a def
-    "E741", # do not use variables named 'l', 'O', or 'I'
-    "E501", # ruff format takes care of line-too-long
+ignore = [
+    "E203",    # space before : (needed for how black formats slicing)
+    "E501",    # line too long (handled by formatter)
+    "B008",    # do not perform function calls in argument defaults
+    "PLC0415", # import not at top-level (lazy imports are intentional)
+    "SIM102",  # collapsible if (clarity over brevity)
+    "SIM105",  # contextlib.suppress (comments on except clauses preferred)
     "PLR0913", # too many args in func def
     "PLR0915", # too many statements
     "PLR0912", # too many branches
@@ -119,47 +138,128 @@ ignore=[
 ]
 
 [tool.ruff.lint.per-file-ignores]
-# It's fine not to put the import at the top of the file in the examples
-# folder.
-"examples/*"=["E402"]
+"tests/**/*" = ["ARG", "S101", "T201", "PLR2004"]  # Allow assert statements, prints, and magic values in tests
+"docs/**/*" = ["T201", "ARG001", "PLW0603"]  # Allow prints, unused args, and globals in documentation hooks
+
+[tool.ruff.lint.isort]
+known-first-party = ["kedro_dagster"]
+
+[tool.interrogate]
+ignore-init-method = true
+ignore-init-module = true
+ignore-magic = false
+ignore-semiprivate = false
+ignore-private = false
+ignore-property-decorators = false
+ignore-module = false
+ignore-nested-functions = false
+ignore-nested-classes = true
+ignore-setters = false
+fail-under = 75
+exclude = ["setup.py", "docs", "build", "tests", "*_version.py"]
+ignore-regex = ["^get$", "^mock_.*", ".*BaseClass.*"]
+verbose = 0
+quiet = false
+whitelist-regex = []
+color = true
+omit-covered-files = false
+
+[tool.ty.rules]
+# Gradually adopt ty: demote noisy rules to warnings while the codebase is adapted
+unresolved-attribute = "warn"
+unresolved-import = "warn"
+invalid-assignment = "warn"
+invalid-argument-type = "warn"
+not-subscriptable = "warn"
+no-matching-overload = "warn"
+invalid-return-type = "warn"
+call-non-callable = "warn"
+unsupported-operator = "warn"
+missing-argument = "warn"
 
 [tool.pytest.ini_options]
-addopts = "--color=yes"
+testpaths = ["tests"]
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "--color=yes",
+    "--cov=kedro_dagster",
+    "--cov-report=term-missing:skip-covered",
+    "--cov-report=html",
+    "--cov-report=xml",
+]
+markers = [
+    "integration: marks tests as integration tests that run subprocesses (deselect with '-m \"not integration\"')",
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+]
 doctest_optionflags = "NORMALIZE_WHITESPACE"
+# [ADDITION] project-specific pytest config
 norecursedirs = "src/kedro_dagster/templates"
 filterwarnings = [
-  # Ignore all Pydantic v2 deprecation warnings during tests
-  "ignore::pydantic.warnings.PydanticDeprecatedSince20",
-  "ignore::pydantic.warnings.PydanticDeprecatedSince212",
-  # Silence Kedro framework warnings about missing pipelines in test scenarios
-  "ignore:Your project does not contain any pipelines with nodes:UserWarning:kedro.framework.cli.starters",
-  # Ignore dagster-mlflow BetaWarning
-  "ignore:Function `_create_mlflow_run_hook` is currently in beta:dagster.BetaWarning:dagster_mlflow.hooks",
-  # Ignore pluggy `run_result` UserWarning
-  "ignore:Argument\\(s\\) 'run_result' which are declared in the hookspec cannot be found in this hook call:UserWarning",
+    # Ignore all Pydantic v2 deprecation warnings during tests
+    "ignore::pydantic.warnings.PydanticDeprecatedSince20",
+    "ignore::pydantic.warnings.PydanticDeprecatedSince212",
+    # Silence Kedro framework warnings about missing pipelines in test scenarios
+    "ignore:Your project does not contain any pipelines with nodes:UserWarning:kedro.framework.cli.starters",
+    # Ignore dagster-mlflow BetaWarning
+    "ignore:Function `_create_mlflow_run_hook` is currently in beta:dagster.BetaWarning:dagster_mlflow.hooks",
+    # Ignore pluggy `run_result` UserWarning
+    "ignore:Argument\\(s\\) 'run_result' which are declared in the hookspec cannot be found in this hook call:UserWarning",
 ]
 
-[tool.mypy]
-python_version = "3.13"
-strict = true
-ignore_missing_imports = true
-disable_error_code = ["misc", "import-untyped"]
+[tool.coverage.paths]
+source = ["src/kedro_dagster"]
 
-[tool.coverage]
-paths.source = ["src/kedro_dagster"]
-report.fail_under = 1
-report.include_namespace_packages = true
-report.skip_covered = false
-html.show_contexts = true
-run.omit = [
-    "src/templates/definitions.py",
-    "tests/*",
+[tool.coverage.run]
+source = ["kedro_dagster"]
+branch = true
+parallel = true
+sigterm = true
+concurrency = ["multiprocessing"]
+plugins = ["covdefaults"]
+omit = [
     "*/tests/*",
+    "*/__pycache__/*",
+    "*/_version.py",
+    "src/templates/definitions.py",
 ]
-run.parallel = true
-run.branch = true
-run.sigterm = true
-run.concurrency = ["multiprocessing"]
-run.plugins = [
-  "covdefaults",
+
+[tool.coverage.report]
+precision = 2
+show_missing = true
+skip_covered = false
+fail_under = 1
+include_namespace_packages = true
+
+[tool.coverage.html]
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+version_scheme = "semver"
+version_provider = "scm"
+update_changelog_on_bump = false
+major_version_zero = true
+tag_format = "v$version"
+
+[tool.rumdl]
+flavor = "mkdocs"
+line-length = 120
+disable = [
+    "MD012",  # Multiple consecutive blank lines (common in generated content)
+    "MD013",  # Line length (handled by formatter, many long URLs/tables)
+    "MD022",  # Heading blank lines (varies by document style)
+    "MD031",  # No blank line before fenced code block
+    "MD032",  # List should be preceded by blank line
+    "MD033",  # Inline HTML (needed for README logo, MkDocs grid cards)
+    "MD034",  # URL/email without angle brackets
+    "MD045",  # Image missing alt text (logos use empty alt intentionally)
+    "MD046",  # Code block style (indented blocks required inside MkDocs tabs)
+    "MD051",  # Link fragments (cross-doc references resolved at MkDocs build time)
 ]
+exclude = ["CHANGELOG.md", "site", "htmlcov", ".nox", ".venv"]
+
+[tool.rumdl.per-file-ignores]
+".github/PULL_REQUEST_TEMPLATE.md" = ["MD041"]  # PR template starts with checklist
+"README.md" = ["MD041"]  # README starts with logo, not heading
+"docs/index.md" = ["MD041"]  # Landing page starts with logo, not heading
+"CONTRIBUTING.md" = ["MD057"]  # Relative link to docs/ is valid at project level

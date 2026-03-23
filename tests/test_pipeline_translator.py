@@ -159,7 +159,7 @@ def test_after_pipeline_run_hook_inputs_fan_in_for_partitions(env, request):
                 break
 
     assert node_def is not None, "Hook op definition not found in job"
-    ins_keys = set(getattr(node_def, "ins").keys())
+    ins_keys = set(node_def.ins.keys())
     # Expect a Nothing input per partition for the last node (node2)
     # The naming includes both upstream and downstream partition keys for clarity
     assert "node2__p1__p1_after_pipeline_run_hook_input" in ins_keys
@@ -566,6 +566,7 @@ def test_warning_suppression_in_context():
             warnings.warn(
                 "Argument(s) 'run_result' which are declared in the hookspec cannot be found in this hook call",
                 UserWarning,
+                stacklevel=2,
             )
             # The warning was captured by our mock, which means it wasn't filtered by the context
             # This is expected since we're not running in the exact pluggy context
@@ -601,7 +602,7 @@ def test_create_after_pipeline_run_hook_op_method_exists(mocker):
 
     # Test that the method exists
     assert hasattr(translator, "_create_after_pipeline_run_hook_op")
-    method = getattr(translator, "_create_after_pipeline_run_hook_op")
+    method = translator._create_after_pipeline_run_hook_op
     assert callable(method)
 
     # Test that we can call it with a mock pipeline and run params
@@ -626,8 +627,8 @@ def test_warnings_catch_warnings_context_manager_works():
         warnings.warn = capture_warn
 
         try:
-            warnings.warn("test warning", UserWarning)
-            warnings.warn("other warning", UserWarning)
+            warnings.warn("test warning", UserWarning, stacklevel=2)
+            warnings.warn("other warning", UserWarning, stacklevel=2)
 
             # Both warnings should be captured since we're bypassing the filter
             assert len(captured) == 2

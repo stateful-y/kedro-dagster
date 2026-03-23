@@ -1,9 +1,8 @@
 """Configuration definitions for Kedro-Dagster.
 
-This module parses and validates the top-level `dagster.yml` entries, merging
+This module parses and validates the top-level ``dagster.yml`` entries, merging
 sub-models for executors, schedules, and jobs configs into a single
-KedroDagsterConfig object.
-"""
+``KedroDagsterConfig`` object."""
 
 from logging import getLogger
 from typing import TYPE_CHECKING, Any
@@ -25,13 +24,23 @@ LOGGER = getLogger(__name__)
 
 
 class KedroDagsterConfig(BaseModel):
-    """Main configuration class representing the `dagster.yml` structure.
+    """Main configuration class representing the ``dagster.yml`` structure.
 
-    Attributes:
-        loggers (dict[str, LoggerOptions] | None): Mapping of logger names to logger options.
-        executors (dict[str, ExecutorOptions] | None): Mapping of executor names to executor options.
-        schedules (dict[str, ScheduleOptions] | None): Mapping of schedule names to schedule options.
-        jobs (dict[str, JobOptions] | None): Mapping of job names to job options.
+    Attributes
+    ----------
+    loggers : dict[str, LoggerOptions] or None
+        Mapping of logger names to logger options.
+    executors : dict[str, ExecutorOptions] or None
+        Mapping of executor names to executor options.
+    schedules : dict[str, ScheduleOptions] or None
+        Mapping of schedule names to schedule options.
+    jobs : dict[str, JobOptions] or None
+        Mapping of job names to job options.
+
+    See Also
+    --------
+    `kedro_dagster.config.kedro_dagster.get_dagster_config` :
+        Loads and returns an instance of this class.
     """
 
     loggers: dict[str, LoggerOptions] | None = None
@@ -48,6 +57,23 @@ class KedroDagsterConfig(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def validate_executors(cls, values: dict[str, Any]) -> dict[str, Any]:
+        """Parse raw executor config dicts into typed executor option models.
+
+        Parameters
+        ----------
+        values : dict[str, Any]
+            Raw model data before validation.
+
+        Returns
+        -------
+        dict[str, Any]
+            Model data with executor configs replaced by option instances.
+
+        Raises
+        ------
+        ValueError
+            If an executor type is not recognized.
+        """
         executors = values.get("executors", {})
 
         parsed_executors = {}
@@ -74,18 +100,27 @@ class KedroDagsterConfig(BaseModel):
 
 
 def get_dagster_config(context: "KedroContext") -> KedroDagsterConfig:
-    """Get the Dagster configuration from the `dagster.yml` file.
+    """Get the Dagster configuration from the ``dagster.yml`` file.
 
-    Args:
-    context: ``KedroContext`` that was created.
+    Parameters
+    ----------
+    context : KedroContext
+        ``KedroContext`` that was created.
 
-    Returns:
-        KedroDagsterConfig: Dagster configuration.
+    Returns
+    -------
+    KedroDagsterConfig
+        Dagster configuration.
+
+    See Also
+    --------
+    `kedro_dagster.config.kedro_dagster.KedroDagsterConfig` :
+        The configuration model returned.
     """
     LOGGER.info("Loading Dagster configuration...")
 
     try:
-        if "dagster" not in context.config_loader.config_patterns.keys():
+        if "dagster" not in context.config_loader.config_patterns:
             context.config_loader.config_patterns.update({"dagster": ["dagster*", "dagster*/**", "**/dagster*"]})
         conf_dagster_yml = context.config_loader["dagster"]
     except MissingConfigException:

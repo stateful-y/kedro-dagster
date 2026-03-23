@@ -1,3 +1,5 @@
+"""Configuration models for Kedro-Dagster integration."""
+
 from .kedro_dagster import KedroDagsterConfig, get_dagster_config
 
 __all__ = [

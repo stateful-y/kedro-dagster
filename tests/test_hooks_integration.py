@@ -73,113 +73,16 @@ class RecordingHooks:
         conf_creds,
         save_version=None,
         load_versions=None,
-        parameters=None,  # Kedro 1.x
-        feed_dict=None,  # Kedro 0.19
+        parameters=None,
+        feed_dict=None,
     ):
         self.after_catalog_created_calls += 1
-
-
-@pytest.mark.parametrize("env", ["base", "local"])
-def test_hooks_are_invoked_end_to_end(env, request, monkeypatch):
-    """Execute a translated job and assert Kedro hooks are invoked (pipeline, node, dataset)."""
-    original_to_dagster = KedroRunTranslator.to_dagster
-
-    def patched_to_dagster(self, pipeline_name, filter_params):
-        resource = original_to_dagster(self, pipeline_name, filter_params)
-        # Use object.__setattr__ to bypass Pydantic's validation
-        object.__setattr__(resource, "_catalog", self._catalog)
-        return resource
-
-    monkeypatch.setattr(KedroRunTranslator, "to_dagster", patched_to_dagster)
-
-    # Arrange: use a project variant with file-backed datasets so IO managers are used
-    options = request.getfixturevalue(f"kedro_project_hooks_filebacked_{env}")
-    project_path = options.project_path
-
-    # Bootstrap and session
-    bootstrap_project(project_path)
-    session = KedroSession.create(project_path=project_path, env=env)
-    context = session.load_context()
-
-    # Register recording hooks on Kedro hook manager
-    hooks = RecordingHooks()
-    context._hook_manager.register(hooks)
-
-    # Translate configurations
-    dagster_config = get_dagster_config(context)
-    default_pipeline = pipelines.get("__default__")
-
-    catalog_translator = CatalogTranslator(
-        catalog=context.catalog,
-        pipelines=[default_pipeline],
-        hook_manager=context._hook_manager,
-        env=env,
-    )
-    named_io_managers, asset_partitions = catalog_translator.to_dagster()
-
-    node_translator = NodeTranslator(
-        pipelines=[default_pipeline],
-        catalog=context.catalog,
-        hook_manager=context._hook_manager,
-        asset_partitions=asset_partitions,
-        named_resources={**named_io_managers, "io_manager": dg.fs_io_manager},
-        env=env,
-        run_id=session.session_id,
-    )
-    named_op_factories, named_assets = node_translator.to_dagster()
-
-    executor_creator = ExecutorCreator(dagster_config=dagster_config)
-    named_executors = executor_creator.create_executors()
-
-    logger_creator = LoggerCreator(dagster_config=dagster_config)
-    named_loggers = logger_creator.create_loggers()
-
-    pipeline_translator = PipelineTranslator(
-        dagster_config=dagster_config,
-        context=context,
-        catalog=context.catalog,
-        project_path=str(project_path),
-        env=env,
-        named_assets=named_assets,
-        asset_partitions=asset_partitions,
-        named_op_factories=named_op_factories,
-        named_resources={**named_io_managers, "io_manager": dg.fs_io_manager},
-        named_executors=named_executors,
-        named_loggers=named_loggers,
-        enable_mlflow=False,
-        run_id=session.session_id,
-    )
-    jobs = pipeline_translator.to_dagster()
-
-    # Act: execute the job in process to trigger hooks
-    result = jobs["default"].execute_in_process()
-    assert result.success
-
-    # Assert: Catalog creation hook called (at least once - Kedro calls it internally, plus our explicit call)
-    assert hooks.after_catalog_created_calls >= 1
-
-    # Assert: Pipeline hooks called once each
-    assert hooks.before_pipeline_run_calls == 1
-    assert hooks.after_pipeline_run_calls == 1
-
-    # Assert: Node hooks called for each node in the default pipeline
-    DEFAULT_PIPELINE_NODE_COUNT = 5
-    assert len(hooks.before_node_run_calls) == DEFAULT_PIPELINE_NODE_COUNT
-    assert len(hooks.after_node_run_calls) == DEFAULT_PIPELINE_NODE_COUNT
-
-    # Assert: Dataset IO hooks observed on save/load
-    # At least one load for input_dataset and multiple loads for intermediate; saves for intermediate and outputs
-    assert "input_ds" in hooks.before_dataset_loaded_calls
-    assert "intermediate_ds" in hooks.before_dataset_saved_calls
-    assert "output_ds" in hooks.after_dataset_saved_calls
-    assert set(["output2_ds", "output3_ds", "output4_ds"]).issubset(set(hooks.after_dataset_saved_calls))
 
 
 class DummyContext:
     def __init__(self, catalog: DataCatalog):
         self.catalog = catalog
 
-        # create a minimal hook manager-like object
         class _HookManager:
             def __init__(self):
                 class _Hook:
@@ -214,61 +117,145 @@ def _make_pipeline_translator(named_resources: dict | None = None) -> PipelineTr
     )
 
 
-def test_enumerate_partition_keys_none_returns_empty_list():
-    """Enumerating partition keys for None yields an empty list."""
-    t = _make_pipeline_translator()
-    assert t._enumerate_partition_keys(None) == []
+class TestHooksEndToEnd:
+    """Tests for end-to-end Kedro hook invocation through Dagster job execution."""
+
+    @pytest.mark.parametrize("env", ["base", "local"])
+    def test_hooks_are_invoked(self, env, request, monkeypatch):
+        """Execute a translated job and assert Kedro hooks are invoked (pipeline, node, dataset)."""
+        original_to_dagster = KedroRunTranslator.to_dagster
+
+        def patched_to_dagster(self, pipeline_name, filter_params):
+            resource = original_to_dagster(self, pipeline_name, filter_params)
+            object.__setattr__(resource, "_catalog", self._catalog)
+            return resource
+
+        monkeypatch.setattr(KedroRunTranslator, "to_dagster", patched_to_dagster)
+
+        options = request.getfixturevalue(f"kedro_project_hooks_filebacked_{env}")
+        project_path = options.project_path
+
+        bootstrap_project(project_path)
+        session = KedroSession.create(project_path=project_path, env=env)
+        context = session.load_context()
+
+        hooks = RecordingHooks()
+        context._hook_manager.register(hooks)
+
+        dagster_config = get_dagster_config(context)
+        default_pipeline = pipelines.get("__default__")
+
+        catalog_translator = CatalogTranslator(
+            catalog=context.catalog,
+            pipelines=[default_pipeline],
+            hook_manager=context._hook_manager,
+            env=env,
+        )
+        named_io_managers, asset_partitions = catalog_translator.to_dagster()
+
+        node_translator = NodeTranslator(
+            pipelines=[default_pipeline],
+            catalog=context.catalog,
+            hook_manager=context._hook_manager,
+            asset_partitions=asset_partitions,
+            named_resources={**named_io_managers, "io_manager": dg.fs_io_manager},
+            env=env,
+            run_id=session.session_id,
+        )
+        named_op_factories, named_assets = node_translator.to_dagster()
+
+        executor_creator = ExecutorCreator(dagster_config=dagster_config)
+        named_executors = executor_creator.create_executors()
+
+        logger_creator = LoggerCreator(dagster_config=dagster_config)
+        named_loggers = logger_creator.create_loggers()
+
+        pipeline_translator = PipelineTranslator(
+            dagster_config=dagster_config,
+            context=context,
+            catalog=context.catalog,
+            project_path=str(project_path),
+            env=env,
+            named_assets=named_assets,
+            asset_partitions=asset_partitions,
+            named_op_factories=named_op_factories,
+            named_resources={**named_io_managers, "io_manager": dg.fs_io_manager},
+            named_executors=named_executors,
+            named_loggers=named_loggers,
+            enable_mlflow=False,
+            run_id=session.session_id,
+        )
+        jobs = pipeline_translator.to_dagster()
+
+        result = jobs["default"].execute_in_process()
+        assert result.success
+
+        assert hooks.after_catalog_created_calls >= 1
+
+        assert hooks.before_pipeline_run_calls == 1
+        assert hooks.after_pipeline_run_calls == 1
+
+        DEFAULT_PIPELINE_NODE_COUNT = 5
+        assert len(hooks.before_node_run_calls) == DEFAULT_PIPELINE_NODE_COUNT
+        assert len(hooks.after_node_run_calls) == DEFAULT_PIPELINE_NODE_COUNT
+
+        assert "input_ds" in hooks.before_dataset_loaded_calls
+        assert "intermediate_ds" in hooks.before_dataset_saved_calls
+        assert "output_ds" in hooks.after_dataset_saved_calls
+        assert {"output2_ds", "output3_ds", "output4_ds"}.issubset(set(hooks.after_dataset_saved_calls))
 
 
-def test_before_after_pipeline_hooks_require_mlflow_conditionally():
-    """Before/after pipeline hook ops require 'mlflow' resource only when enabled."""
-    # without mlflow
-    t1 = _make_pipeline_translator()
-    op1 = t1._create_before_pipeline_run_hook("job", Pipeline([]))
-    assert "mlflow" not in op1.required_resource_keys
+class TestHooksPipelineTranslator:
+    """Tests for pipeline translator hook-related methods."""
 
-    after1 = t1._create_after_pipeline_run_hook_op("job", Pipeline([]), ["x_after_pipeline_run_hook_input"])
-    assert "mlflow" not in after1.required_resource_keys
-    # input should be declared
-    assert "x_after_pipeline_run_hook_input" in after1.ins
+    def test_enumerate_partition_keys_none_returns_empty_list(self):
+        """Enumerating partition keys for None yields an empty list."""
+        t = _make_pipeline_translator()
+        assert t._enumerate_partition_keys(None) == []
 
-    # with mlflow
-    t2 = _make_pipeline_translator({"mlflow": object()})
-    op2 = t2._create_before_pipeline_run_hook("job", Pipeline([]))
-    assert "mlflow" in op2.required_resource_keys
-    after2 = t2._create_after_pipeline_run_hook_op("job", Pipeline([]), [])
-    assert "mlflow" in after2.required_resource_keys
+    def test_before_after_pipeline_hooks_require_mlflow_conditionally(self):
+        """Before/after pipeline hook ops require 'mlflow' resource only when enabled."""
+        t1 = _make_pipeline_translator()
+        op1 = t1._create_before_pipeline_run_hook("job", Pipeline([]))
+        assert "mlflow" not in op1.required_resource_keys
 
+        after1 = t1._create_after_pipeline_run_hook_op("job", Pipeline([]), ["x_after_pipeline_run_hook_input"])
+        assert "mlflow" not in after1.required_resource_keys
+        assert "x_after_pipeline_run_hook_input" in after1.ins
 
-def test_node_op_declares_after_hook_output_and_mlflow_requirement():
-    """Node op declares the after-pipeline-run Nothing output and mlflow resource conditionally."""
-    # minimal NodeTranslator using a dummy pipeline and no catalog IO managers
-    catalog = DataCatalog()
-    nt_without_mlflow = NodeTranslator(
-        pipelines=[Pipeline([])],
-        catalog=catalog,
-        hook_manager=DummyContext(catalog)._hook_manager,
-        run_id="sess",
-        asset_partitions={},
-        named_resources={},
-        env="base",
-    )
+        t2 = _make_pipeline_translator({"mlflow": object()})
+        op2 = t2._create_before_pipeline_run_hook("job", Pipeline([]))
+        assert "mlflow" in op2.required_resource_keys
+        after2 = t2._create_after_pipeline_run_hook_op("job", Pipeline([]), [])
+        assert "mlflow" in after2.required_resource_keys
 
-    nt_with_mlflow = NodeTranslator(
-        pipelines=[Pipeline([])],
-        catalog=catalog,
-        hook_manager=DummyContext(catalog)._hook_manager,
-        run_id="sess",
-        asset_partitions={},
-        named_resources={"mlflow": object()},
-        env="base",
-    )
+    def test_node_op_declares_after_hook_output_and_mlflow_requirement(self):
+        """Node op declares the after-pipeline-run Nothing output and mlflow resource conditionally."""
+        catalog = DataCatalog()
+        nt_without_mlflow = NodeTranslator(
+            pipelines=[Pipeline([])],
+            catalog=catalog,
+            hook_manager=DummyContext(catalog)._hook_manager,
+            run_id="sess",
+            asset_partitions={},
+            named_resources={},
+            env="base",
+        )
 
-    n = node(func=lambda inputs: {"out": 1}, inputs=["inp"], outputs=["out"], name="N")
-    op1 = nt_without_mlflow.create_op(n)
-    # last-layer adds a synthetic Nothing output
-    assert any(name.endswith("_after_pipeline_run_hook_input") for name in op1.outs)
-    assert "mlflow" not in op1.required_resource_keys
+        nt_with_mlflow = NodeTranslator(
+            pipelines=[Pipeline([])],
+            catalog=catalog,
+            hook_manager=DummyContext(catalog)._hook_manager,
+            run_id="sess",
+            asset_partitions={},
+            named_resources={"mlflow": object()},
+            env="base",
+        )
 
-    op2 = nt_with_mlflow.create_op(n)
-    assert "mlflow" in op2.required_resource_keys
+        n = node(func=lambda inputs: {"out": 1}, inputs=["inp"], outputs=["out"], name="N")
+        op1 = nt_without_mlflow.create_op(n)
+        assert any(name.endswith("_after_pipeline_run_hook_input") for name in op1.outs)
+        assert "mlflow" not in op1.required_resource_keys
+
+        op2 = nt_with_mlflow.create_op(n)
+        assert "mlflow" in op2.required_resource_keys

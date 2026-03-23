@@ -4,6 +4,11 @@ from __future__ import annotations
 
 from kedro.framework.session import KedroSession
 from kedro.framework.startup import bootstrap_project
+from tests.scenarios.kedro_projects import (
+    dagster_executors_config,
+    dagster_schedules_config,
+    make_jobs_config,
+)
 
 from kedro_dagster.config import get_dagster_config
 from kedro_dagster.config.execution import (
@@ -11,11 +16,6 @@ from kedro_dagster.config.execution import (
     MultiprocessExecutorOptions,
 )
 from kedro_dagster.config.job import JobOptions
-from tests.scenarios.kedro_projects import (
-    dagster_executors_config,
-    dagster_schedules_config,
-    make_jobs_config,
-)
 
 
 def test_get_dagster_config_loads_and_parses(kedro_project_exec_filebacked_base):
