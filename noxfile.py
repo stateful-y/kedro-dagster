@@ -23,9 +23,6 @@ PYTHON_VERSIONS = [v for v in ALL_VERSIONS if v >= MIN_VERSION and v <= MAX_VERS
 @nox.session(python=PYTHON_VERSIONS[0], venv_backend="uv")
 def test_coverage(session: nox.Session) -> None:
     """Run the tests with pytest and coverage under the default Python version."""
-    session.env["COVERAGE_FILE"] = f".coverage.{session.python}"
-    session.env["COVERAGE_PROCESS_START"] = "pyproject.toml"
-
     # Install dependencies
     session.run_install(
         "uv",
@@ -38,15 +35,10 @@ def test_coverage(session: nox.Session) -> None:
         env={"UV_PROJECT_ENVIRONMENT": session.virtualenv.location},
     )
 
-    # Clear all .coverage* files
-    session.run("coverage", "erase")
-
-    # Run unit tests under coverage with parallel execution
+    # Run unit tests with pytest-cov for coverage collection.
+    # pytest-cov natively handles xdist workers (-n auto) so we rely on
+    # --cov from addopts rather than wrapping with ``coverage run``.
     session.run(
-        "coverage",
-        "run",
-        "--source=src/kedro_dagster",
-        "-m",
         "pytest",
         "tests",
         "-n",
@@ -54,12 +46,6 @@ def test_coverage(session: nox.Session) -> None:
         f"--junitxml=junit.{session.python}.xml",
         *session.posargs,
     )
-
-    # Generate HTML and XML reports
-    session.run("coverage", "html", "--ignore-errors", "-d", session.create_tmp())
-
-    # XML report for CI
-    session.run("coverage", "xml", "-o", f"coverage.{session.python}.xml")
 
 
 @nox.session(python=PYTHON_VERSIONS, venv_backend="uv")
@@ -142,6 +128,53 @@ def test_slow(session: nox.Session) -> None:
         "auto",
         "-v",
         *session.posargs,
+    )
+
+
+@nox.session(python=PYTHON_VERSIONS, venv_backend="uv")
+def test_compat(session: nox.Session) -> None:
+    """Run fast tests after pinning one or more dependency versions.
+
+    Usage::
+
+        uvx nox -s test_compat -- some-package==1.0.0
+        uvx nox -s test_compat -- some-package==1.0.0 other-package==2.0.0
+
+    Each positional argument must be a pip requirement specifier
+    (e.g. ``package==version``).  If none are given the session runs
+    with the default (latest compatible) versions.
+    """
+    # Install dependencies
+    session.run_install(
+        "uv",
+        "sync",
+        "--no-default-groups",
+        "--group",
+        "tests",
+        env={"UV_PROJECT_ENVIRONMENT": session.virtualenv.location},
+    )
+
+    # Downgrade / pin requested packages
+    if session.posargs:
+        session.run(
+            "uv",
+            "pip",
+            "install",
+            *session.posargs,
+            "--python",
+            session.virtualenv.location + "/bin/python",
+        )
+
+    # Run fast tests
+    session.run(
+        "pytest",
+        "tests",
+        "--no-cov",
+        "-m",
+        "not slow and not integration",
+        "-n",
+        "auto",
+        "-v",
     )
 
 

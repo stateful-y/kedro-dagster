@@ -153,6 +153,10 @@ For questions and discussions, you can also open a [discussion](https://github.c
 
 This project is licensed under the terms of the [Apache-2.0 License](https://github.com/stateful-y/kedro-dagster/blob/main/LICENSE).
 
+## Acknowledgements
+
+This project is maintained by [stateful-y](https://stateful-y.io), an ML consultancy specializing in MLOps and data science & engineering. If you're interested in collaborating or learning more about our services, please visit our website.
+
 <p align="center">
   <a href="https://stateful-y.io">
     <img src="docs/assets/made_by_stateful-y.png" alt="Made by stateful-y" width="200">
