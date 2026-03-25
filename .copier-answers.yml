@@ -11,7 +11,7 @@ include_actions: true
 include_examples: false
 license: Apache-2.0
 max_python_version: '3.13'
-min_python_version: '3.10'
+min_python_version: '3.11'
 package_name: kedro_dagster
 project_name: Kedro-Dagster
 project_slug: kedro-dagster
