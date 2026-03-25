@@ -52,7 +52,9 @@ jobs:
         run: nox -s test_fast --python ${{ matrix.python-version }}
 
   # Compatibility test against oldest supported dependency versions
+  # To enable, add pin strings to the matrix, e.g.: pins: ["kedro==0.19.0"]
   test-compat:
+    if: false  # disabled until pins are configured (empty matrix is invalid)
     name: Compat tests (${{ matrix.pins }})
     runs-on: ubuntu-latest
     strategy:
