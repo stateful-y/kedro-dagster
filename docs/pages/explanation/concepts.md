@@ -1,83 +1,66 @@
 # Concepts
 
-Kedro‑Dagster is a plugin that seamlessly connects your **Kedro** data science project to **Dagster’s** orchestration engine. With minimal setup, you can run, schedule, and monitor Kedro pipelines in Dagster, taking advantage of its rich UI, asset lineage tracking, and cloud‑native executors without altering your existing codebase.
+Kedro-Dagster connects [Kedro](https://kedro.readthedocs.io/) data science projects to [Dagster's](https://docs.dagster.io/) orchestration engine. With minimal setup, you can run, schedule, and monitor Kedro pipelines in Dagster - taking advantage of its UI, asset lineage tracking, and cloud-native executors - without altering your existing codebase.
 
-## What is Kedro?
-
-[Kedro](https://kedro.readthedocs.io/) is a Python framework for building reproducible, maintainable, and modular data science code. It enforces best practices such as separation of concerns, configuration management, and a data catalog, ensuring that pipelines are production‑ready from the start.
-
-## What is Dagster?
-
-[Dagster](https://docs.dagster.io/) is a modern Python data orchestrator designed around the concept of assets. It provides:
-
-- **Jobs & assets:** Define data transformations and treat their outputs as first‑class citizens.
-- **Scheduling & sensors:** Configure cron jobs and event‑driven triggers.
-- **Observability:** Track lineage, view logs, and debug runs through a web UI.
-- **Execution environments:** Run locally, on Kubernetes, or with cloud‑native executors.
-
-Dagster scales from local development to enterprise deployments, with an emphasis on testability and modularity.
-
-## Why Kedro‑Dagster?
+## The asset-first alignment
 
 Kedro and Dagster share an asset-first philosophy. In Kedro, assets are datasets passed between nodes that make up a pipeline. Dagster mirrors this by treating the output of each computation as an asset with associated execution semantics and lineage. This alignment allows Kedro pipelines to be translated into Dagster assets with minimal effort, preserving structure and enabling rich observability out of the box.
 
-What makes Kedro‑Dagster shine is that it leverages the complementarity of both frameworks. Whether you're starting from Kedro or Dagster, Kedro‑Dagster allows each tool to play to its strengths. Kedro provides a robust developer experience for building pipelines—modular, testable, and backed by strong configuration and data cataloging. Dagster, in turn, brings a powerful orchestration layer with scheduling, logging, asset monitoring, and execution control.
+Kedro-Dagster leverages the complementarity of both frameworks. Kedro provides a robust developer experience for building pipelines - modular, testable, and backed by strong configuration and data cataloging. Dagster brings a powerful orchestration layer with scheduling, logging, asset monitoring, and execution control. Whether you start from Kedro or Dagster, each tool plays to its strengths.
 
 ### For Kedro users
 
 - **No code changes:** Integrate Dagster without modifying your existing Kedro datasets, config, or pipelines.
-- **Enhanced orchestration and observability:** Use Dagster’s UI to visualize, launch, and schedule runs, inspect logs, trace asset lineage, and monitor pipeline health. Gain real-time insights into execution status, track data dependencies, and debug failures with full context.
-- **Automatic node parallelization across partitions:** Use Dagster’s partitions to fan out Kedro node execution across time windows or other keys with minimal configuration—no code changes required.
+- **Enhanced orchestration and observability:** Visualize, launch, and schedule runs, inspect logs, trace asset lineage, and monitor pipeline health through Dagster's UI.
+- **Automatic node parallelization across partitions:** Fan out Kedro node execution across partition keys with minimal configuration.
 - **Variety of execution targets:** Run locally for development, in Docker, on a remote machine, or scale on Kubernetes and other Dagster-supported executors, selectable per job via configuration.
 
-Refer to the [Dagster documentation](https://docs.dagster.io) and in particular to the [Dagster Deployment Options](https://docs.dagster.io/deployment) to find out if Dagster fits your need and connect to the [Dagster Slack](https://dagster.io/slack) to get in touch with the community.
+Refer to the [Dagster documentation](https://docs.dagster.io) and the [Dagster Deployment Options](https://docs.dagster.io/deployment) to evaluate whether Dagster fits your needs.
 
 ### For Dagster users
 
-- **Structure your projects and configurations:** Kedro enforces a modular project structure and configuration management out of the box. By adopting Kedro, Dagster users benefit from a standardized folder layout, environment-specific configuration files, and a clear separation between code, data, and settings. This makes it easier to manage complex projects, collaborate across teams, and maintain reproducibility across environments.
-- **Straightforward asset and workflow creation:** Kedro makes it simple to define pipelines as sequences of modular, reusable nodes without worrying about orchestration logic. These pipelines are automatically translated into Dagster assets, enabling you to develop locally and immediately visualize and orchestrate your work in Dagster’s UI with minimal configuration.
-- **Built‑in data connectors:** Kedro’s `DataCatalog` provides a centralized and declarative way to manage all data inputs and outputs across environments. It supports a wide range of data sources out of the box, from local CSVs and Parquet files to cloud storage like S3 and GCS.
-- **Full control over Kedro-based Dagster objects:** Kedro projects are seamlessly translated into Dagster code locations. Any aspect of the generated Dagster assets, jobs, executors, or resources can be modified in the Dagster UI Launchpad without modifying the Kedro code.
+- **Structured projects and configurations:** Kedro enforces a modular project structure with environment-specific configuration files and a clear separation between code, data, and settings.
+- **Straightforward asset and workflow creation:** Define pipelines as sequences of modular, reusable nodes. They are automatically translated into Dagster assets, ready to visualize and orchestrate in Dagster's UI.
+- **Built-in data connectors:** Kedro's `DataCatalog` provides a centralized and declarative way to manage all data inputs and outputs, supporting local files, cloud storage (S3, GCS), databases, and more.
+- **Full control over Kedro-based Dagster objects:** Any aspect of the generated Dagster assets, jobs, executors, or resources can be modified in the Dagster UI Launchpad without touching Kedro code.
 
-## Key Features
+## Key features
 
-### Configuration‑driven workflows
+### Configuration-driven workflows
 
-Centralize orchestration settings in a `dagster.yml` file, where, for each Kedro environment, you can:
+Centralize orchestration settings in a `dagster.yml` file per Kedro environment:
 
-- Define jobs to deploy from filtered Kedro pipelines.
+- Define jobs from filtered Kedro pipelines.
 - Assign executors, retries, and resource limits.
 - Assign cron-based schedules.
 
 ### Customization
 
-The core integration lives in the auto‑generated Dagster `definitions.py`. For specialized requirements such as custom resources, deployment patterns, or non‑standard executors, you can extend or override parts of these definitions manually.
+The core integration lives in the auto-generated Dagster `definitions.py`. For specialized requirements such as custom resources, deployment patterns, or non-standard executors, you can extend or override parts of these definitions manually.
 
-### Kedro Hooks preservation
+### Kedro hooks preservation
 
-Kedro‑Dagster is designed so that Kedro hooks are preserved and called at the appropriate time during pipeline execution. This ensures that any custom logic, such as data validation or logging implemented as Kedro hooks, will continue to work seamlessly when running pipelines via Dagster.
+Kedro hooks are preserved and called at the appropriate time during pipeline execution. Custom logic such as data validation or logging implemented as Kedro hooks continues to work when running pipelines via Dagster.
 
 ### MLflow compatibility
 
-Harness the capabilities of MLflow using [Kedro-MLflow](https://github.com/Galileo-Galilei/kedro-mlflow) in conjunction with Dagster’s [MLflow integration](https://dagster.io/integrations/dagster-mlflow). Whether you run your pipelines using Kedro or Dagster, you can track experiments, log models, and register artifacts automatically through the `mlflow.yml` configuration file.
+Use [Kedro-MLflow](https://github.com/Galileo-Galilei/kedro-mlflow) alongside Dagster's [MLflow integration](https://dagster.io/integrations/dagster-mlflow). Whether you run pipelines with Kedro or Dagster, experiments, models, and artifacts are tracked automatically through the `mlflow.yml` configuration file.
 
 ### Logger integration
 
-Kedro and Dagster logging is unified to provide a consistent logging experience across both frameworks, so logs from Kedro nodes appear together in the Dagster UI and are easy to configure.
+Kedro and Dagster logging is unified so logs from Kedro nodes appear together in the Dagster UI and are easy to configure. See the [logging guide](../how-to/configure-logging.md) for details.
 
 ### (Experimental) Dagster partitions support
 
-Enable key-based [Dagster partitions](https://docs.dagster.io/guides/build/partitions-and-backfills) to backfill, schedule, and process incremental slices of your pipelines. Currently supports `StaticPartitionsDefinition` with `StaticPartitionMapping` or `IdentityPartitionMapping`. See the [partitions guide](../how-to/use-partitions.md) for details on supported features and alternatives for time-based partitioning.
+Enable key-based [Dagster partitions](https://docs.dagster.io/guides/build/partitions-and-backfills) to backfill, schedule, and process incremental slices of your pipelines. Currently supports `StaticPartitionsDefinition` with `StaticPartitionMapping` or `IdentityPartitionMapping`. See the [partitions guide](../how-to/use-partitions.md) for details.
 
 ## Limitations and considerations
 
-While Kedro‑Dagster's objective is to provide a powerful bridge between Kedro and Dagster, there are a few important points to consider:
-
 1. **Evolving feature parity:**
-   Kedro‑Dagster is evolving rapidly, but as a recent package maintained as a side project, not all Dagster features are yet exposed in Kedro‑Dagster. We encourage you to contribute or raise issues on our [Issue Tracker](https://github.com/stateful-y/kedro-dagster/issues) so that missing functionalities can be prioritized.
+   Not all Dagster features are yet exposed. We encourage you to contribute or raise issues on the [Issue Tracker](https://github.com/stateful-y/kedro-dagster/issues) so missing features can be prioritized.
 
 2. **Compatibility:**
-   Both Kedro and Dagster are under active development. Breaking changes in either framework can temporarily affect Kedro‑Dagster integration until a new plugin release addresses them. Always pin your Kedro, Dagster, and Kedro‑Dagster versions and test changes before upgrading them.
+   Both Kedro and Dagster are under active development. Breaking changes in either framework can temporarily affect the integration until a new plugin release addresses them. Always pin your Kedro, Dagster, and Kedro-Dagster versions and test before upgrading.
 
 ## Contributing and community
 
@@ -87,11 +70,11 @@ We welcome contributions, feedback, and questions:
 - **Join the discussion:** [Kedro Slack](https://slack.kedro.org/)
 - **Contributing guide:** [CONTRIBUTING.md](https://github.com/stateful-y/kedro-dagster/blob/main/CONTRIBUTING.md)
 
-If you are interested in becoming a maintainer of Kedro‑Dagster or taking a more active role in its development, please reach out to Guillaume Tauzin on the [Kedro Slack](https://slack.kedro.org/).
+If you are interested in becoming a maintainer or taking a more active role, reach out to Guillaume Tauzin on the [Kedro Slack](https://slack.kedro.org/).
 
 ---
 
 ## Next steps
 
-- **Getting started:** Follow our step-by-step tutorial in [Getting started](../tutorials/getting-started.md).
-- **Advanced example:** Browse the [example project](../tutorials/example-project.md) to learn how to deploy an advanced real-life data science Kedro project with Dagster.
+- **Getting started:** Follow the step-by-step [Getting Started](../tutorials/getting-started.md) tutorial.
+- **Advanced example:** Browse the [Example Project](../tutorials/example-project.md) for a real-life data science deployment with Dagster.

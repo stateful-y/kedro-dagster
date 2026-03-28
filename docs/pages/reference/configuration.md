@@ -1,49 +1,55 @@
 # Configuration Reference
 
-Kedro-Dagster expects a standard [Kedro project structure](https://docs.kedro.org/en/stable/get_started/kedro_concepts.html#kedro-project-directory-structure). The main configuration file for Dagster integration is `dagster.yml`, located in your Kedro project's `conf/<ENV_NAME>/` directory.
+Kedro-Dagster expects a standard [Kedro project structure](https://docs.kedro.org/en/stable/get_started/kedro_concepts.html#kedro-project-directory-structure). The main configuration file is `dagster.yml`, located in `conf/<ENV_NAME>/`.
 
 ## dagster.yml
 
-This YAML file defines jobs, executors, and schedules for your project.
+Defines jobs, executors, schedules, and loggers for your project.
 
-!!! example
+```yaml
+schedules:
+  my_job_schedule:
+    cron_schedule: "0 0 * * *"
 
-  ```yaml
-  schedules:
-    my_job_schedule: # Name of the schedule
-      cron_schedule: "0 0 * * *" # Parameterst of the schedule
+executors:
+  my_executor:
+    multiprocess:
+      max_concurrent: 2
 
-  executors:
-    my_executor: # Name of the executor
-      multiprocess: # Parameters of the executor
-        max_concurrent: 2
+loggers:
+  my_logger:
+    log_level: INFO
+    handlers:
+      - class: logging.StreamHandler
+        stream: ext://sys.stdout
+        formatter: simple
+    formatters:
+      simple:
+        format: "%(asctime)s - %(levelname)s - %(message)s"
 
-  jobs:
-    my_job: # Name of the job
-      pipeline: # Parameters of its corresponding pipeline
-        pipeline_name: __default__
-        node_namespace: my_namespace
-      executor: my_executor
-      schedule: my_job_schedule
-  ```
+jobs:
+  my_job:
+    pipeline:
+      pipeline_name: __default__
+      node_namespace: my_namespace
+    executor: my_executor
+    schedule: my_job_schedule
+    loggers: [my_logger]
+```
 
-- **jobs**: Map [Kedro pipelines](https://docs.kedro.org/en/stable/build/pipeline_introduction/) to Dagster jobs, with optional [filtering](https://docs.kedro.org/en/stable/api/pipeline/kedro.pipeline.Pipeline/#kedro.pipeline.Pipeline.filter).
-- **executors**: Define how jobs are executed (in-process, multiprocess, k8s, etc) by picking executors from those [implemented in Dagster](https://docs.dagster.io/guides/operate/run-executors#example-executors).
-- **schedules**: Set up cron-based or custom schedules for jobs.
+### Jobs
 
-### Customizing schedules
+Each job maps a [Kedro pipeline](https://docs.kedro.org/en/stable/build/pipeline_introduction/) to a Dagster job, with optional [filtering](https://docs.kedro.org/en/stable/api/pipeline/kedro.pipeline.Pipeline/#kedro.pipeline.Pipeline.filter). A job can reference a pre-defined executor, schedule, and list of loggers by name.
 
-You can define multiple schedules for your jobs using cron syntax. See the [Dagster scheduling documentation](https://docs.dagster.io/concepts/partitions-schedules-sensors/schedules) and the [API Reference](../api/generated/kedro_dagster.config.automation.ScheduleOptions.md) for more details.
+Accepted pipeline parameters: [`PipelineOptions`](../api/generated/kedro_dagster.config.job.PipelineOptions.md).
 
-### Customizing executors
+### Executors
 
-Kedro-Dagster supports several executor types for running your jobs, such as in-process, multiprocess, Dask, Docker, Celery, and Kubernetes. You can customize executor options in your `dagster.yml` file under the `executors` section.
+Define how jobs are executed: in-process, multiprocess, Docker, Celery, Kubernetes, etc. Each entry corresponds to a [Dagster executor](https://docs.dagster.io/guides/operate/run-executors#example-executors).
 
-For each [available Dagster executor](https://docs.dagster.io/guides/operate/run-executors#example-executors), there is a corresponding configuration Pydantic model documented in the [API reference](../api/config.md).
+Configuration models per executor type are documented in the [API reference](../api/config.md).
 
-#### Example: Custom multiprocess executor
-
-You can select `multiprocess` as the executor type corresponding to the [multiprocess Dagster executor](https://docs.dagster.io/api/dagster/execution#dagster.multiprocess_executor) and configure it according to the [MultiprocessExecutorOptions](../api/generated/kedro_dagster.config.execution.MultiprocessExecutorOptions.md).
+**Multiprocess example** ([`MultiprocessExecutorOptions`](../api/generated/kedro_dagster.config.execution.MultiprocessExecutorOptions.md)):
 
 ```yaml
 executors:
@@ -52,9 +58,7 @@ executors:
       max_concurrent: 4
 ```
 
-#### Example: Custom Docker executor
-
-Similarly, we can configure a [Docker Dagster executor](https://docs.dagster.io/api/libraries/dagster-docker#dagster_docker.docker_executor) with the available parameters defined in [`DockerExecutorOptions`](../api/generated/kedro_dagster.config.execution.DockerExecutorOptions.md).
+**Docker example** ([`DockerExecutorOptions`](../api/generated/kedro_dagster.config.execution.DockerExecutorOptions.md)):
 
 ```yaml
 executors:
@@ -71,17 +75,19 @@ executors:
           - "ENV_VAR=value"
 ```
 
-!!! note
-  The `docker_executor` requires the `dagster-docker` package.
+ wc -l /home/gigi/Workspace/stateful-y/kedro-dagster/docs/pages/reference/configuration.md! note
+    The `docker_executor` requires the `dagster-docker` package.
 
-### Customizing jobs
+### Schedules
 
-You can filter which nodes, tags, or inputs/outputs are included in each job. Each job can be associated with a pre-defined executor and/or schedule. See the [Kedro pipeline documentation](https://docs.kedro.org/en/stable/api/pipeline/kedro.pipeline.Pipeline/#kedro.pipeline.Pipeline.filter) for more on pipelines and filtering. The accepted pipeline parameters are documented in the associated Pydantic model, [`PipelineOptions`](../api/generated/kedro_dagster.config.job.PipelineOptions.md).
+Cron-based schedules for jobs. See the [Dagster scheduling documentation](https://docs.dagster.io/concepts/partitions-schedules-sensors/schedules) and [`ScheduleOptions`](../api/generated/kedro_dagster.config.automation.ScheduleOptions.md).
 
-To each job, you can assign a schedule and/or an executor by name if it was previously defined in the configuration file.
+### Loggers
+
+Custom loggers for Dagster runs. See the [logging guide](../how-to/configure-logging.md) for configuration details and [`LoggerCreator`](../api/generated/kedro_dagster.dagster.LoggerCreator.md).
 
 ## definitions.py
 
-The `definitions.py` file is auto-generated by the plugin and serves as the main entry point for Dagster to discover all translated Kedro objects. It contains the Dagster [`Definitions`](https://docs.dagster.io/api/dagster/definitions#dagster.Definitions) object, which registers all jobs, assets, resources, schedules, and sensors derived from your Kedro project.
+Auto-generated by the plugin. Serves as the main entry point for Dagster to discover all translated Kedro objects. Contains the Dagster [`Definitions`](https://docs.dagster.io/api/dagster/definitions#dagster.Definitions) object registering all jobs, assets, resources, schedules, and sensors.
 
-In most cases, you should not manually edit `definitions.py`; instead, update your Kedro project or `dagster.yml` configuration.
+In most cases, you should not manually edit `definitions.py`; instead, update your Kedro project or `dagster.yml`.
