@@ -162,12 +162,12 @@ nav:
     - Integrate MLflow: pages/how-to/integrate-mlflow.md
     - Use Partitions: pages/how-to/use-partitions.md
     - Troubleshooting: pages/how-to/troubleshooting.md
-    - Contributing: pages/how-to/contributing.md
+    - Contributing: pages/how-to/contribute.md
   - Reference:
-    - API Reference: pages/reference/api.md
+    - API: pages/reference/api.md
     - Configuration: pages/reference/configuration.md
   - Explanation:
-    - Key Concepts: pages/explanation/concepts.md
+    - Concepts: pages/explanation/concepts.md
     - Architecture: pages/explanation/architecture.md
 
 extra:

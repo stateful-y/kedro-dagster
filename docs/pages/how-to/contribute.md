@@ -10,7 +10,7 @@ We are committed to providing a welcoming and inclusive environment for all cont
 
 ### Prerequisites
 
-- Python 3.10+
+- Python 3.11+
 - [uv](https://github.com/astral-sh/uv) (recommended)
 - [just](https://github.com/casey/just) (optional, for task automation)
 - Git
@@ -208,6 +208,7 @@ Run tests across multiple Python versions:
     uvx nox -s test
     ```
 
+
 #### When to Mark Tests as Slow or Integration
 
 Mark your tests appropriately to help maintain fast feedback during development:
@@ -223,6 +224,7 @@ Mark your tests appropriately to help maintain fast feedback during development:
     - Test multiple components working together
     - Require complex setup or teardown
     - Exercise end-to-end workflows
+
 
 Example:
 

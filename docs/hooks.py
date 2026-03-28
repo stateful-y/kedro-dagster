@@ -390,7 +390,7 @@ def _build_module_toc(config, current_src_path=None):
 
         # Compute relative URL
         if is_index:
-            # api.md is at pages/reference/api/, submodule pages at pages/api/
+            # reference/api.md is at pages/reference/api/, submodule pages at pages/api/
             page_url = f"../../api/{md_filename.replace('.md', '/')}"
         else:
             page_url = f"../{md_filename.replace('.md', '/')}".replace("//", "/")

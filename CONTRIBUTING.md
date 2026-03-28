@@ -18,7 +18,7 @@ just test-fast
 
 For the complete contributing guide - including test strategy, code quality standards, commit conventions, and CI/CD details - see:
 
-**[Full Contributing Guide](docs/pages/contributing.md)**
+**[Full Contributing Guide](docs/pages/how-to/contribute.md)**
 
 ## Reporting Issues
 

@@ -1,6 +1,6 @@
 # How to Configure Logging
 
-Any configuration of Dagster loggers should not be directly attempted as Dagster CLI and API will override them. Therefore, one cannot use Kedro's `logging.yml` configuration file to configure `dagster` loggers. In place, Kedro-Dagster provides ways to integrate Dagster logging into Kedro projects.
+This guide shows you how to configure logging for Kedro-Dagster. Dagster CLI and API override logger settings, so Kedro's `logging.yml` cannot be used directly for `dagster` loggers. Instead, Kedro-Dagster provides dedicated integration points.
 
 ## CLI
 

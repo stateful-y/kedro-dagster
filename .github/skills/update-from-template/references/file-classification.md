@@ -76,8 +76,8 @@ mkdocs.yml
 noxfile.py
 justfile
 docs/index.md
-docs/pages/api-reference.md
-docs/pages/contributing.md
+docs/pages/reference/api.md
+docs/pages/how-to/contribute.md
 .github/workflows/tests.yml        # conditional: include_actions
 .github/workflows/pr-title.yml     # conditional: include_actions
 .github/workflows/publish-release.yml  # conditional: include_actions
@@ -95,9 +95,9 @@ Project-specific files where the template only provides initial scaffolding. Nev
 src/<package_name>/**              # All source code
 tests/**                           # All test files
 examples/**                        # conditional: include_examples
-docs/pages/user-guide.md
-docs/pages/getting-started.md
-docs/pages/examples.md             # conditional: include_examples
+docs/pages/explanation/concepts.md
+docs/pages/tutorials/getting-started.md
+docs/pages/tutorials/examples.md    # conditional: include_examples
 docs/examples/**                   # conditional: include_examples
 ```
 
@@ -160,7 +160,7 @@ This ensures the skill only spends effort merging files that actually have local
 - **Preserve local**: All changelog entries
 - **Strategy**: Keep the local CHANGELOG.md content. Only update the header/format if the template changed it. Never discard changelog entries.
 
-### docs/index.md, docs/pages/contributing.md, docs/pages/api-reference.md
+### docs/index.md, docs/pages/how-to/contribute.md, docs/pages/reference/api.md
 
 - **Accept from template**: Structural/format changes, new template sections
 - **Preserve local**: Custom content within existing sections, additional sections

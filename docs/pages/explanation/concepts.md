@@ -1,4 +1,4 @@
-# Introduction
+# Concepts
 
 Kedro‑Dagster is a plugin that seamlessly connects your **Kedro** data science project to **Dagster’s** orchestration engine. With minimal setup, you can run, schedule, and monitor Kedro pipelines in Dagster, taking advantage of its rich UI, asset lineage tracking, and cloud‑native executors without altering your existing codebase.
 

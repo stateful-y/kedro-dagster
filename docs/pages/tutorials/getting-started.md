@@ -1,6 +1,6 @@
 # Getting Started
 
-This guide walks you through setting up and deploying a Kedro project with Dagster using the Kedro‑Dagster plugin. The example below uses the Kedro `spaceflights-pandas` starter project, but you can use your own Kedro project. If you wish to do so, skip step 1.
+In this tutorial, we will set up and deploy a Kedro project with Dagster using the Kedro-Dagster plugin. We will use the Kedro `spaceflights-pandas` starter project, but you can use your own Kedro project - if so, skip step 1.
 
 ## 1. Create a Kedro project (optional)
 
@@ -21,44 +21,27 @@ pip install -r requirements.txt
 
 ## 2. Installation
 
-The Kedro-Dagster plugin can be installed using different package managers.
+Choose your preferred package manager:
 
 === "pip"
-    To install the plugin using `pip`, run:
 
     ```bash
     pip install kedro-dagster
     ```
 
-    Alternatively, you can install the latest development version directly from GitHub:
-
-    ```bash
-    pip install --upgrade git+https://github.com/stateful-y/kedro-dagster.git
-    ```
-
 === "uv"
 
-    To install the plugin using `uv`, run:
-
     ```bash
-    uv pip install kedro-dagster
+    uv add kedro-dagster
     ```
 
-    Alternatively, you can install the latest development version directly from GitHub:
-
-    ```bash
-    uv pip install --upgrade git+https://github.com/stateful-y/kedro-dagster.git
-    ```
-
-=== "conda-forge"
-
-    To install the plugin using `conda` or `mamba`, run one of the following commands:
+=== "conda"
 
     ```bash
     conda install -c conda-forge kedro-dagster
     ```
 
-    or
+=== "mamba"
 
     ```bash
     mamba install -c conda-forge kedro-dagster
@@ -86,7 +69,7 @@ This creates:
 --8<-- "src/kedro_dagster/templates/dagster.yml"
 ```
 
-There's no need to modify the Dagster `definitions.py` file to get started, so here we'll have a deeper look on the `dagster.yml` file.
+There is no need to modify the Dagster `definitions.py` file to get started, so let's have a deeper look at the `dagster.yml` file.
 
 ## 4. Configure jobs, loggers, executors, and schedules
 
@@ -97,7 +80,7 @@ The Kedro‑Dagster configuration file `dagster.yml` includes the following sect
 - **loggers:** Used to configure logging for jobs.
 - **jobs:** Used to describe jobs through the filtering of Kedro pipelines.
 
-Let's edit the automatically generated `conf/local/dagster.yml` to customize jobs, loggers, executors, and schedules:
+Now we will edit the automatically generated `conf/local/dagster.yml` to customize jobs, loggers, executors, and schedules:
 ```yaml
 loggers:
   console_logger:

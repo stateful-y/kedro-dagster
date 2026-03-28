@@ -1,6 +1,6 @@
-# Frequently Asked Questions
+# Troubleshooting
 
-This guide answers common questions and helps you diagnose and resolve issues when using Kedro-Dagster.
+This guide helps you diagnose and resolve common issues when using Kedro-Dagster.
 
 ## Getting Started
 

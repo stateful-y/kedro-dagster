@@ -3,7 +3,7 @@
 
 # Welcome to Kedro-Dagster's documentation
 
-Kedro-Dagster is a [Kedro](https://kedro.readthedocs.io/) plugin that enables seamless integration between [Kedro](https://kedro.readthedocs.io/), a framework for creating reproducible and maintainable data science code, and [Dagster](https://dagster.io/), a data orchestrator for data (and machine learning) pipelines. This plugin enables the use of Dagster's orchestration capabilities to deploy, automate, and monitor Kedro pipelines effectively.
+Kedro-Dagster makes it easy to deploy Kedro projects to Dagster.
 
 <div class="grid cards" markdown>
 
@@ -11,9 +11,7 @@ Kedro-Dagster is a [Kedro](https://kedro.readthedocs.io/) plugin that enables se
 
     ---
 
-    Install Kedro-Dagster and run your first pipeline in Dagster
-
-    **Install** → **Initialize** → **Run** → **Done**
+    Install Kedro-Dagster and run your first pipeline in Dagster.
 
     [Getting Started](pages/tutorials/getting-started.md)
 
@@ -21,7 +19,7 @@ Kedro-Dagster is a [Kedro](https://kedro.readthedocs.io/) plugin that enables se
 
     ---
 
-    Find answers to common questions and troubleshooting tips
+    Find answers to common questions and troubleshooting tips.
 
     [Troubleshooting](pages/how-to/troubleshooting.md)
 
@@ -29,15 +27,15 @@ Kedro-Dagster is a [Kedro](https://kedro.readthedocs.io/) plugin that enables se
 
     ---
 
-    Understand how Kedro and Dagster work together
+    Understand the design and core ideas behind Kedro-Dagster.
 
-    [Key Concepts](pages/explanation/concepts.md) · [Architecture](pages/explanation/architecture.md)
+    [Concepts](pages/explanation/concepts.md)
 
 -   **See It In Action**
 
     ---
 
-    Explore a complete example with partitions, MLflow, and more
+    Explore a complete example with partitions, MLflow, and more.
 
     [Example Project](pages/tutorials/example-project.md)
 
@@ -49,55 +47,36 @@ Kedro-Dagster is a [Kedro](https://kedro.readthedocs.io/) plugin that enables se
 <figcaption>Example of a Dagster Asset Lineage Graph generated from a Kedro project.</figcaption>
 </figure>
 
-## Tutorials
+## Table of Contents
 
 ### [Getting Started](pages/tutorials/getting-started.md)
 
-  *Step-by-step guide to installing and setting up Kedro-Dagster in your project.*
+Install and run your first example.
 
 ### [Example Project](pages/tutorials/example-project.md)
 
-  *A practical example demonstrating how to use Kedro-Dagster with partitions, MLflow, and more.*
-
-## How-to Guides
+A practical example with partitions, MLflow, and more.
 
 ### [Configure Logging](pages/how-to/configure-logging.md)
 
-  *Set up CLI logging, in-code logging, and custom handlers for Dagster runs.*
+Set up logging for Dagster runs.
 
-### [Integrate MLflow](pages/how-to/integrate-mlflow.md)
+### [API](pages/reference/api.md)
 
-  *Use kedro-mlflow tracking and model registry with Dagster orchestration.*
-
-### [Use Partitions](pages/how-to/use-partitions.md)
-
-  *Enable key-based Dagster partitions for parallel processing and backfills.*
-
-### [Troubleshooting](pages/how-to/troubleshooting.md)
-
-  *Diagnose and resolve common issues.*
-
-## Reference
-
-### [API Reference](pages/reference/api.md)
-
-  *Complete API reference for all Kedro-Dagster classes and functions.*
+Complete API reference - classes, functions, and options.
 
 ### [Configuration](pages/reference/configuration.md)
 
-  *dagster.yml structure, executors, schedules, and job options.*
+dagster.yml structure, executors, schedules, and job options.
 
-## Explanation
+### [Concepts](pages/explanation/concepts.md)
 
-### [Key Concepts](pages/explanation/concepts.md)
-
-  *Why Kedro-Dagster exists and its benefits for Kedro and Dagster users.*
+Design, architecture, and core ideas.
 
 ### [Architecture](pages/explanation/architecture.md)
 
-  *How Kedro projects are translated into Dagster code locations.*
+How Kedro projects are translated into Dagster code locations.
 
 ## License
 
-Kedro-Dagster is open source and licensed under the [Apache 2.0 License](https://www.apache.org/licenses/LICENSE-2.0).
-You are free to use, modify, and distribute this software under the terms of this license.
+Kedro-Dagster is open source and licensed under the [Apache-2.0 License](https://opensource.org/licenses/Apache-2.0).

@@ -148,14 +148,19 @@ benchmarks = [
 # Template nav structure:
 nav:
   - Home: index.md
-  - Getting Started: pages/getting-started.md
-  - User Guide: pages/user-guide.md
-  - Examples: pages/examples.md        # conditional
-  - API Reference: pages/api-reference.md
-  - Contributing: pages/contributing.md
+  - Tutorials:
+    - Getting Started: pages/tutorials/getting-started.md
+    - Examples: pages/tutorials/examples.md  # conditional
+  - How-to Guides:
+    - Configure: pages/how-to/configure.md
+    - Troubleshooting: pages/how-to/troubleshooting.md
+    - Contributing: pages/how-to/contribute.md
+  - Reference:
+    - API Reference: pages/reference/api.md
+  - Explanation:
+    - Concepts: pages/explanation/concepts.md
 
 # Local additions to preserve (not in template):
-  - Tutorials: pages/tutorials.md       # KEEP
   - FAQ: pages/faq.md                   # KEEP
 ```
 
