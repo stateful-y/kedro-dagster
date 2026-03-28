@@ -394,6 +394,16 @@ View all available commands:
 just --list
 ```
 
+
+## Before You Open a PR
+
+- [ ] Run `just test-fast` - all fast tests pass
+- [ ] Run `just fix` - code is formatted and linted
+- [ ] Write or update tests for your changes
+- [ ] If you changed docs, run `just serve` and verify they render
+- [ ] Use conventional commit messages
+- [ ] Keep the PR focused on a single concern
+
 ## Submitting Changes
 
 1. Push your changes to your fork:
@@ -448,6 +458,9 @@ BREAKING CHANGE: authentication now requires API keys instead of passwords"
 The pre-commit hook will validate your commit messages and prevent commits that don't follow the convention.
 
 ## Release Process
+
+!!! note "Maintainers only"
+    The release process is managed by project maintainers. Contributors do not need to create releases. Open PRs and a maintainer will handle versioning and publishing.
 
 Releases are fully automated through GitHub Actions when a new tag is pushed, with a **manual approval gate** before publishing to PyPI to ensure quality control.
 

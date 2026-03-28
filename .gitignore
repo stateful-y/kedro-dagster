@@ -79,6 +79,9 @@ src/kedro_dagster/_version.py
 # Auto-generated API submodule pages (created by docs/hooks.py)
 docs/pages/api/
 
+# Worktrees
+.worktrees/
+
 # AI Assistant Instructions
 CLAUDE.md
 CLAUDE_INSTRUCTIONS.md
