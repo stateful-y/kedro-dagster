@@ -52,7 +52,7 @@ Additionally, the project features:
     ```
 
    !!! note
-      By default, logs from Kedro/Kedro-Dagster and Dagster are displayed in different formats on the terminal. You can configure Kedro/Kedro-Dagster logging to match Dagster's format by making use of Dagster formatters in your Kedro project's `logging.yml`. For more information, see the [Logging](user-guide.md#logging) section in the user guide.
+      By default, logs from Kedro/Kedro-Dagster and Dagster are displayed in different formats on the terminal. You can configure Kedro/Kedro-Dagster logging to match Dagster's format by making use of Dagster formatters in your Kedro project's `logging.yml`. For more information, see the [Logging guide](../how-to/configure-logging.md).
 
 6. **Explore pipelines in Dagster UI**:
 
@@ -78,14 +78,14 @@ Additionally, the project features:
     Your Kedro datasets appear as Dagster assets and pipelines as Dagster jobs.
 
 <figure markdown>
-![Lineage graph of assets](../assets/example/local_asset_graph_dark.png#only-dark){data-gallery="assets-dark"}
-![Lineage graph of assets](../assets/example/local_asset_graph_light.png#only-light){data-gallery="assets-light"}
+![Lineage graph of assets](../../assets/example/local_asset_graph_dark.png#only-dark){data-gallery="assets-dark"}
+![Lineage graph of assets](../../assets/example/local_asset_graph_light.png#only-light){data-gallery="assets-light"}
 <figcaption>Dagster Asset Lineage Graph generated from the example Kedro project.</figcaption>
 </figure>
 
 <figure markdown>
-![List of assets](../assets/example/local_asset_list_dark.png#only-dark){data-gallery="assets-dark"}
-![List of assets](../assets/example/local_asset_list_light.png#only-light){data-gallery="assets-light"}
+![List of assets](../../assets/example/local_asset_list_dark.png#only-dark){data-gallery="assets-dark"}
+![List of assets](../../assets/example/local_asset_list_light.png#only-light){data-gallery="assets-light"}
 <figcaption>Dagster Asset List generated from the example Kedro project.</figcaption>
 </figure>
 
@@ -178,7 +178,7 @@ from kedro_dagster.logging import getLogger
    The `getLogger` function call must happen within the Kedro node function so that the Dagster context is accessible. Avoid defining loggers at the module level.
 
 Additionally, Kedro-Dagster provides configuration to customize Dagster run loggers via the `dagster.yml` file.
-This is done by configuring a [`LoggerCreator`](api/generated/kedro_dagster.dagster.LoggerCreator.md) that reads the `loggers` section of `dagster.yml` and creates the corresponding Dagster `LoggerDefinition`.
+This is done by configuring a [`LoggerCreator`](../api/generated/kedro_dagster.dagster.LoggerCreator.md) that reads the `loggers` section of `dagster.yml` and creates the corresponding Dagster `LoggerDefinition`.
 
 ### Environments configuration at a glance
 
@@ -267,7 +267,7 @@ jobs:
 
 In practice, each Dagster job is generated from a filtered Kedro pipeline (selected by `pipeline_name` and optionally narrowed by `node_namespaces` or `tags`). The job uses the configured executor (`in_process`, `multiprocess`, and so on). When you run `kedro dagster dev -e local`, the UI listens on `127.0.0.1:3000` and prints colored logs, as specified above.
 
-See also the API reference entries for filtering and execution options: [`PipelineOptions`](api/generated/kedro_dagster.config.job.PipelineOptions.md) and executor models.
+See also the API reference entries for filtering and execution options: [`PipelineOptions`](../api/generated/kedro_dagster.config.job.PipelineOptions.md) and executor models.
 
 ### Partitions in practice
 
@@ -442,5 +442,5 @@ Additionally, we show how to use MLflow alongside Optuna in a Kedro project thro
 
 ## Next steps
 
-- **User guide:** Explore the full [user guide](user-guide.md) for mapping details and configuration models.
-- **Reference:** See the [Kedro-Dagster reference](api-reference.md) for API and CLI details.
+- **Configuration:** Explore the [configuration reference](../reference/configuration.md) for mapping details and configuration models.
+- **Reference:** See the [API reference](../reference/api.md) for API and CLI details.

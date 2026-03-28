@@ -154,13 +154,21 @@ plugins:
 
 nav:
   - Home: index.md
-  - Introduction: pages/intro.md
-  - Getting Started: pages/getting-started.md
-  - User Guide: pages/user-guide.md
-  - Example: pages/example.md
-  - API Reference: pages/api-reference.md
-  - FAQ: pages/faq.md
-  - Contributing: pages/contributing.md
+  - Tutorials:
+    - Getting Started: pages/tutorials/getting-started.md
+    - Example Project: pages/tutorials/example-project.md
+  - How-to Guides:
+    - Configure Logging: pages/how-to/configure-logging.md
+    - Integrate MLflow: pages/how-to/integrate-mlflow.md
+    - Use Partitions: pages/how-to/use-partitions.md
+    - Troubleshooting: pages/how-to/troubleshooting.md
+    - Contributing: pages/how-to/contributing.md
+  - Reference:
+    - API Reference: pages/reference/api.md
+    - Configuration: pages/reference/configuration.md
+  - Explanation:
+    - Key Concepts: pages/explanation/concepts.md
+    - Architecture: pages/explanation/architecture.md
 
 extra:
   social:

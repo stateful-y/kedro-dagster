@@ -280,7 +280,7 @@ def _build_api_table_html(project_root):
     for mod in modules:
         members = _resolve_members(pkg_dir, mod["module_name"])
         module_label = f"kedro_dagster.{mod['module_name']}"
-        module_href = f"../api/{mod['module_name']}/"
+        module_href = f"../../api/{mod['module_name']}/"
 
         for cls in members["classes"]:
             prefix = cls.get("qualified_prefix", module_label)
@@ -301,7 +301,7 @@ def _build_api_table_html(project_root):
 
     tbody_lines = []
     for name, kind, module_label, module_href, desc, qualified in rows:
-        href = f"../api/generated/{qualified}/"
+        href = f"../../api/generated/{qualified}/"
         badge_cls = _type_badge_cls.get(kind, "")
         tbody_lines.append(
             f"      <tr>"
@@ -377,7 +377,7 @@ def _build_module_toc(config, current_src_path=None):
     api_dir = docs_dir / "pages" / "api"
     project_root = docs_dir.parent
 
-    is_index = current_src_path is None or current_src_path == "pages/api-reference.md"
+    is_index = current_src_path is None or current_src_path == "pages/reference/api.md"
 
     modules = _get_submodules(project_root)
     module_toc = []
@@ -390,8 +390,8 @@ def _build_module_toc(config, current_src_path=None):
 
         # Compute relative URL
         if is_index:
-            # api-reference.md is at pages/api-reference/, submodule pages at pages/api/
-            page_url = f"../api/{md_filename.replace('.md', '/')}"
+            # api.md is at pages/reference/api/, submodule pages at pages/api/
+            page_url = f"../../api/{md_filename.replace('.md', '/')}"
         else:
             page_url = f"../{md_filename.replace('.md', '/')}".replace("//", "/")
 
@@ -751,7 +751,7 @@ def on_page_content(html, page, config, files):
     if src.startswith("pages/api/generated/"):
         html = _process_api_page_content(html, page, config)
 
-    if src == "pages/api-reference.md":
+    if src == "pages/reference/api.md":
         # API index: flat module list (api-index.html template)
         page.meta["module_toc"] = _build_module_toc(config, current_src_path=src)
     elif (
