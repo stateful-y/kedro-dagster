@@ -206,3 +206,15 @@ You have [accomplished concrete thing]. Along the way, you:
 - Not a reference (describes machinery, doesn't guide action)
 - Not an explanation (discusses topics, doesn't guide action)
 - Not "the basics" — tutorials can be advanced; the distinction is study vs. work
+
+## Companion Notebooks
+
+Tutorial doc pages can have an interactive companion notebook (marimo). When one exists, add a callout after the title:
+
+```markdown
+!!! tip "Interactive notebook"
+    Follow along in the Quickstart notebook for a hands-on version of this tutorial.
+    [View](/examples/slug/) · [Open in marimo](/examples/slug/edit/)
+```
+
+Use the `diataxis-notebook-writer` skill when creating or editing the companion notebook itself.

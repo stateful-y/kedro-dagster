@@ -49,6 +49,7 @@ Read all files in `docs/` and classify each page by quadrant using the compass:
 - For each page, note: file path, current title, actual quadrant, intended quadrant
 - Flag pages that mix quadrants (e.g., a "getting started" that is half tutorial, half reference)
 - Flag pages that are misclassified (e.g., an "explanation" page that is really a how-to)
+- Check `examples/` for marimo notebooks: classify each by quadrant using its `__gallery__` metadata `category` field and verify it matches the notebook content
 
 ### Step 3: Identify Gaps
 
@@ -89,6 +90,7 @@ Output a structured documentation plan:
    - How-to pages → `diataxis-howto-writer`
    - Reference pages → `diataxis-reference-writer`
    - Explanation pages → `diataxis-explanation-writer`
+   - Companion notebooks → `diataxis-notebook-writer`
 
 ## MkDocs Nav Patterns
 

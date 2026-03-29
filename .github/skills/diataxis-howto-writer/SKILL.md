@@ -184,3 +184,15 @@ A tutorial teaches general skills through a specific exercise. A how-to guide he
 - **Tool-centric framing** — "How to use the X class" is not addressed to a human need
 - **Missing conditionals** — Real-world tasks branch; acknowledge this with if/then guidance
 - **Burying the action** — Lead with what to do, not why
+
+## Companion Notebooks
+
+How-to doc pages can have an interactive companion notebook (marimo). When one exists, add a callout after the title:
+
+```markdown
+!!! tip "Interactive notebook"
+    See the companion notebook for a runnable example.
+    [View](/examples/slug/) · [Open in marimo](/examples/slug/edit/)
+```
+
+Use the `diataxis-notebook-writer` skill when creating or editing the companion notebook itself.
