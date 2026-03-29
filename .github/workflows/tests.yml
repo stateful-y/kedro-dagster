@@ -23,7 +23,7 @@ jobs:
         # Draft PRs: Ubuntu only, min+max Python versions
         # Ready PRs: All OS, min+max Python versions
         os: ${{ github.event.pull_request.draft && fromJSON('["ubuntu-latest"]') || fromJSON('["ubuntu-latest", "windows-latest", "macos-latest"]') }}
-        python-version: ["3.10", "3.13"]
+        python-version: ["3.11", "3.13"]
 
     steps:
       - name: Checkout code
