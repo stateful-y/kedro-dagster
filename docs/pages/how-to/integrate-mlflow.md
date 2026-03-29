@@ -10,7 +10,7 @@ When a Kedro node executes within a Dagster context and an active MLflow run is 
 2. **Generates run URLs**: Creates clickable links to view the MLflow run in the MLflow UI.
 3. **Logs to Dagster**: Records MLflow run information in Dagster logs, run tags, and asset materialization metadata.
 
-No Dagster-specific MLflow code is needed - Kedro-MLflow hooks fire automatically during Dagster runs.
+No Dagster-specific MLflow code is needed; Kedro-MLflow hooks fire automatically during Dagster runs.
 
 ## Configure MLflow for your project
 

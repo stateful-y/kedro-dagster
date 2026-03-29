@@ -1,5 +1,5 @@
 site_name: Kedro-Dagster
-site_description: Seamless integration between Kedro and Dagster
+site_description: Kedro-Dagster makes it easy to deploy Kedro projects to Dagster
 site_url: https://kedro-dagster.readthedocs.io/
 repo_url: https://github.com/stateful-y/kedro-dagster
 repo_name: stateful-y/kedro-dagster
@@ -111,8 +111,8 @@ validation:
   links:
     not_found: warn
     anchors: warn
-    absolute_links: ignore
-    unrecognized_links: ignore
+    absolute_links: ignore  # Ignore absolute links - we handle them in hooks
+    unrecognized_links: ignore  # Ignore unrecognized links - examples HTML is generated
 
 plugins:
   - search

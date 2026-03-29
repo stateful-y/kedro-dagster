@@ -10,12 +10,11 @@ authors = [
     { name = "Guillaume Tauzin", email = "gtauzin@stateful-y.io" }
 ]
 license = { text = "Apache-2.0" }
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -100,7 +99,7 @@ version-file = "src/kedro_dagster/_version.py"
 
 [tool.ruff]
 line-length = 120
-target-version = "py310"
+target-version = "py311"
 src = ["src", "tests"]
 show-fixes = true
 exclude = ["src/kedro_dagster/_version.py"]
@@ -125,9 +124,9 @@ select = [
     "T201", # Print statement
 ]
 ignore = [
-    "E203",    # space before : (needed for how black formats slicing)
-    "E501",    # line too long (handled by formatter)
-    "B008",    # do not perform function calls in argument defaults
+    "E203",   # space before : (needed for how black formats slicing)
+    "E501",   # line too long (handled by formatter)
+    "B008",   # do not perform function calls in argument defaults
     "PLC0415", # import not at top-level (lazy imports are intentional)
     "SIM102",  # collapsible if (clarity over brevity)
     "SIM105",  # contextlib.suppress (comments on except clauses preferred)
@@ -139,7 +138,7 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*" = ["ARG", "S101", "T201", "PLR2004"]  # Allow assert statements, prints, and magic values in tests
-"docs/**/*" = ["T201", "ARG001", "PLW0603"]  # Allow prints, unused args, and globals in documentation hooks
+"docs/**/*" = ["T201", "ARG001", "PLW0603", "SIM105", "SIM108"]  # Allow prints, unused args, globals, and simplifiable patterns in documentation hooks
 
 [tool.ruff.lint.isort]
 known-first-party = ["kedro_dagster"]

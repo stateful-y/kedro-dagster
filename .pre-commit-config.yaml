@@ -12,12 +12,14 @@ repos:
       - id: debug-statements
       - id: mixed-line-ending
 
+
   # Enforce conventional commit messages
   - repo: https://github.com/commitizen-tools/commitizen
     rev: v4.3.0
     hooks:
       - id: commitizen
         stages: [commit-msg]
+
 
   - repo: https://github.com/econchick/interrogate
     rev: 1.7.0

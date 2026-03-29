@@ -1,12 +1,12 @@
 # Concepts
 
-Kedro-Dagster connects [Kedro](https://kedro.readthedocs.io/) data science projects to [Dagster's](https://docs.dagster.io/) orchestration engine. With minimal setup, you can run, schedule, and monitor Kedro pipelines in Dagster - taking advantage of its UI, asset lineage tracking, and cloud-native executors - without altering your existing codebase.
+Kedro-Dagster connects [Kedro](https://kedro.readthedocs.io/) data science projects to [Dagster's](https://docs.dagster.io/) orchestration engine. With minimal setup, you can run, schedule, and monitor Kedro pipelines in Dagster, taking advantage of its UI, asset lineage tracking, and cloud-native executors, without altering your existing codebase.
 
 ## The asset-first alignment
 
 Kedro and Dagster share an asset-first philosophy. In Kedro, assets are datasets passed between nodes that make up a pipeline. Dagster mirrors this by treating the output of each computation as an asset with associated execution semantics and lineage. This alignment allows Kedro pipelines to be translated into Dagster assets with minimal effort, preserving structure and enabling rich observability out of the box.
 
-Kedro-Dagster leverages the complementarity of both frameworks. Kedro provides a robust developer experience for building pipelines - modular, testable, and backed by strong configuration and data cataloging. Dagster brings a powerful orchestration layer with scheduling, logging, asset monitoring, and execution control. Whether you start from Kedro or Dagster, each tool plays to its strengths.
+Kedro-Dagster leverages the complementarity of both frameworks. Kedro provides a robust developer experience for building pipelines: modular, testable, and backed by strong configuration and data cataloging. Dagster brings a powerful orchestration layer with scheduling, logging, asset monitoring, and execution control. Whether you start from Kedro or Dagster, each tool plays to its strengths.
 
 ### For Kedro users
 

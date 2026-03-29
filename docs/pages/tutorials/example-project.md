@@ -42,7 +42,7 @@ We begin by cloning the repository and running it locally.
     kedro dagster list defs --env "local"
     ```
 
-    Notice that this repository is already initialized for Kedro-Dagster - you do not need to run `kedro dagster init`.
+    Notice that this repository is already initialized for Kedro-Dagster, so you do not need to run `kedro dagster init`.
 
 5. **Launch the Dagster UI**:
 
@@ -253,7 +253,7 @@ companies_dagster_partition:
 !!! note
     `DagsterPartitionedDataset` reduces to Kedro's `PartitionedDataset` when run outside of Dagster, so the pipeline remains runnable with `kedro run`.
 
-You can also materialize partitioned assets from the Dagster UI - select a specific partition key in the Launchpad, or use a backfill for multiple keys at once.
+You can also materialize partitioned assets from the Dagster UI: select a specific partition key in the Launchpad, or use a backfill for multiple keys at once.
 
 ### Enforcing order with `Nothing` assets
 

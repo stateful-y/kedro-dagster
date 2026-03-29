@@ -2,7 +2,7 @@
 
 In this tutorial, we will set up and deploy a Kedro project with Dagster using the Kedro-Dagster plugin. By the end, we will have a running Dagster UI showing our Kedro pipelines as Dagster jobs, assets, and schedules.
 
-We will use the Kedro `spaceflights-pandas` starter, but you can use your own Kedro project - if so, skip step 1.
+We will use the Kedro `spaceflights-pandas` starter, but you can use your own Kedro project; if so, skip step 1.
 
 ## 1. Create a Kedro project (optional)
 
@@ -195,7 +195,7 @@ The "Jobs" tab lists the jobs defined in `dagster.yml`, with names prefixed by t
 <figcaption>Job List.</figcaption>
 </figure>
 
-Clicking on `parallel_data_processing` shows the translated pipeline graph. Notice that `before_pipeline_run` and `after_pipeline_run` appear as the first and last ops - these preserve your Kedro hooks.
+Clicking on `parallel_data_processing` shows the translated pipeline graph. Notice that `before_pipeline_run` and `after_pipeline_run` appear as the first and last ops; these preserve your Kedro hooks.
 
 <figure markdown>
 ![Graph describing the "parallel_data_processing" job](../../assets/getting-started/job_graph_dark.png#only-dark){data-gallery="jobs-dark"}
@@ -219,7 +219,7 @@ We can launch the job from the "Launchpad" sub-tab. The Kedro parameters (mapped
 
 ### Resources and Automation
 
-The "Resources" tab shows one Dagster IO Manager per Kedro dataset - these interface with each dataset's `save` and `load` methods.
+The "Resources" tab shows one Dagster IO Manager per Kedro dataset; these interface with each dataset's `save` and `load` methods.
 
 <figure markdown>
 ![List of the resources involved in the specified jobs](../../assets/getting-started/resource_list_dark.png#only-dark){data-gallery="resources-dark"}

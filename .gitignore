@@ -61,6 +61,8 @@ coverage.xml
 docs/_build/
 site/
 .mkdocs_cache/
+docs/tmp-build-artifacts
+docs/build
 
 # Distribution
 *.whl
@@ -130,16 +132,6 @@ llm-instructions/
 .cursor/
 .aider*
 .continue/
-# end to end tests assets
 
-# Vim
-*~
-.*.swo
-.*.swp
-
-.pytest_cache/
-docs/tmp-build-artifacts
-docs/build
-
-# dagster
+# Dagster
 tmp**

@@ -1,6 +1,6 @@
 # Contributing
 
-Thank you for your interest in contributing! All contributions - bug reports, fixes, documentation improvements, and feature suggestions - are welcome.
+Thank you for your interest in contributing! We welcome all contributions, whether bug reports, fixes, documentation improvements, or feature suggestions.
 
 Please review our [Code of Conduct](CODE_OF_CONDUCT.md) before participating.
 
@@ -16,7 +16,7 @@ just test-fast
 
 ## Full Guidelines
 
-For the complete contributing guide - including test strategy, code quality standards, commit conventions, and CI/CD details - see:
+The complete contributing guide covers test strategy, code quality standards, commit conventions, and CI/CD details:
 
 **[Full Contributing Guide](docs/pages/how-to/contribute.md)**
 

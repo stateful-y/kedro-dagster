@@ -258,8 +258,8 @@ Follow these conventions when writing tests:
 The CI pipeline uses a two-tier testing strategy optimized for fast feedback:
 
 1. **Fast tests** (`test-fast` job): Runs on minimum and maximum Python versions (3.11, 3.13) only:
-    - **Draft PRs**: Ubuntu only - Quick feedback in ~2-3 minutes
-    - **Ready PRs/Main**: All OS - Ubuntu, Windows, macOS - Cross-platform validation
+    - **Draft PRs**: Ubuntu only. Quick feedback in ~2-3 minutes
+    - **Ready PRs/Main**: All OS (Ubuntu, Windows, macOS). Cross-platform validation
 
 2. **Full test suite** (`test-full` job): Runs all tests (fast + slow + integration) on Ubuntu across all Python versions (3.11-3.13) when the PR is not in draft mode or on the main branch. This comprehensive validation includes coverage reporting on the minimum supported Python version.
 
@@ -534,4 +534,4 @@ If you have any questions, feel free to:
 - [Open an issue on GitHub](https://github.com/stateful-y/kedro-dagster/issues/new)
 - [Start a discussion in the repository](https://github.com/stateful-y/kedro-dagster/discussions)
 
-Thank you for contributing! 🎉
+Thank you for contributing!

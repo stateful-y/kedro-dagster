@@ -62,7 +62,7 @@ def process_data(data: pd.DataFrame) -> pd.DataFrame:
 !!! tip
     Always import `getLogger` and create the logger **inside** the node function, not at module level. This ensures the Dagster execution context is available.
 
-The `getLogger` function automatically detects the execution context - it returns a Dagster logger during Dagster runs (logs appear in the UI) and a standard Python logger during Kedro runs (logs appear in the terminal).
+The `getLogger` function automatically detects the execution context: it returns a Dagster logger during Dagster runs (logs appear in the UI) and a standard Python logger during Kedro runs (logs appear in the terminal).
 
 ## Configure Dagster run loggers
 

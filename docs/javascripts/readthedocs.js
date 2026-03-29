@@ -19,7 +19,7 @@ document.addEventListener("readthedocs-addons-data-ready", function (event) {
 </button>
 
 <ul class="md-version__list">
-${config.versions.active.map(
+${ config.versions.active.map(
     (version) => `
     <li class="md-version__item">
     <a href="${ version.urls.documentation }" class="md-version__link">
@@ -33,7 +33,7 @@ ${config.versions.active.map(
     // This happens when using the "Instant loading" feature.
     const currentVersions = document.querySelector(".md-version");
     if (currentVersions !== null) {
-        currentVersions.remove();
+      currentVersions.remove();
     }
 
     // Inject into the header topic area
