@@ -26,7 +26,7 @@ LogLevel = Literal["CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG", "NOTSET"]
 class LoggerOptions(BaseModel):
     """Options for defining Dagster loggers.
 
-    Attributes
+    Parameters
     ----------
     log_level : LogLevel
         Logging level (CRITICAL/ERROR/WARNING/INFO/DEBUG/NOTSET).
@@ -253,7 +253,7 @@ class LoggerOptions(BaseModel):
 class InProcessExecutorOptions(BaseModel):
     """Options for the in-process executor.
 
-    Attributes
+    Parameters
     ----------
     retries : RetriesEnableOptions or RetriesDisableOptions
         Retry configuration for the executor.
@@ -298,7 +298,7 @@ class InProcessExecutorOptions(BaseModel):
 class MultiprocessExecutorOptions(InProcessExecutorOptions):
     """Options for the multiprocess executor.
 
-    Attributes
+    Parameters
     ----------
     retries : RetriesEnableOptions or RetriesDisableOptions
         Retry configuration for the executor.
@@ -339,7 +339,7 @@ class MultiprocessExecutorOptions(InProcessExecutorOptions):
 class DaskClusterConfig(BaseModel):
     """Configuration for the Dask cluster.
 
-    Attributes
+    Parameters
     ----------
     existing : dict[str, str] or None
         Connect to an existing scheduler.
@@ -386,7 +386,7 @@ class DaskClusterConfig(BaseModel):
 class DaskExecutorOptions(BaseModel):
     """Options for the Dask executor.
 
-    Attributes
+    Parameters
     ----------
     cluster : DaskClusterConfig
         Configuration for the Dask cluster.
@@ -422,7 +422,7 @@ class DaskExecutorOptions(BaseModel):
 class DockerExecutorOptions(MultiprocessExecutorOptions):
     """Options for the Docker-based executor.
 
-    Attributes
+    Parameters
     ----------
     retries : RetriesEnableOptions or RetriesDisableOptions
         Retry configuration for the executor.
@@ -498,7 +498,7 @@ class DockerExecutorOptions(MultiprocessExecutorOptions):
 class CeleryExecutorOptions(BaseModel):
     """Options for the Celery-based executor.
 
-    Attributes
+    Parameters
     ----------
     broker : str or None
         Celery broker URL.
@@ -595,7 +595,7 @@ class CeleryDockerExecutorOptions(CeleryExecutorOptions, DockerExecutorOptions):
 class K8sJobConfig(BaseModel):
     """Configuration for Kubernetes jobs.
 
-    Attributes
+    Parameters
     ----------
     container_config : dict[str, Any]
         Configuration for the Kubernetes container.
@@ -662,7 +662,7 @@ class K8sJobConfig(BaseModel):
 class K8sJobExecutorOptions(MultiprocessExecutorOptions):
     """Options for the Kubernetes-based executor.
 
-    Attributes
+    Parameters
     ----------
     retries : RetriesEnableOptions or RetriesDisableOptions
         Retry configuration for the executor.
@@ -816,7 +816,7 @@ class K8sJobExecutorOptions(MultiprocessExecutorOptions):
 class CeleryK8sJobExecutorOptions(CeleryExecutorOptions, K8sJobExecutorOptions):
     """Options for the Celery-based executor which launches tasks as Kubernetes jobs.
 
-    Attributes
+    Parameters
     ----------
     job_wait_timeout : float
         Wait time in seconds for a job to complete before marking as failed.
@@ -891,7 +891,7 @@ EXECUTOR_MAP = {
 class ScheduleOptions(BaseModel):
     """Options for defining Dagster schedules.
 
-    Attributes
+    Parameters
     ----------
     cron_schedule : str
         Cron expression for the schedule.
@@ -934,7 +934,7 @@ class ScheduleOptions(BaseModel):
 class PipelineOptions(BaseModel):
     """Options for filtering and configuring Kedro pipelines within a Dagster job.
 
-    Attributes
+    Parameters
     ----------
     pipeline_name : str
         Name of the Kedro pipeline to run. Defaults to ``__default__``.
@@ -991,7 +991,7 @@ class PipelineOptions(BaseModel):
 class JobOptions(BaseModel):
     """Configuration options for a Dagster job.
 
-    Attributes
+    Parameters
     ----------
     pipeline : PipelineOptions
         Pipeline options specifying which pipeline and nodes to run.
@@ -1045,7 +1045,7 @@ class JobOptions(BaseModel):
 class KedroDagsterConfig(BaseModel):
     """Main configuration class representing the ``dagster.yml`` structure.
 
-    Attributes
+    Parameters
     ----------
     loggers : dict[str, LoggerOptions] or None
         Mapping of logger names to logger options.
@@ -1055,6 +1055,27 @@ class KedroDagsterConfig(BaseModel):
         Mapping of schedule names to schedule options.
     jobs : dict[str, JobOptions] or None
         Mapping of job names to job options.
+
+    Examples
+    --------
+    ```yaml
+    # conf/base/dagster.yml
+    executors:
+      sequential:
+        in_process: {}
+
+    schedules:
+      daily:
+        cron_schedule: "0 6 * * *"
+        execution_timezone: "UTC"
+
+    jobs:
+      __default__:
+        pipeline:
+          pipeline_name: __default__
+        executor: sequential
+        schedule: daily
+    ```
 
     See Also
     --------

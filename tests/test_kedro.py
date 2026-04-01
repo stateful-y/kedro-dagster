@@ -12,7 +12,6 @@ from kedro.framework.session import KedroSession
 from kedro.framework.startup import bootstrap_project
 
 from kedro_dagster.kedro import KedroRunTranslator
-from kedro_dagster.utils import KEDRO_VERSION
 
 
 class _FakeHook:
@@ -96,16 +95,12 @@ class TestKedroRunResource:
         )
 
         params = resource.run_params
-        run_id_key = "run_id" if KEDRO_VERSION[0] >= 1 else "session_id"
         assert params["project_path"] == str(options.project_path)
         assert params["env"] == options.env
-        assert params[run_id_key] == "sid-123"
+        assert params["run_id"] == "sid-123"
         assert params["pipeline_name"] == "__default__"
         assert params["load_versions"] is None
-        if KEDRO_VERSION[0] >= 1:
-            assert params["runtime_params"] is None
-        else:
-            assert params["extra_params"] is None
+        assert params["runtime_params"] is None
         assert params["runner"] is None
         assert params["tags"] == ["a", "b"]
         assert params["from_nodes"] == ["n1"]
@@ -124,59 +119,31 @@ class TestKedroRunResource:
 
         captured: dict[str, Any] = {}
 
-        if KEDRO_VERSION[0] >= 1:
-            node_namespace_key = "node_namespaces"
-            node_namespace_val = ["ns"]
+        node_namespace_key = "node_namespaces"
+        node_namespace_val = ["ns"]
 
-            class _DummyPipeline:
-                def filter(
-                    self,
-                    *,
-                    tags=None,
-                    from_nodes=None,
-                    to_nodes=None,
-                    node_names=None,
-                    from_inputs=None,
-                    to_outputs=None,
-                    node_namespaces=None,
-                ) -> dict[str, Any]:
-                    captured.update({
-                        "tags": tags,
-                        "from_nodes": from_nodes,
-                        "to_nodes": to_nodes,
-                        "node_names": node_names,
-                        "from_inputs": from_inputs,
-                        "to_outputs": to_outputs,
-                        "node_namespaces": node_namespaces,
-                    })
-                    return {"ok": True}
-
-        else:
-            node_namespace_key = "node_namespace"
-            node_namespace_val = "ns"
-
-            class _DummyPipeline:
-                def filter(
-                    self,
-                    *,
-                    tags=None,
-                    from_nodes=None,
-                    to_nodes=None,
-                    node_names=None,
-                    from_inputs=None,
-                    to_outputs=None,
-                    node_namespace=None,
-                ) -> dict[str, Any]:
-                    captured.update({
-                        "tags": tags,
-                        "from_nodes": from_nodes,
-                        "to_nodes": to_nodes,
-                        "node_names": node_names,
-                        "from_inputs": from_inputs,
-                        "to_outputs": to_outputs,
-                        "node_namespace": node_namespace,
-                    })
-                    return {"ok": True}
+        class _DummyPipeline:
+            def filter(
+                self,
+                *,
+                tags=None,
+                from_nodes=None,
+                to_nodes=None,
+                node_names=None,
+                from_inputs=None,
+                to_outputs=None,
+                node_namespaces=None,
+            ) -> dict[str, Any]:
+                captured.update({
+                    "tags": tags,
+                    "from_nodes": from_nodes,
+                    "to_nodes": to_nodes,
+                    "node_names": node_names,
+                    "from_inputs": from_inputs,
+                    "to_outputs": to_outputs,
+                    "node_namespaces": node_namespaces,
+                })
+                return {"ok": True}
 
         monkeypatch.setattr("kedro.framework.project.pipelines.get", lambda name: _DummyPipeline())
 
@@ -249,12 +216,8 @@ class TestKedroRunHooks:
 
         assert hasattr(hook_call["catalog"], "_datasets")
 
-        if KEDRO_VERSION[0] >= 1:
-            assert hook_call["parameters"] == translator._context._get_parameters()
-            assert hook_call["feed_dict"] is None
-        else:
-            assert hook_call["feed_dict"] == translator._context._get_feed_dict()
-            assert hook_call["parameters"] is None
+        assert hook_call["parameters"] == translator._context._get_parameters()
+        assert hook_call["feed_dict"] is None
 
         assert isinstance(hook_call["conf_catalog"], dict)
         assert isinstance(hook_call["conf_creds"], dict)

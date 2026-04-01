@@ -11,7 +11,6 @@ from pydantic import BaseModel, ValidationError
 
 from kedro_dagster.datasets import DagsterNothingDataset
 from kedro_dagster.utils import (
-    KEDRO_VERSION,
     _create_pydantic_model_from_dict,
     _get_node_pipeline_name,
     _is_param_name,
@@ -200,14 +199,6 @@ class TestGetFilterParamsDict:
 
     def test_maps_node_namespace_key_by_kedro_version(self):
         """Map node namespace key depending on Kedro major version; pass others unchanged."""
-        kedro_major = KEDRO_VERSION[0]
-        if kedro_major >= 1:
-            node_namespace_key = "node_namespaces"
-            node_namespace_val = ["namespace"]
-        else:
-            node_namespace_key = "node_namespace"
-            node_namespace_val = "namespace"
-
         pipeline_config = {
             "tags": ["tag1"],
             "from_nodes": ["node1"],
@@ -215,7 +206,7 @@ class TestGetFilterParamsDict:
             "node_names": ["node3"],
             "from_inputs": ["input1"],
             "to_outputs": ["output1_ds"],
-            node_namespace_key: node_namespace_val,
+            "node_namespaces": ["namespace"],
         }
 
         filter_params = get_filter_params_dict(pipeline_config)

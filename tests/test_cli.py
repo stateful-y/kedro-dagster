@@ -545,10 +545,6 @@ class TestCliListDefs:
         assert kwargs["env"]["KEDRO_ENV"] == kedro_project_spaceflights_quickstart_base.env
 
     @pytest.mark.skipif(utils.DAGSTER_VERSION < (1, 11, 0), reason="dg list defs commands require dagster>=1.11.0")
-    @pytest.mark.skipif(
-        utils.KEDRO_VERSION < (1, 0, 0) and utils.is_mlflow_enabled(),
-        reason="MLflow emits warnings that break dg list defs",
-    )
     def test_real_subprocess_returns_definitions(self, kedro_project_exec_filebacked_base, monkeypatch):
         """Integration: list defs returns expected definitions from a scenario."""
         project_path = kedro_project_exec_filebacked_base.project_path
@@ -578,10 +574,6 @@ class TestCliListDefs:
         assert len(asset_keys) >= 1, f"Expected at least 1 asset in {asset_keys}"
 
     @pytest.mark.skipif(utils.DAGSTER_VERSION < (1, 11, 0), reason="dg list defs commands require dagster>=1.11.0")
-    @pytest.mark.skipif(
-        utils.KEDRO_VERSION < (1, 0, 0) and utils.is_mlflow_enabled(),
-        reason="MLflow emits warnings that break dg list defs",
-    )
     def test_real_subprocess_with_local_env(self, kedro_project_exec_filebacked_local, monkeypatch):
         """Integration: list defs works with 'local' environment."""
         project_path = kedro_project_exec_filebacked_local.project_path
