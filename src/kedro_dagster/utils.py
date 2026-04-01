@@ -617,7 +617,14 @@ def _get_node_pipeline_name(node: "Node") -> str:
     """
     from kedro.framework.project import find_pipelines
 
-    pipelines: dict[str, Pipeline] = find_pipelines()
+    try:
+        pipelines: dict[str, Pipeline] = find_pipelines()
+    except Exception:
+        LOGGER.warning(
+            f"Node `{node.name}` could not be matched to a pipeline. "
+            "Assigning '__none__' as its corresponding pipeline name."
+        )
+        return "__none__"
 
     for pipeline_name, pipeline in pipelines.items():
         if pipeline_name != "__default__":

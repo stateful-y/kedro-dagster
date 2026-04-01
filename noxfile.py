@@ -300,7 +300,6 @@ def link_docs(session: nox.Session) -> None:
 # [ADDITION] Project-specific: Kedro/Dagster version matrix testing
 # --------------------------------------------------------------------------------------
 KEDRO_SPECS = [
-    "kedro>=0.19,<1.0",
     "kedro>=1.0,<2.0",
 ]
 
