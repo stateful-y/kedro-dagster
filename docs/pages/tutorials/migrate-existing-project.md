@@ -57,9 +57,9 @@ Most Kedro datasets work without changes. The translator wraps each dataset's `s
 
 **Datasets that need attention:**
 
-- **MemoryDataset** - works, but the data lives only within the Dagster run. Cross-job data sharing is not supported.
-- **Custom datasets with side effects** - if your dataset's `save()` or `load()` method interacts with external services (APIs, message queues), verify it behaves correctly when called from within a Dagster op.
-- **Datasets with credentials** - credentials from `conf/<env>/credentials.yml` are loaded normally. Ensure the Dagster environment has access to the same credential files or environment variables.
+- **MemoryDataset**: works, but the data lives only within the Dagster run. Cross-job data sharing is not supported.
+- **Custom datasets with side effects**: if your dataset's `save()` or `load()` method interacts with external services (APIs, message queues), verify it behaves correctly when called from within a Dagster op.
+- **Datasets with credentials**: credentials from `conf/<env>/credentials.yml` are loaded normally. Ensure the Dagster environment has access to the same credential files or environment variables.
 
 ## 4. Verify hooks work
 
@@ -128,7 +128,7 @@ Check that:
 
 ## See also
 
-- [Getting Started](../tutorials/getting-started.md) - tutorial for new projects
-- [Architecture](../explanation/architecture.md) - how the translation maps Kedro concepts to Dagster
-- [Configuration Reference](../reference/configuration.md) - all `dagster.yml` options
-- [Troubleshooting](../how-to/troubleshoot.md) - more common issues and solutions
+- [Getting Started](../tutorials/getting-started.md): tutorial for new projects
+- [Architecture](../explanation/architecture.md): how the translation maps Kedro concepts to Dagster
+- [Configuration Reference](../reference/configuration.md): all `dagster.yml` options
+- [Troubleshooting](../how-to/troubleshoot.md): more common issues and solutions

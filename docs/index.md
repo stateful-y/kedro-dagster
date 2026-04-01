@@ -3,7 +3,12 @@
 
 # Welcome to Kedro-Dagster's documentation
 
-Kedro-Dagster makes it easy to deploy Kedro projects to Dagster.
+Kedro-Dagster is an integration plugin that lets you deploy
+[Kedro](https://docs.kedro.org/) data pipelines on
+[Dagster](https://docs.dagster.io/) without modifying your existing project
+code. It translates your catalog, nodes, and pipelines into Dagster assets,
+ops, and jobs so you can schedule, monitor, and inspect runs through
+Dagster's UI and execution backends.
 
 <div class="grid cards" markdown>
 
@@ -59,10 +64,10 @@ Kedro-Dagster makes it easy to deploy Kedro projects to Dagster.
 
 ## Key capabilities
 
-- **No code changes** - integrate Dagster without touching your Kedro datasets, catalog, or pipelines.
-- **Full orchestration** - schedule, monitor, and inspect Kedro pipelines through Dagster's UI, asset lineage tracking, and cloud-native executors.
-- **Configuration-driven** - define jobs, executors, schedules, and loggers in a `dagster.yml` per environment.
-- **Ecosystem compatibility** - works with Kedro hooks, Kedro-MLflow, and all Dagster-supported execution backends (multiprocess, Docker, Kubernetes, Dask, Celery).
+- **No code changes**: integrate Dagster without touching your Kedro datasets, catalog, or pipelines.
+- **Full orchestration**: schedule, monitor, and inspect Kedro pipelines through Dagster's UI, asset lineage tracking, and cloud-native executors.
+- **Configuration-driven**: define jobs, executors, schedules, and loggers in a `dagster.yml` per environment.
+- **Ecosystem compatibility**: works with Kedro hooks, Kedro-MLflow, and all Dagster-supported execution backends (multiprocess, Docker, Kubernetes, Dask, Celery).
 
 <figure markdown>
 ![Lineage graph of assets involved in the specified jobs](assets/getting-started/asset_graph_dark.png#only-dark)
@@ -73,3 +78,9 @@ Kedro-Dagster makes it easy to deploy Kedro projects to Dagster.
 ## License
 
 Kedro-Dagster is open source and licensed under the [Apache-2.0 License](https://opensource.org/licenses/Apache-2.0).
+
+## Acknowledgements
+
+This project is maintained by [stateful-y](https://stateful-y.io), an ML consultancy specializing in MLOps and data science & engineering.
+
+![Made by stateful-y](assets/made_by_stateful-y.png){width=200}

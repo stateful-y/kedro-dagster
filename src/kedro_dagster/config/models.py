@@ -15,9 +15,6 @@ if TYPE_CHECKING:
 
 LOGGER = getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Logging models
-# ---------------------------------------------------------------------------
 
 # Valid Python logging levels (normalized to uppercase)
 LogLevel = Literal["CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG", "NOTSET"]
@@ -243,11 +240,6 @@ class LoggerOptions(BaseModel):
                                 )
 
         return self
-
-
-# ---------------------------------------------------------------------------
-# Executor models
-# ---------------------------------------------------------------------------
 
 
 class InProcessExecutorOptions(BaseModel):
@@ -883,11 +875,6 @@ EXECUTOR_MAP = {
 }
 
 
-# ---------------------------------------------------------------------------
-# Schedule models
-# ---------------------------------------------------------------------------
-
-
 class ScheduleOptions(BaseModel):
     """Options for defining Dagster schedules.
 
@@ -924,11 +911,6 @@ class ScheduleOptions(BaseModel):
     execution_timezone: str | None = None
     description: str | None = None
     metadata: dict[str, Any] | None = None
-
-
-# ---------------------------------------------------------------------------
-# Pipeline and Job models
-# ---------------------------------------------------------------------------
 
 
 class PipelineOptions(BaseModel):
@@ -1035,11 +1017,6 @@ class JobOptions(BaseModel):
     executor: ExecutorOptions | str | None = None
     schedule: ScheduleOptions | str | None = None
     loggers: list[LoggerOptions | str] | None = None
-
-
-# ---------------------------------------------------------------------------
-# Top-level config
-# ---------------------------------------------------------------------------
 
 
 class KedroDagsterConfig(BaseModel):
@@ -1173,10 +1150,6 @@ def get_dagster_config(context: "KedroContext") -> "KedroDagsterConfig":
 
     return dagster_config
 
-
-# ---------------------------------------------------------------------------
-# Config template
-# ---------------------------------------------------------------------------
 
 CONFIG_TEMPLATE_YAML: str = """\
 # dagster.yml - Kedro-Dagster orchestration configuration

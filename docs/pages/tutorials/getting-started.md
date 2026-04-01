@@ -59,13 +59,13 @@ kedro dagster init --env local
 
 This creates two files:
 
-- `src/definitions.py` - the Dagster entrypoint that exposes all translated Kedro objects:
+- `src/definitions.py`: the Dagster entrypoint that exposes all translated Kedro objects:
 
 ``` title="definitions.py"
 --8<-- "src/kedro_dagster/templates/definitions.py"
 ```
 
-- `conf/local/dagster.yml` - the Dagster configuration for the `local` Kedro environment:
+- `conf/local/dagster.yml`: the Dagster configuration for the `local` Kedro environment:
 
 ``` title="dagster.yml"
 --8<-- "src/kedro_dagster/templates/dagster.yml"

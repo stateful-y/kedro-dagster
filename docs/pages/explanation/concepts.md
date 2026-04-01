@@ -63,6 +63,6 @@ Dagster partitions enable backfilling, scheduling, and processing incremental sl
 
 ## See also
 
-- [Architecture](architecture.md) - how the translation from Kedro to Dagster works internally
-- [Getting Started](../tutorials/getting-started.md) - hands-on tutorial to set up your first project
-- [Contributing](../how-to/contribute.md) - development setup and project standards
+- [Architecture](architecture.md): how the translation from Kedro to Dagster works internally
+- [Getting Started](../tutorials/getting-started.md): hands-on tutorial to set up your first project
+- [Contributing](../how-to/contribute.md): development setup and project standards

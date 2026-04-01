@@ -445,10 +445,6 @@ def test_config_dict_behavior_consistent():
     assert config1 is not config2
 
 
-# ---------------------------------------------------------------------------
-# Hypothesis property-based tests
-# ---------------------------------------------------------------------------
-
 _identifier = st.from_regex(r"[A-Za-z_][A-Za-z0-9_]{0,20}", fullmatch=True)
 _optional_str_list = st.none() | st.lists(_identifier, max_size=3)
 

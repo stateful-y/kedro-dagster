@@ -1,6 +1,6 @@
 # How to Use Dagster Partitions
 
-!!! warning "Experimental - read before starting"
+!!! warning "Experimental: read before starting"
     Dagster partitions support in Kedro-Dagster is **experimental** with the following limitations:
 
     - Only `StaticPartitionsDefinition` is supported (no time-window or dynamic partitions).
@@ -111,6 +111,6 @@ See [`DagsterNothingDataset`](../api/generated/kedro_dagster.datasets.nothing_da
 
 ## See also
 
-- [Configuration Reference](../reference/configuration.md) - job and pipeline filter options in `dagster.yml`
-- [Architecture](../explanation/architecture.md#catalog-translation) - how datasets are translated to Dagster assets and IO managers
-- [Concepts](../explanation/concepts.md#experimental-dagster-partitions-support) - partitions feature overview and limitations
+- [Configuration Reference](../reference/configuration.md): job and pipeline filter options in `dagster.yml`
+- [Architecture](../explanation/architecture.md#catalog-translation): how datasets are translated to Dagster assets and IO managers
+- [Concepts](../explanation/concepts.md#experimental-dagster-partitions-support): partitions feature overview and limitations

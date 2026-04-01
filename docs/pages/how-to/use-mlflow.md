@@ -27,6 +27,6 @@ See the [Example Project](../tutorials/example-project.md#mlflow-integration) fo
 
 ## See also
 
-- [Concepts](../explanation/concepts.md#mlflow-compatibility) - how hook preservation enables MLflow compatibility
-- [Architecture](../explanation/architecture.md#hook-preservation) - details on which hooks fire during Dagster execution
-- [How to Use Dagster Partitions](use-partitions.md) - note on hook limitations during backfills
+- [Concepts](../explanation/concepts.md#mlflow-compatibility): how hook preservation enables MLflow compatibility
+- [Architecture](../explanation/architecture.md#hook-preservation): details on which hooks fire during Dagster execution
+- [How to Use Dagster Partitions](use-partitions.md): note on hook limitations during backfills

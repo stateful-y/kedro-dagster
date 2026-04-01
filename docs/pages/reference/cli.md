@@ -120,9 +120,9 @@ kedro dagster list-defs -e production
 
 ## See also
 
-- [Getting Started](../tutorials/getting-started.md) - tutorial walkthrough using these commands
-- [Configuration Reference](configuration.md) - `dagster.yml` fields that control what `init` generates and `dev` loads
-- [API Reference](api.md) - code-level documentation for CLI internals
+- [Getting Started](../tutorials/getting-started.md): tutorial walkthrough using these commands
+- [Configuration Reference](configuration.md): `dagster.yml` fields that control what `init` generates and `dev` loads
+- [API Reference](api.md): code-level documentation for CLI internals
 
 ## Proxied `dg` Commands
 
@@ -137,5 +137,5 @@ kedro dagster <command> -e local [ARGS]...
 
 ## See Also
 
-- [Configuration Reference](configuration.md) - `dagster.yml` field tables
-- [Getting Started](../tutorials/getting-started.md) - First-time setup walkthrough
+- [Configuration Reference](configuration.md): `dagster.yml` field tables
+- [Getting Started](../tutorials/getting-started.md): First-time setup walkthrough

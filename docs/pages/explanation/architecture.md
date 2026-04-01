@@ -99,6 +99,6 @@ These rules are implemented in `src/kedro_dagster/utils.py` by `format_dataset_n
 
 ## See also
 
-- [Concepts](concepts.md) - the asset-first philosophy and key features behind the translation
-- [Configuration Reference](../reference/configuration.md) - all `dagster.yml` fields that control job, executor, and schedule creation
-- [Getting Started](../tutorials/getting-started.md) - hands-on walkthrough of the translation in action
+- [Concepts](concepts.md): the asset-first philosophy and key features behind the translation
+- [Configuration Reference](../reference/configuration.md): all `dagster.yml` fields that control job, executor, and schedule creation
+- [Getting Started](../tutorials/getting-started.md): hands-on walkthrough of the translation in action

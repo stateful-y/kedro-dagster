@@ -417,10 +417,6 @@ def _build_module_toc(config, current_src_path=None):
     return module_toc
 
 
-# ---------------------------------------------------------------------------
-# API page content post-processing
-# ---------------------------------------------------------------------------
-
 _GIT_REF_CACHE = None
 
 

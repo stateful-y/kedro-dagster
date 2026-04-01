@@ -13,14 +13,14 @@ translating hook invocations into Dagster ops and sensors.
 
 Kedro-Dagster supports the following hook specifications:
 
-- `after_context_created` - fires once per pipeline run, before any nodes execute
-- `after_catalog_created` - fires after the Kedro catalog is built
-- `before_pipeline_run` - fires before the pipeline graph begins executing
-- `after_pipeline_run` - fires after all nodes in the pipeline have completed
-- `on_pipeline_error` - fires when a pipeline run fails
-- `before_node_run` - fires before each individual node executes
-- `after_node_run` - fires after each individual node completes
-- `on_node_error` - fires when an individual node raises an exception
+- `after_context_created`: fires once per pipeline run, before any nodes execute
+- `after_catalog_created`: fires after the Kedro catalog is built
+- `before_pipeline_run`: fires before the pipeline graph begins executing
+- `after_pipeline_run`: fires after all nodes in the pipeline have completed
+- `on_pipeline_error`: fires when a pipeline run fails
+- `before_node_run`: fires before each individual node executes
+- `after_node_run`: fires after each individual node completes
+- `on_node_error`: fires when an individual node raises an exception
 
 ## When Hooks Fire in the Dagster Lifecycle
 

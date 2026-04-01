@@ -253,11 +253,11 @@ jobs:
 
 Use environment-specific `dagster.yml` files to switch executors between deployments without changing job definitions:
 
-- `conf/local/dagster.yml` - in-process executor for development
-- `conf/production/dagster.yml` - Kubernetes executor for production
+- `conf/local/dagster.yml`: in-process executor for development
+- `conf/production/dagster.yml`: Kubernetes executor for production
 
 ## See also
 
-- [Configuration Reference](../reference/configuration.md) - complete field tables for all executor options
-- [How to Deploy to Production](deploy-to-production.md) - end-to-end production deployment
-- [Dagster Executor Documentation](https://docs.dagster.io/deployment/executors) - official Dagster executor docs
+- [Configuration Reference](../reference/configuration.md): complete field tables for all executor options
+- [How to Deploy to Production](deploy-to-production.md): end-to-end production deployment
+- [Dagster Executor Documentation](https://docs.dagster.io/deployment/executors): official Dagster executor docs

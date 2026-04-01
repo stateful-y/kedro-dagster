@@ -124,7 +124,7 @@ Check that jobs, schedules, and executor assignments appear as expected in the D
 
 ## See also
 
-- [How to Configure Custom Executors](configure-executors.md) - YAML examples for all executor types
-- [Configuration Reference](../reference/configuration.md) - complete `dagster.yml` field tables
-- [Example Project](../tutorials/example-project.md) - multi-environment setup with local/dev/staging/prod
-- [Dagster Deployment Guide](https://docs.dagster.io/deployment) - official Dagster deployment documentation
+- [How to Configure Custom Executors](configure-executors.md): YAML examples for all executor types
+- [Configuration Reference](../reference/configuration.md): complete `dagster.yml` field tables
+- [Example Project](../tutorials/example-project.md): multi-environment setup with local/dev/staging/prod
+- [Dagster Deployment Guide](https://docs.dagster.io/deployment): official Dagster deployment documentation

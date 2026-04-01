@@ -120,6 +120,6 @@ See the [Example Project](../tutorials/example-project.md#custom-logging-integra
 
 ## See also
 
-- [Configuration Reference](../reference/configuration.md#loggers) - `dagster.yml` logger field tables
-- [Troubleshooting](troubleshoot.md#logs-not-appearing-in-dagster-ui) - common logging issues
-- [Architecture](../explanation/architecture.md) - how Kedro logging integrates with Dagster
+- [Configuration Reference](../reference/configuration.md#loggers): `dagster.yml` logger field tables
+- [Troubleshooting](troubleshoot.md#logs-not-appearing-in-dagster-ui): common logging issues
+- [Architecture](../explanation/architecture.md): how Kedro logging integrates with Dagster
