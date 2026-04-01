@@ -196,7 +196,7 @@ jobs:
     schedule: daily
 ```
 
-Notice that each Dagster job is generated from a filtered Kedro pipeline (selected by `pipeline_name` and narrowed by `node_namespaces` or `tags`). See [`PipelineOptions`](../api/generated/kedro_dagster.config.job.PipelineOptions.md) for all filtering parameters.
+Notice that each Dagster job is generated from a filtered Kedro pipeline (selected by `pipeline_name` and narrowed by `node_namespaces` or `tags`). See [`PipelineOptions`](../api/generated/kedro_dagster.config.models.PipelineOptions.md) for all filtering parameters.
 
 ## Partitions in practice
 

@@ -51,7 +51,7 @@ Choose your preferred package manager:
 
 ## 3. Initialize the plugin
 
-We use [`kedro dagster init`](../api/generated/kedro_dagster.cli.init.md) to scaffold the Dagster integration:
+We use [`kedro dagster init`](../api/generated/kedro_dagster.cli.commands.init.md) to scaffold the Dagster integration:
 
 ```bash
 kedro dagster init --env local

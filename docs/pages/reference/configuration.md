@@ -41,7 +41,7 @@ jobs:
 
 Each job maps a [Kedro pipeline](https://docs.kedro.org/en/stable/build/pipeline_introduction/) to a Dagster job, with optional [filtering](https://docs.kedro.org/en/stable/api/pipeline/kedro.pipeline.Pipeline/#kedro.pipeline.Pipeline.filter). A job can reference a pre-defined executor, schedule, and list of loggers by name.
 
-Accepted pipeline parameters: [`PipelineOptions`](../api/generated/kedro_dagster.config.job.PipelineOptions.md).
+Accepted pipeline parameters: [`PipelineOptions`](../api/generated/kedro_dagster.config.models.PipelineOptions.md).
 
 ### Executors
 
@@ -49,7 +49,7 @@ Define how jobs are executed: in-process, multiprocess, Docker, Celery, Kubernet
 
 Configuration models per executor type are documented in the [API reference](../api/config.md).
 
-**Multiprocess example** ([`MultiprocessExecutorOptions`](../api/generated/kedro_dagster.config.execution.MultiprocessExecutorOptions.md)):
+**Multiprocess example** ([`MultiprocessExecutorOptions`](../api/generated/kedro_dagster.config.models.MultiprocessExecutorOptions.md)):
 
 ```yaml
 executors:
@@ -58,7 +58,7 @@ executors:
       max_concurrent: 4
 ```
 
-**Docker example** ([`DockerExecutorOptions`](../api/generated/kedro_dagster.config.execution.DockerExecutorOptions.md)):
+**Docker example** ([`DockerExecutorOptions`](../api/generated/kedro_dagster.config.models.DockerExecutorOptions.md)):
 
 ```yaml
 executors:
@@ -80,7 +80,7 @@ executors:
 
 ### Schedules
 
-Cron-based schedules for jobs. See the [Dagster scheduling documentation](https://docs.dagster.io/concepts/partitions-schedules-sensors/schedules) and [`ScheduleOptions`](../api/generated/kedro_dagster.config.automation.ScheduleOptions.md).
+Cron-based schedules for jobs. See the [Dagster scheduling documentation](https://docs.dagster.io/concepts/partitions-schedules-sensors/schedules) and [`ScheduleOptions`](../api/generated/kedro_dagster.config.models.ScheduleOptions.md).
 
 ### Loggers
 

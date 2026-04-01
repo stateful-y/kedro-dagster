@@ -15,7 +15,7 @@ Practical directions for common tasks. Each guide addresses a specific goal and 
 ## Deployment
 
 - **[How to Deploy to Production](deploy-to-production.md)**: Move from local dev to a production Dagster deployment.
-- **[How to Migrate an Existing Kedro Project](migrate-existing-project.md)**: Add Dagster orchestration to an existing project.
+- **[How to Migrate an Existing Kedro Project](../tutorials/migrate-existing-project.md)**: Add Dagster orchestration to an existing project.
 
 ## Operations
 
