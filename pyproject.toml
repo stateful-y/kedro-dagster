@@ -26,6 +26,7 @@ dependencies = [
     "dagster-webserver",
     "dagster-dg-cli",
     "pydantic>=2.6.4",
+    "cachetools>=4.1",
 ]
 
 # [ADDITION] project-specific optional dependency
