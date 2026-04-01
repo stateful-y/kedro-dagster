@@ -1,6 +1,6 @@
 # Contributing to Kedro-Dagster
 
-Thank you for your interest in contributing to Kedro-Dagster! This document provides guidelines for contributing to the project.
+This guide covers the development workflow and project standards. For quick reference, see the [PR checklist](#before-you-open-a-pr) and [commit conventions](#commit-message-convention).
 
 ## Code of Conduct
 
@@ -529,9 +529,4 @@ Use conventional commits to communicate the type of change, and select the appro
 
 ## Questions?
 
-If you have any questions, feel free to:
-
-- [Open an issue on GitHub](https://github.com/stateful-y/kedro-dagster/issues/new)
-- [Start a discussion in the repository](https://github.com/stateful-y/kedro-dagster/discussions)
-
-Thank you for contributing!
+If you have questions, [open an issue](https://github.com/stateful-y/kedro-dagster/issues/new) or [start a discussion](https://github.com/stateful-y/kedro-dagster/discussions).

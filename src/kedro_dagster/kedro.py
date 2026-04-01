@@ -5,8 +5,9 @@ from typing import TYPE_CHECKING, Any
 
 import dagster as dg
 from kedro import __version__ as kedro_version
+from pydantic import ConfigDict
 
-from kedro_dagster.utils import KEDRO_VERSION, PYDANTIC_VERSION, create_pydantic_config, get_filter_params_dict
+from kedro_dagster.utils import get_filter_params_dict
 
 LOGGER = getLogger(__name__)
 
@@ -54,11 +55,8 @@ class KedroRunTranslator:
             "project_path": project_path,
             "env": env,
             "kedro_version": kedro_version,
+            "run_id": run_id,
         }
-        if KEDRO_VERSION[0] >= 1:
-            self._kedro_params["run_id"] = run_id
-        else:  # pragma: no cover
-            self._kedro_params["session_id"] = run_id
 
     def to_dagster(
         self,
@@ -91,39 +89,23 @@ class KedroRunTranslator:
         catalog = self._catalog
 
         class RunParamsModel(dg.Config):
-            if KEDRO_VERSION[0] >= 1:
-                run_id: str
-            else:
-                session_id: str
+            run_id: str
             project_path: str
             env: str
             kedro_version: str
             pipeline_name: str
             load_versions: list[str] | None = None
-            if KEDRO_VERSION[0] >= 1:
-                runtime_params: dict[str, Any] | None = None
-            else:  # pragma: no cover
-                extra_params: dict[str, Any] | None = None
+            runtime_params: dict[str, Any] | None = None
             runner: str | None = None
             node_names: list[str] | None = None
             from_nodes: list[str] | None = None
             to_nodes: list[str] | None = None
             from_inputs: list[str] | None = None
             to_outputs: list[str] | None = None
-            # Kedro 1.x renamed the namespace filter kwarg to `node_namespaces` (plural).
-            # Expose the appropriate field name based on the installed Kedro version while
-            # keeping the rest of the configuration stable.
-            if KEDRO_VERSION[0] >= 1:
-                node_namespaces: list[str] | None = None
-            else:  # pragma: no cover
-                node_namespace: str | None = None
+            node_namespaces: list[str] | None = None
             tags: list[str] | None = None
 
-            # Version-aware Pydantic configuration
-            if PYDANTIC_VERSION[0] >= 2:  # noqa: PLR2004
-                model_config = create_pydantic_config(validate_assignment=True, extra="forbid")
-            else:  # pragma: no cover
-                Config = create_pydantic_config(validate_assignment=True, extra="forbid")
+            model_config = ConfigDict(validate_assignment=True, extra="forbid")
 
         class KedroRunResource(RunParamsModel, dg.ConfigurableResource):
             """Resource for Kedro context."""
@@ -159,13 +141,7 @@ class KedroRunTranslator:
 
                 node_namespace_key: str | None = None
                 node_namespace_val: Any | None = None
-                if KEDRO_VERSION[0] >= 1:
-                    node_namespace_key, node_namespace_val = "node_namespaces", self.node_namespaces
-                else:  # pragma: no cover
-                    node_namespace_key, node_namespace_val = (
-                        "node_namespace",
-                        self.node_namespace,
-                    )
+                node_namespace_key, node_namespace_val = "node_namespaces", self.node_namespaces
 
                 pipeline_config: dict[str, Any] = {
                     "tags": self.tags,
@@ -206,10 +182,7 @@ class KedroRunTranslator:
                 )
                 conf_creds = context._get_config_credentials()
 
-                if KEDRO_VERSION[0] >= 1:  # noqa: SIM108
-                    save_version = self.run_id
-                else:  # pragma: no cover
-                    save_version = self.session_id
+                save_version = self.run_id
 
                 after_catalog_created_params = {
                     "catalog": catalog,
@@ -219,13 +192,8 @@ class KedroRunTranslator:
                     "load_versions": self.load_versions,
                 }
 
-                # Kedro 1.x uses 'parameters', Kedro 0.19 uses 'feed_dict'
-                if KEDRO_VERSION[0] >= 1:
-                    parameters = context._get_parameters()
-                    after_catalog_created_params["parameters"] = parameters
-                else:  # pragma: no cover
-                    feed_dict = context._get_feed_dict()
-                    after_catalog_created_params["feed_dict"] = feed_dict
+                parameters = context._get_parameters()
+                after_catalog_created_params["parameters"] = parameters
 
                 hook_manager.hook.after_catalog_created(**after_catalog_created_params)
 
@@ -271,6 +239,7 @@ class KedroRunTranslator:
             default_status=dg.DefaultSensorStatus.RUNNING,
         )
         def on_pipeline_error_sensor(context: dg.RunFailureSensorContext) -> None:
+            """Sensor that fires Kedro on_pipeline_error hooks on run failure."""
             kedro_context_resource = context.resource_defs["kedro_run"]
             run_params = kedro_context_resource.run_params
             pipeline = kedro_context_resource.pipeline

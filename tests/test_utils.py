@@ -1,7 +1,6 @@
 # mypy: ignore-errors
 
 from types import SimpleNamespace
-from typing import Any
 
 import dagster as dg
 import pytest
@@ -13,11 +12,9 @@ from pydantic import BaseModel, ValidationError
 from kedro_dagster.datasets import DagsterNothingDataset
 from kedro_dagster.utils import (
     KEDRO_VERSION,
-    PYDANTIC_VERSION,
     _create_pydantic_model_from_dict,
     _get_node_pipeline_name,
     _is_param_name,
-    create_pydantic_config,
     format_dataset_name,
     format_node_name,
     format_partition_key,
@@ -34,8 +31,6 @@ from kedro_dagster.utils import (
     unformat_asset_name,
     write_jinja_template,
 )
-
-PYDANTIC_V2_MAJOR = 2
 
 
 class TestJinjaTemplating:
@@ -367,7 +362,7 @@ class TestGetMlflowRunUrl:
 
 
 class TestPydanticModelCreation:
-    """Tests for _create_pydantic_model_from_dict and create_pydantic_config."""
+    """Tests for _create_pydantic_model_from_dict."""
 
     def test_create_model_from_dict(self):
         """Create a nested Pydantic model class from a dictionary schema."""
@@ -383,8 +378,10 @@ class TestPydanticModelCreation:
         assert instance.nested.inner == INNER_VALUE
 
     def test_config_and_model_behavior(self):
-        """Validate create_pydantic_config works across pydantic v1/v2."""
-        config: Any = create_pydantic_config(extra="forbid", validate_assignment=True)
+        """Validate ConfigDict works with _create_pydantic_model_from_dict."""
+        from pydantic import ConfigDict
+
+        config = ConfigDict(extra="forbid", validate_assignment=True)
 
         Model = _create_pydantic_model_from_dict(
             name="Params",
@@ -396,27 +393,11 @@ class TestPydanticModelCreation:
         m = Model(x=1)
         assert m.x == 1
 
-        try:
-            Model(x=1, y=2)  # type: ignore[call-arg]
-            allowed_extra = True
-        except ValidationError:
-            allowed_extra = False
-
-        if PYDANTIC_VERSION[0] < PYDANTIC_V2_MAJOR:
-            assert allowed_extra is False
-
         with pytest.raises((ValidationError, ValueError, TypeError, DagsterInvalidInvocationError)):
             m.x = "not-an-int"  # type: ignore[assignment]
 
-        major = PYDANTIC_VERSION[0]
-        if major >= PYDANTIC_V2_MAJOR:
-            model_config = getattr(Model, "model_config", {})
-            assert isinstance(model_config, dict)
-        else:
-            Config = getattr(Model, "Config", None)
-            assert Config is not None
-            assert getattr(Config, "extra", None) in {"forbid", 2}
-            assert getattr(Config, "validate_assignment", None) is True
+        model_config = getattr(Model, "model_config", {})
+        assert isinstance(model_config, dict)
 
         ModelNoBase = _create_pydantic_model_from_dict(
             name="ParamsNoBase",
@@ -426,14 +407,15 @@ class TestPydanticModelCreation:
         )
         with pytest.raises(ValidationError):
             ModelNoBase(x=1, y=2)  # type: ignore[call-arg]
-        if major >= PYDANTIC_V2_MAJOR:
-            cfg = getattr(ModelNoBase, "model_config", {})
-            assert cfg.get("validate_assignment") is True
-            assert cfg.get("extra") in {"forbid", 2}
+        cfg = getattr(ModelNoBase, "model_config", {})
+        assert cfg.get("validate_assignment") is True
+        assert cfg.get("extra") in {"forbid", 2}
 
-    def test_model_with_version_aware_config(self):
-        """Create a dynamic model with version-aware config."""
-        config = create_pydantic_config(extra="forbid", arbitrary_types_allowed=True)
+    def test_model_with_config_dict(self):
+        """Create a dynamic model with ConfigDict."""
+        from pydantic import ConfigDict
+
+        config = ConfigDict(extra="forbid", arbitrary_types_allowed=True)
 
         Model = _create_pydantic_model_from_dict(
             name="TestModel", params={"param1": "value1", "param2": 42}, __base__=BaseModel, __config__=config
@@ -443,14 +425,14 @@ class TestPydanticModelCreation:
         assert instance.param1 == "value1"
         assert instance.param2 == 42
 
-        try:
-            Model(param1="value1", param2=42, extra_field="might be allowed")
-        except ValidationError:
-            pass
+        with pytest.raises(ValidationError):
+            Model(param1="value1", param2=42, extra_field="not allowed")
 
     def test_model_with_dagster_config_base(self):
         """Create a dynamic model with Dagster Config base class."""
-        config = create_pydantic_config(arbitrary_types_allowed=True)
+        from pydantic import ConfigDict
+
+        config = ConfigDict(arbitrary_types_allowed=True)
 
         Model = _create_pydantic_model_from_dict(
             name="DagsterConfigModel",
@@ -465,7 +447,9 @@ class TestPydanticModelCreation:
 
     def test_model_without_base(self):
         """Create a dynamic model without a base class."""
-        config = create_pydantic_config(extra="forbid")
+        from pydantic import ConfigDict
+
+        config = ConfigDict(extra="forbid")
 
         Model = _create_pydantic_model_from_dict(
             name="NoBaseModel", params={"field1": "value1"}, __base__=None, __config__=config
@@ -479,7 +463,9 @@ class TestPydanticModelCreation:
 
     def test_model_with_nested_params(self):
         """Create a model with nested parameters."""
-        config = create_pydantic_config(extra="allow")
+        from pydantic import ConfigDict
+
+        config = ConfigDict(extra="allow")
 
         Model = _create_pydantic_model_from_dict(
             name="NestedModel",
@@ -496,8 +482,10 @@ class TestPydanticModelCreation:
         assert instance.nested.deep_nested.deep_param is True
 
     def test_model_preserves_validation_behavior(self):
-        """Validate that validation behavior is preserved across Pydantic versions."""
-        config = create_pydantic_config(validate_assignment=True, extra="forbid")
+        """Validate that validation behavior is preserved."""
+        from pydantic import ConfigDict
+
+        config = ConfigDict(validate_assignment=True, extra="forbid")
 
         Model = _create_pydantic_model_from_dict(
             name="ValidatedModel", params={"number_field": 42}, __base__=BaseModel, __config__=config

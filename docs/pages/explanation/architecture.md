@@ -12,20 +12,34 @@ When you run `kedro dagster dev`, Kedro-Dagster reads your Kedro project and the
 
 All generated objects are registered in a single `dagster.Definitions` instance exposed by the generated `definitions.py`.
 
+```mermaid
+flowchart LR
+    A["Kedro Project\nconf/ + src/"] --> B["KedroProjectTranslator"]
+    B --> C["CatalogTranslator"]
+    B --> D["NodeTranslator"]
+    B --> E["PipelineTranslator"]
+    C --> F["Assets + IO Managers"]
+    D --> G["Ops + Multi-Assets"]
+    E --> H["Jobs + Schedules"]
+    F --> I["dagster.Definitions"]
+    G --> I
+    H --> I
+```
+
 For a walkthrough with concrete examples, see the [Example Project](../tutorials/example-project.md).
 
 ## Concept mapping
 
 The table below summarizes the correspondence between Kedro and Dagster concepts:
 
-| Kedro Concept   | Dagster Concept      | Description |
-|-----------------|----------------------|-------------|
-| **Node**        | Op,&nbsp;Asset            | Each [Kedro node](https://docs.kedro.org/en/stable/build/nodes/) becomes a Dagster op. Node parameters are passed as config. |
-| **Pipeline**    | Job                  | [Kedro pipelines](https://docs.kedro.org/en/stable/build/pipeline_introduction/) are filtered and translated into Dagster jobs. Jobs can be scheduled and target executors. |
-| **Dataset**     | Asset,&nbsp;IO&nbsp;Manager    | Each [Kedro catalog](https://docs.kedro.org/en/stable/catalog-data/introduction/) dataset becomes a Dagster asset managed by a dedicated IO manager. |
-| **Hooks**       | Hooks,&nbsp;Sensors       | [Kedro hooks](https://docs.kedro.org/en/stable/extend/hooks/introduction/) are executed at the appropriate points in the Dagster job lifecycle. |
-| **Parameters**  | Config,&nbsp;Resources    | [Kedro parameters](https://docs.kedro.org/en/stable/configuration/parameters.html) are passed as Dagster config. |
-| **Logging**     | Logger               | [Kedro logging](https://docs.kedro.org/en/stable/develop/logging/) is integrated with Dagster's logging system. |
+| Kedro Concept   | Dagster Concept         | Description |
+|-----------------|-------------------------|-------------|
+| **Node**        | Op, Asset               | Each [Kedro node](https://docs.kedro.org/en/stable/build/nodes/) becomes a Dagster op. Node parameters are passed as config. |
+| **Pipeline**    | Job                     | [Kedro pipelines](https://docs.kedro.org/en/stable/build/pipeline_introduction/) are filtered and translated into Dagster jobs. Jobs can be scheduled and target executors. |
+| **Dataset**     | Asset, IO Manager       | Each [Kedro catalog](https://docs.kedro.org/en/stable/catalog-data/introduction/) dataset becomes a Dagster asset managed by a dedicated IO manager. |
+| **Hooks**       | Hooks, Sensors          | [Kedro hooks](https://docs.kedro.org/en/stable/extend/hooks/introduction/) are executed at the appropriate points in the Dagster job lifecycle. |
+| **Parameters**  | Config, Resources       | [Kedro parameters](https://docs.kedro.org/en/stable/configuration/parameters.html) are passed as Dagster config. |
+| **Logging**     | Logger                  | [Kedro logging](https://docs.kedro.org/en/stable/develop/logging/) is integrated with Dagster's logging system. |
 
 Additionally, `DagsterPartitionedDataset` and `DagsterNothingDataset` enable [Dagster partitions](https://docs.dagster.io/guides/build/partitions-and-backfills).
 
@@ -62,6 +76,8 @@ See [`PipelineTranslator`](../api/generated/kedro_dagster.pipelines.PipelineTran
 
 ### Hook preservation
 
+Every Kedro hook type has a corresponding integration point in the Dagster execution lifecycle. This means existing hook-based integrations (such as Kedro-MLflow) work in Dagster without modification.
+
 All [Kedro hooks](https://docs.kedro.org/en/stable/extend/hooks/introduction/) are preserved in the Dagster context:
 
 - **Dataset hooks** (`before_dataset_loaded`, `after_dataset_loaded`, `before_dataset_saved`, `after_dataset_saved`): Called in each Dagster IO manager's `handle_output` and `load_input` methods.
@@ -80,3 +96,9 @@ Dagster enforces that asset, op, and job names match `^[A-Za-z0-9_]+$`. Kedro-Da
 - **Nodes**: Dots are replaced with double underscores. If the result still contains disallowed characters, the name is replaced with a stable hash placeholder (`unnamed_node_<md5>`).
 
 These rules are implemented in `src/kedro_dagster/utils.py` by `format_dataset_name`, `format_node_name`, and `unformat_asset_name`.
+
+## See also
+
+- [Concepts](concepts.md) - the asset-first philosophy and key features behind the translation
+- [Configuration Reference](../reference/configuration.md) - all `dagster.yml` fields that control job, executor, and schedule creation
+- [Getting Started](../tutorials/getting-started.md) - hands-on walkthrough of the translation in action

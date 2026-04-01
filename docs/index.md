@@ -7,7 +7,7 @@ Kedro-Dagster makes it easy to deploy Kedro projects to Dagster.
 
 <div class="grid cards" markdown>
 
--   **Get Started in 5 Minutes**
+- **Get Started in 5 Minutes**
 
     ---
 
@@ -15,15 +15,15 @@ Kedro-Dagster makes it easy to deploy Kedro projects to Dagster.
 
     [Getting Started](pages/tutorials/getting-started.md)
 
--   **Need Help?**
+- **How-to Guides**
 
     ---
 
-    Find answers to common questions and troubleshooting tips.
+    Step-by-step instructions.
 
-    [Troubleshooting](pages/how-to/troubleshooting.md)
+    [How-to Guides](pages/how-to/index.md)
 
--   **Learn the Concepts**
+- **Understand the Design**
 
     ---
 
@@ -31,7 +31,7 @@ Kedro-Dagster makes it easy to deploy Kedro projects to Dagster.
 
     [Concepts](pages/explanation/concepts.md)
 
--   **See It In Action**
+- **See It In Action**
 
     ---
 
@@ -39,43 +39,36 @@ Kedro-Dagster makes it easy to deploy Kedro projects to Dagster.
 
     [Example Project](pages/tutorials/example-project.md)
 
+- **Reference**
+
+    ---
+
+    Complete field tables for `dagster.yml` and all CLI flags.
+
+    [Configuration Reference](pages/reference/configuration.md) | [CLI Reference](pages/reference/cli.md)
+
+- **Need Help?**
+
+    ---
+
+    Find answers to common questions and troubleshooting tips.
+
+    [Troubleshooting](pages/how-to/troubleshoot.md)
+
 </div>
+
+## Key capabilities
+
+- **No code changes** - integrate Dagster without touching your Kedro datasets, catalog, or pipelines.
+- **Full orchestration** - schedule, monitor, and inspect Kedro pipelines through Dagster's UI, asset lineage tracking, and cloud-native executors.
+- **Configuration-driven** - define jobs, executors, schedules, and loggers in a `dagster.yml` per environment.
+- **Ecosystem compatibility** - works with Kedro hooks, Kedro-MLflow, and all Dagster-supported execution backends (multiprocess, Docker, Kubernetes, Dask, Celery).
 
 <figure markdown>
 ![Lineage graph of assets involved in the specified jobs](assets/getting-started/asset_graph_dark.png#only-dark)
 ![Lineage graph of assets involved in the specified jobs](assets/getting-started/asset_graph_light.png#only-light)
 <figcaption>Example of a Dagster Asset Lineage Graph generated from a Kedro project.</figcaption>
 </figure>
-
-## Table of Contents
-
-### [Getting Started](pages/tutorials/getting-started.md)
-
-Install and run your first example.
-
-### [Example Project](pages/tutorials/example-project.md)
-
-A practical example with partitions, MLflow, and more.
-
-### [Configure Logging](pages/how-to/configure-logging.md)
-
-Set up logging for Dagster runs.
-
-### [API](pages/reference/api.md)
-
-Complete API reference - classes, functions, and options.
-
-### [Configuration](pages/reference/configuration.md)
-
-dagster.yml structure, executors, schedules, and job options.
-
-### [Concepts](pages/explanation/concepts.md)
-
-Design, architecture, and core ideas.
-
-### [Architecture](pages/explanation/architecture.md)
-
-How Kedro projects are translated into Dagster code locations.
 
 ## License
 

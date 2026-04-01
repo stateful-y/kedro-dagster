@@ -18,15 +18,13 @@ from typing import TYPE_CHECKING, Any
 import dagster as dg
 from kedro.io import MemoryDataset
 from kedro.pipeline import Pipeline
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
-from kedro_dagster.datasets.nothing_dataset import NOTHING_OUTPUT
+from kedro_dagster.constants import NOTHING_OUTPUT
 from kedro_dagster.utils import (
-    KEDRO_VERSION,
     _create_pydantic_model_from_dict,
     _get_node_pipeline_name,
     _is_param_name,
-    create_pydantic_config,
     format_dataset_name,
     format_node_name,
     get_asset_key_from_dataset_name,
@@ -182,7 +180,7 @@ class NodeTranslator:
             name="ParametersConfig",
             params=params,
             __base__=dg.Config,
-            __config__=create_pydantic_config(extra="allow", frozen=False),
+            __config__=ConfigDict(extra="allow", frozen=False),
         )
 
     def _get_in_asset_params(self, dataset_name: str, asset_name: str, out_dataset_names: list[str]) -> dict[str, Any]:  # noqa: ARG002
@@ -514,12 +512,8 @@ class NodeTranslator:
                 "catalog": self._catalog,
                 "inputs": inputs,
                 "is_async": False,
+                "run_id": self._run_id,
             }
-            # Kedro 1.x hooks renamed session_id to run_id
-            if KEDRO_VERSION[0] >= 1:
-                before_node_run_params["run_id"] = self._run_id
-            else:  # pragma: no cover
-                before_node_run_params["session_id"] = self._run_id
 
             self._hook_manager.hook.before_node_run(**before_node_run_params)
 
@@ -527,24 +521,14 @@ class NodeTranslator:
                 outputs = node.run(inputs)
 
             except Exception as exc:
-                if KEDRO_VERSION[0] >= 1:
-                    self._hook_manager.hook.on_node_error(
-                        error=exc,
-                        node=node,
-                        catalog=self._catalog,
-                        inputs=inputs,
-                        is_async=False,
-                        run_id=self._run_id,
-                    )
-                else:  # pragma: no cover
-                    self._hook_manager.hook.on_node_error(
-                        error=exc,
-                        node=node,
-                        catalog=self._catalog,
-                        inputs=inputs,
-                        is_async=False,
-                        session_id=self._run_id,
-                    )
+                self._hook_manager.hook.on_node_error(
+                    error=exc,
+                    node=node,
+                    catalog=self._catalog,
+                    inputs=inputs,
+                    is_async=False,
+                    run_id=self._run_id,
+                )
                 raise exc
 
             after_node_run_params = {
@@ -553,12 +537,8 @@ class NodeTranslator:
                 "inputs": inputs,
                 "outputs": outputs,
                 "is_async": False,
+                "run_id": self._run_id,
             }
-            # Kedro 1.x hooks renamed session_id to run_id
-            if KEDRO_VERSION[0] >= 1:
-                after_node_run_params["run_id"] = self._run_id
-            else:  # pragma: no cover
-                after_node_run_params["session_id"] = self._run_id
 
             self._hook_manager.hook.after_node_run(**after_node_run_params)
 

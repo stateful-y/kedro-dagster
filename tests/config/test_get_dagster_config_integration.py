@@ -10,12 +10,12 @@ from tests.scenarios.kedro_projects import (
     make_jobs_config,
 )
 
-from kedro_dagster.config import get_dagster_config
-from kedro_dagster.config.execution import (
+from kedro_dagster.config import (
     InProcessExecutorOptions,
+    JobOptions,
     MultiprocessExecutorOptions,
+    get_dagster_config,
 )
-from kedro_dagster.config.job import JobOptions
 
 
 def test_get_dagster_config_loads_and_parses(kedro_project_exec_filebacked_base):

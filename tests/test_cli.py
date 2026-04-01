@@ -13,12 +13,12 @@ from kedro.framework.cli.cli import info
 from kedro.framework.startup import bootstrap_project
 
 from kedro_dagster import utils
-from kedro_dagster.cli import dagster_commands as cli_dagster
-from kedro_dagster.cli import init as cli_init
+from kedro_dagster.cli.commands import dagster_commands as cli_dagster
+from kedro_dagster.cli.commands import init as cli_init
 from kedro_dagster.utils import DAGSTER_VERSION
 
 if DAGSTER_VERSION >= (1, 10, 6):
-    from kedro_dagster.cli import DgProxyCommand
+    from kedro_dagster.cli.commands import DgProxyCommand
 
 
 def _extract_cmd_from_help(msg: str) -> list[str]:
@@ -180,7 +180,7 @@ class TestCliDev:
         monkeypatch.chdir(cwd)
 
         runner = CliRunner()
-        sp_call = mocker.patch("kedro_dagster.cli.subprocess.call")
+        sp_call = mocker.patch("kedro_dagster.cli.commands.subprocess.call")
 
         result = runner.invoke(cli_dagster, ["dev"])
 
@@ -198,7 +198,7 @@ class TestCliDev:
         bootstrap_project(project_path)
 
         runner = CliRunner()
-        sp_call = mocker.patch("kedro_dagster.cli.subprocess.call")
+        sp_call = mocker.patch("kedro_dagster.cli.commands.subprocess.call")
         if DAGSTER_VERSION >= (1, 10, 6):
             result = runner.invoke(
                 cli_dagster,
@@ -271,7 +271,7 @@ class TestCliDev:
         monkeypatch.chdir(project_path)
 
         runner = CliRunner()
-        sp_call = mocker.patch("kedro_dagster.cli.subprocess.call")
+        sp_call = mocker.patch("kedro_dagster.cli.commands.subprocess.call")
 
         result = runner.invoke(
             cli_dagster,
@@ -367,7 +367,10 @@ class TestCliVersionGating:
         original_version = utils.DAGSTER_VERSION
         try:
             monkeypatch.setattr(utils, "DAGSTER_VERSION", (1, 10, 5), raising=False)
+            sys.modules.pop("kedro_dagster.cli.commands", None)
             sys.modules.pop("kedro_dagster.cli", None)
+            cli_mod_cmds = importlib.import_module("kedro_dagster.cli.commands")
+            importlib.reload(cli_mod_cmds)
             cli_mod = importlib.import_module("kedro_dagster.cli")
             importlib.reload(cli_mod)
 
@@ -386,7 +389,10 @@ class TestCliVersionGating:
         finally:
             with contextlib.suppress(Exception):
                 utils.DAGSTER_VERSION = original_version
+            sys.modules.pop("kedro_dagster.cli.commands", None)
             sys.modules.pop("kedro_dagster.cli", None)
+            cli_mod_cmds = importlib.import_module("kedro_dagster.cli.commands")
+            importlib.reload(cli_mod_cmds)
             cli_mod = importlib.import_module("kedro_dagster.cli")
             importlib.reload(cli_mod)
 
@@ -398,12 +404,14 @@ class TestCliVersionGating:
         original_version = utils.DAGSTER_VERSION
         try:
             monkeypatch.setattr(utils, "DAGSTER_VERSION", (1, 10, 5), raising=False)
-            importlib.import_module("kedro_dagster.cli")
+            sys.modules.pop("kedro_dagster.cli.commands", None)
             sys.modules.pop("kedro_dagster.cli", None)
+            cli_mod_cmds = importlib.import_module("kedro_dagster.cli.commands")
+            importlib.reload(cli_mod_cmds)
             cli_mod = importlib.import_module("kedro_dagster.cli")
             importlib.reload(cli_mod)
 
-            sp_call = mocker.patch("kedro_dagster.cli.subprocess.call")
+            sp_call = mocker.patch("kedro_dagster.cli.commands.subprocess.call")
             runner = CliRunner()
 
             result = runner.invoke(
@@ -446,7 +454,10 @@ class TestCliVersionGating:
             assert kwargs["env"]["KEDRO_ENV"] == kedro_project_no_dagster_config_base.env
         finally:
             utils.DAGSTER_VERSION = original_version
+            sys.modules.pop("kedro_dagster.cli.commands", None)
             sys.modules.pop("kedro_dagster.cli", None)
+            cli_mod_cmds = importlib.import_module("kedro_dagster.cli.commands")
+            importlib.reload(cli_mod_cmds)
             cli_mod = importlib.import_module("kedro_dagster.cli")
             importlib.reload(cli_mod)
 
@@ -462,11 +473,14 @@ class TestCliVersionGating:
         original_version = utils.DAGSTER_VERSION
         try:
             monkeypatch.setattr(utils, "DAGSTER_VERSION", (1, 10, 5), raising=False)
+            sys.modules.pop("kedro_dagster.cli.commands", None)
             sys.modules.pop("kedro_dagster.cli", None)
+            cli_mod_cmds = importlib.import_module("kedro_dagster.cli.commands")
+            importlib.reload(cli_mod_cmds)
             cli_mod = importlib.import_module("kedro_dagster.cli")
             importlib.reload(cli_mod)
 
-            sp_call = mocker.patch("kedro_dagster.cli.subprocess.call")
+            sp_call = mocker.patch("kedro_dagster.cli.commands.subprocess.call")
             runner = CliRunner()
 
             result = runner.invoke(
@@ -496,7 +510,10 @@ class TestCliVersionGating:
             assert kwargs["env"]["KEDRO_ENV"] == kedro_project_no_dagster_config_base.env
         finally:
             utils.DAGSTER_VERSION = original_version
+            sys.modules.pop("kedro_dagster.cli.commands", None)
             sys.modules.pop("kedro_dagster.cli", None)
+            cli_mod_cmds = importlib.import_module("kedro_dagster.cli.commands")
+            importlib.reload(cli_mod_cmds)
             cli_mod = importlib.import_module("kedro_dagster.cli")
             importlib.reload(cli_mod)
 
@@ -513,7 +530,7 @@ class TestCliListDefs:
         init_result = runner.invoke(cli_init, ["-e", kedro_project_spaceflights_quickstart_base.env])
         assert init_result.exit_code == 0
 
-        sp_call = mocker.patch("kedro_dagster.cli.subprocess.call")
+        sp_call = mocker.patch("kedro_dagster.cli.commands.subprocess.call")
 
         result = runner.invoke(
             cli_dagster,

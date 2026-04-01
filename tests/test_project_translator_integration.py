@@ -100,7 +100,7 @@ class TestProjectTranslatorMlflow:
             mock_initialize_kedro,
         )
 
-        from kedro_dagster.config.kedro_dagster import KedroDagsterConfig
+        from kedro_dagster.config import KedroDagsterConfig
 
         mock_dagster_config = KedroDagsterConfig(jobs={})
         monkeypatch.setattr(
@@ -193,7 +193,7 @@ class TestProjectTranslatorMlflow:
             mock_initialize_kedro,
         )
 
-        from kedro_dagster.config.kedro_dagster import KedroDagsterConfig
+        from kedro_dagster.config import KedroDagsterConfig
 
         mock_dagster_config = KedroDagsterConfig(jobs={})
         monkeypatch.setattr(

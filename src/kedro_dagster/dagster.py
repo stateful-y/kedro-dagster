@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any
 
 import dagster as dg
 
-from kedro_dagster.config.execution import (
+from kedro_dagster.config import (
     CeleryDockerExecutorOptions,
     CeleryExecutorOptions,
     CeleryK8sJobExecutorOptions,
@@ -26,7 +26,7 @@ from kedro_dagster.config.execution import (
 )
 
 if TYPE_CHECKING:
-    from kedro_dagster.config.kedro_dagster import KedroDagsterConfig
+    from kedro_dagster.config import KedroDagsterConfig
 
 LOGGER = getLogger(__name__)
 
@@ -297,6 +297,7 @@ class LoggerCreator:
             raise TypeError(f"Unable to resolve reference {ref!r}")
 
         def dagster_logger(context: dg.InitLoggerContext) -> logging.Logger:
+            """Build a stdlib logger from the Dagster logger config."""
             # Use the provided config directly instead of dynamic schema
             config_data = dict(context.logger_config)
             level = config_data.get("log_level", "INFO").upper()

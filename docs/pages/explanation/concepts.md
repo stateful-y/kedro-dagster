@@ -15,44 +15,43 @@ Kedro-Dagster leverages the complementarity of both frameworks. Kedro provides a
 - **Automatic node parallelization across partitions:** Fan out Kedro node execution across partition keys with minimal configuration.
 - **Variety of execution targets:** Run locally for development, in Docker, on a remote machine, or scale on Kubernetes and other Dagster-supported executors, selectable per job via configuration.
 
-Refer to the [Dagster documentation](https://docs.dagster.io) and the [Dagster Deployment Options](https://docs.dagster.io/deployment) to evaluate whether Dagster fits your needs.
+See the [Dagster documentation](https://docs.dagster.io) and the [Dagster Deployment Options](https://docs.dagster.io/deployment) to evaluate whether Dagster fits your needs.
 
 ### For Dagster users
 
-- **Structured projects and configurations:** Kedro enforces a modular project structure with environment-specific configuration files and a clear separation between code, data, and settings.
+- **Structured projects and configurations:** Kedro enforces a modular project structure with environment-specific configuration files (`base`, `local`, `staging`, `prod`) and a clear separation between code, data, and settings. This makes it straightforward to manage different deployment targets from the same codebase.
 - **Straightforward asset and workflow creation:** Define pipelines as sequences of modular, reusable nodes. They are automatically translated into Dagster assets, ready to visualize and orchestrate in Dagster's UI.
-- **Built-in data connectors:** Kedro's `DataCatalog` provides a centralized and declarative way to manage all data inputs and outputs, supporting local files, cloud storage (S3, GCS), databases, and more.
+- **Built-in data connectors:** Kedro's `DataCatalog` provides a centralized and declarative way to manage all data inputs and outputs, supporting local files, cloud storage (S3, GCS), databases, and more. Each connector handles serialization, versioning, and credentials out of the box.
+- **Testable pipelines:** Kedro nodes are plain Python functions with explicit inputs and outputs. They can be unit-tested in isolation without any orchestration framework, then deployed to Dagster unchanged.
 - **Full control over Kedro-based Dagster objects:** Any aspect of the generated Dagster assets, jobs, executors, or resources can be modified in the Dagster UI Launchpad without touching Kedro code.
+
+See the [Kedro documentation](https://docs.kedro.org/) and the [Kedro starters](https://docs.kedro.org/en/stable/starters/starters.html) to evaluate whether Kedro fits your project structure needs.
 
 ## Key features
 
 ### Configuration-driven workflows
 
-Centralize orchestration settings in a `dagster.yml` file per Kedro environment:
-
-- Define jobs from filtered Kedro pipelines.
-- Assign executors, retries, and resource limits.
-- Assign cron-based schedules.
+Orchestration settings live in a `dagster.yml` file per Kedro environment rather than being scattered across Python code. This keeps infrastructure concerns (which executor to use, what schedule to run) separate from pipeline logic, and makes it possible to change deployment behavior without modifying a single line of Python. See the [configuration reference](../reference/configuration.md) for all available fields.
 
 ### Customization
 
-The core integration lives in the auto-generated Dagster `definitions.py`. For specialized requirements such as custom resources, deployment patterns, or non-standard executors, you can extend or override parts of these definitions manually.
+The translation produces a standard Dagster `definitions.py` that serves as the project entry point. Because it is regular Python, you can extend or override any part of the generated definitions for specialized requirements such as custom resources or deployment patterns.
 
 ### Kedro hooks preservation
 
-Kedro hooks are preserved and called at the appropriate time during pipeline execution. Custom logic such as data validation or logging implemented as Kedro hooks continues to work when running pipelines via Dagster.
+Kedro hooks are preserved across the translation boundary. Custom logic such as data validation, logging, or experiment tracking implemented as Kedro hooks continues to fire at the correct point in the Dagster execution lifecycle. This is what makes integrations like Kedro-MLflow work automatically in Dagster without additional code.
 
 ### MLflow compatibility
 
-Use [Kedro-MLflow](https://github.com/Galileo-Galilei/kedro-mlflow) alongside Dagster's [MLflow integration](https://dagster.io/integrations/dagster-mlflow). Whether you run pipelines with Kedro or Dagster, experiments, models, and artifacts are tracked automatically through the `mlflow.yml` configuration file.
+Kedro-MLflow hooks and Dagster's MLflow resource coexist. Experiments, models, and artifacts tracked through `mlflow.yml` continue to work regardless of whether the pipeline runs via `kedro run` or Dagster. See the [MLflow integration guide](../how-to/use-mlflow.md).
 
 ### Logger integration
 
-Kedro and Dagster logging is unified so logs from Kedro nodes appear together in the Dagster UI and are easy to configure. See the [logging guide](../how-to/configure-logging.md) for details.
+Kedro and Dagster logging is unified so logs from Kedro nodes appear together in the Dagster UI. The integration provides drop-in formatters and a `getLogger` function that routes to the correct backend depending on the execution context. See the [logging guide](../how-to/configure-logging.md).
 
 ### (Experimental) Dagster partitions support
 
-Enable key-based [Dagster partitions](https://docs.dagster.io/guides/build/partitions-and-backfills) to backfill, schedule, and process incremental slices of your pipelines. Currently supports `StaticPartitionsDefinition` with `StaticPartitionMapping` or `IdentityPartitionMapping`. See the [partitions guide](../how-to/use-partitions.md) for details.
+Dagster partitions enable backfilling, scheduling, and processing incremental slices of data. Kedro-Dagster maps partitioned datasets to Dagster partition definitions, fanning out node execution across partition keys. This feature currently supports `StaticPartitionsDefinition`. See the [partitions guide](../how-to/use-partitions.md).
 
 ## Limitations and considerations
 
@@ -62,19 +61,8 @@ Enable key-based [Dagster partitions](https://docs.dagster.io/guides/build/parti
 2. **Compatibility:**
    Both Kedro and Dagster are under active development. Breaking changes in either framework can temporarily affect the integration until a new plugin release addresses them. Always pin your Kedro, Dagster, and Kedro-Dagster versions and test before upgrading.
 
-## Contributing and community
+## See also
 
-We welcome contributions, feedback, and questions:
-
-- **Report issues or request features:** [GitHub Issues](https://github.com/stateful-y/kedro-dagster/issues)
-- **Join the discussion:** [Kedro Slack](https://slack.kedro.org/)
-- **Contributing guide:** [CONTRIBUTING.md](https://github.com/stateful-y/kedro-dagster/blob/main/CONTRIBUTING.md)
-
-If you are interested in becoming a maintainer or taking a more active role, reach out to Guillaume Tauzin on the [Kedro Slack](https://slack.kedro.org/).
-
----
-
-## Next steps
-
-- **Getting started:** Follow the step-by-step [Getting Started](../tutorials/getting-started.md) tutorial.
-- **Advanced example:** Browse the [Example Project](../tutorials/example-project.md) for a real-life data science deployment with Dagster.
+- [Architecture](architecture.md) - how the translation from Kedro to Dagster works internally
+- [Getting Started](../tutorials/getting-started.md) - hands-on tutorial to set up your first project
+- [Contributing](../how-to/contribute.md) - development setup and project standards

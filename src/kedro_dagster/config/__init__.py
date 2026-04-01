@@ -1,8 +1,49 @@
-"""Configuration models for Kedro-Dagster integration."""
+"""Pydantic configuration models for the Kedro-Dagster plugin."""
 
-from .kedro_dagster import KedroDagsterConfig, get_dagster_config
+from kedro_dagster.config.models import (
+    _CONFIG_TEMPLATE,
+    CONFIG_TEMPLATE_YAML,
+    EXECUTOR_MAP,
+    CeleryDockerExecutorOptions,
+    CeleryExecutorOptions,
+    CeleryK8sJobExecutorOptions,
+    DaskClusterConfig,
+    DaskExecutorOptions,
+    DockerExecutorOptions,
+    ExecutorOptions,
+    InProcessExecutorOptions,
+    JobOptions,
+    K8sJobConfig,
+    K8sJobExecutorOptions,
+    KedroDagsterConfig,
+    LoggerOptions,
+    LogLevel,
+    MultiprocessExecutorOptions,
+    PipelineOptions,
+    ScheduleOptions,
+    get_dagster_config,
+)
 
 __all__ = [
+    "CONFIG_TEMPLATE_YAML",
+    "CeleryDockerExecutorOptions",
+    "CeleryExecutorOptions",
+    "CeleryK8sJobExecutorOptions",
+    "DaskClusterConfig",
+    "DaskExecutorOptions",
+    "DockerExecutorOptions",
+    "EXECUTOR_MAP",
+    "ExecutorOptions",
+    "InProcessExecutorOptions",
+    "JobOptions",
+    "K8sJobConfig",
+    "K8sJobExecutorOptions",
     "KedroDagsterConfig",
+    "LogLevel",
+    "LoggerOptions",
+    "MultiprocessExecutorOptions",
+    "PipelineOptions",
+    "ScheduleOptions",
+    "_CONFIG_TEMPLATE",
     "get_dagster_config",
 ]

@@ -138,7 +138,7 @@ See the [configuration reference](../reference/configuration.md) for all availab
 
 ## 5. Browse the Dagster UI
 
-We start the Dagster development server with [`kedro dagster dev`](../api/cli.md):
+We start the Dagster development server with [`kedro dagster dev`](../reference/cli.md#kedro-dagster-dev):
 
 ```bash
 kedro dagster dev --env local

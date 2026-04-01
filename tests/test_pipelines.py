@@ -13,9 +13,7 @@ from kedro.framework.session import KedroSession
 from kedro.framework.startup import bootstrap_project
 
 from kedro_dagster.catalog import CatalogTranslator
-from kedro_dagster.config import get_dagster_config
-from kedro_dagster.config.job import PipelineOptions
-from kedro_dagster.config.logging import LoggerOptions
+from kedro_dagster.config import LoggerOptions, PipelineOptions, get_dagster_config
 from kedro_dagster.dagster import ExecutorCreator, LoggerCreator
 from kedro_dagster.nodes import NodeTranslator
 from kedro_dagster.pipelines import PipelineTranslator

@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     from kedro.io import CatalogProtocol
     from kedro.pipeline.node import Node
 
-    from kedro_dagster.config.kedro_dagster import KedroDagsterConfig
+    from kedro_dagster.config import KedroDagsterConfig
 
 LOGGER = getLogger(__name__)
 
@@ -251,6 +251,7 @@ class PipelineTranslator:
             required_resource_keys=required_resource_keys,
         )
         def before_pipeline_run_hook_op(context: dg.OpExecutionContext) -> dg.Nothing:
+            """Op that fires Kedro before-pipeline-run hooks."""
             kedro_run_resource = context.resources.kedro_run
             kedro_run_resource.after_context_created_hook()
             kedro_run_resource.after_catalog_created_hook()
@@ -301,6 +302,7 @@ class PipelineTranslator:
             required_resource_keys=required_resource_keys,
         )
         def after_pipeline_run_hook_op(context: dg.OpExecutionContext) -> dg.Nothing:
+            """Op that fires Kedro after-pipeline-run hooks."""
             kedro_run_resource = context.resources.kedro_run
             run_params = kedro_run_resource.run_params
 
@@ -382,6 +384,7 @@ class PipelineTranslator:
             out=None,
         )
         def pipeline_graph() -> None:
+            """Compose the Dagster graph for a single Kedro pipeline."""
             before_pipeline_run_hook_output = before_pipeline_run_hook_op()
 
             # Collect input assets

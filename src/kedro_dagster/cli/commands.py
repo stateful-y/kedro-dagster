@@ -1,4 +1,4 @@
-"""A collection of CLI commands for working with Kedro-Dagster."""
+"""Click CLI commands for the Kedro-Dagster plugin."""
 
 import os
 import subprocess
@@ -9,20 +9,21 @@ from typing import Any, Literal
 import click
 from dagster_dg_cli.cli import create_dg_cli
 
-from kedro_dagster.utils import DAGSTER_VERSION, find_kedro_project, write_jinja_template
+from kedro_dagster.cli.functions import scaffold_dagster_files
+from kedro_dagster.utils import DAGSTER_VERSION, find_kedro_project
 
 LOGGER = getLogger(__name__)
-TEMPLATE_FOLDER_PATH = Path(__file__).parent / "templates"
 
 
 @click.group(name="Kedro-Dagster")
 def commands() -> None:
+    """Top-level Kedro-Dagster CLI group."""
     pass
 
 
 @commands.group(name="dagster")
 def dagster_commands() -> None:
-    """Run project with Dagster"""
+    """Run project with Dagster."""
     pass
 
 
@@ -82,100 +83,7 @@ def init(env: str, force: bool, silent: bool) -> None:
 
     >>> kedro dagster init -e base --silent
     """
-    # Lazy import to avoid circular dependency
-    from kedro.framework.project import settings
-    from kedro.framework.startup import bootstrap_project
-
-    dagster_yml = "dagster.yml"
-    project_path = find_kedro_project(Path.cwd()) or Path.cwd()
-    project_metadata = bootstrap_project(project_path)
-    package_name = project_metadata.package_name
-    dagster_yml_path = project_path / settings.CONF_SOURCE / env / dagster_yml
-
-    if dagster_yml_path.is_file() and not force:
-        click.secho(
-            click.style(
-                f"A 'dagster.yml' already exists at '{dagster_yml_path}' You can use the ``--force`` option to override it.",
-                fg="red",
-            )
-        )
-    else:
-        try:
-            write_jinja_template(
-                src=TEMPLATE_FOLDER_PATH / dagster_yml,
-                is_cookiecutter=False,
-                dst=dagster_yml_path,
-                python_package=package_name,
-            )
-            if not silent:
-                click.secho(
-                    click.style(
-                        f"'{settings.CONF_SOURCE}/{env}/{dagster_yml}' successfully updated.",
-                        fg="green",
-                    )
-                )
-        except FileNotFoundError:
-            click.secho(
-                click.style(
-                    f"No env '{env}' found. Please check this folder exists inside '{settings.CONF_SOURCE}' folder.",
-                    fg="red",
-                )
-            )
-
-    definitions_py = "definitions.py"
-    definitions_py_path = project_path / "src" / package_name / definitions_py
-
-    if definitions_py_path.is_file() and not force:
-        click.secho(
-            click.style(
-                f"A 'definitions.py' already exists at '{definitions_py_path}' You can use the ``--force`` option to override it.",
-                fg="red",
-            )
-        )
-    else:
-        write_jinja_template(
-            src=TEMPLATE_FOLDER_PATH / definitions_py,
-            is_cookiecutter=False,
-            dst=definitions_py_path,
-            python_package=package_name,
-        )
-        if not silent:
-            click.secho(
-                click.style(
-                    f"'src/{package_name}/{definitions_py}' successfully updated.",
-                    fg="green",
-                )
-            )
-    if DAGSTER_VERSION >= (1, 10, 6):
-        # Create/Update the project's dg.toml from template
-        # - 'project_name' in the template refers to the Python root module (i.e., package name)
-        # - 'package_name' in the template refers to the display project name
-        dg_toml = "dg.toml"
-        dg_toml_path = project_path / dg_toml
-
-        if dg_toml_path.is_file() and not force:
-            click.secho(
-                click.style(
-                    f"A 'dg.toml' already exists at '{dg_toml_path}' You can use the ``--force`` option to override it.",
-                    fg="red",
-                )
-            )
-        else:
-            write_jinja_template(
-                src=TEMPLATE_FOLDER_PATH / dg_toml,
-                is_cookiecutter=False,
-                dst=dg_toml_path,
-                # Map template variables appropriately
-                project_name=package_name,
-                package_name=project_metadata.project_name,
-            )
-            if not silent:
-                click.secho(
-                    click.style(
-                        f"'{dg_toml}' successfully updated.",
-                        fg="green",
-                    )
-                )
+    scaffold_dagster_files(env=env, force=force, silent=silent)
 
 
 if DAGSTER_VERSION >= (1, 10, 6):
@@ -192,6 +100,7 @@ if DAGSTER_VERSION >= (1, 10, 6):
             self._underlying_cmd = underlying_cmd
 
         def format_options(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
+            """Render wrapper options plus underlying dg command options."""
             # Render our wrapper's options and the single "Options:" header
             super().format_options(ctx, formatter)
 
@@ -233,6 +142,8 @@ if DAGSTER_VERSION >= (1, 10, 6):
             cmd_obj = dg_root.commands[cmd_name]
 
             def _callback_factory(name: str) -> Any:
+                """Return a Click callback that proxies to 'dg <name>'."""
+
                 def _callback(env: str, args: tuple[str, ...]) -> None:
                     """Wrapper around 'dg <name>' executed within a Kedro session."""
 

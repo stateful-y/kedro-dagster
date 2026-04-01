@@ -3,6 +3,7 @@
 import hashlib
 import importlib
 import re
+from dataclasses import dataclass
 from logging import getLogger
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -11,6 +12,7 @@ import dagster as dg
 from jinja2 import Environment, FileSystemLoader
 from pydantic import create_model
 
+from kedro_dagster.constants import DAGSTER_ALLOWED_PATTERN, KEDRO_DAGSTER_SEPARATOR
 from kedro_dagster.datasets import DagsterNothingDataset
 
 try:
@@ -26,8 +28,6 @@ if TYPE_CHECKING:
     from pydantic import BaseModel
 
 LOGGER = getLogger(__name__)
-DAGSTER_ALLOWED_PATTERN = re.compile(r"^[A-Za-z0-9_]+$")
-KEDRO_DAGSTER_SEPARATOR = "__"
 
 
 def _get_version(package: str) -> tuple[int, int, int]:
@@ -55,47 +55,22 @@ def _get_version(package: str) -> tuple[int, int, int]:
 # Compute and expose module-level constants for importers.
 KEDRO_VERSION = _get_version("kedro")
 DAGSTER_VERSION = _get_version("dagster")
-PYDANTIC_VERSION = _get_version("pydantic")
 
 
-def create_pydantic_config(**kwargs: Any) -> Any:
-    """Create Pydantic configuration compatible with both v1 and v2.
+@dataclass
+class CliContext:
+    """Runtime context passed to CLI command handlers.
 
     Parameters
     ----------
-    **kwargs
-        Configuration options (e.g., ``validate_assignment=True``,
-        ``extra="forbid"``).
-
-    Returns
-    -------
-    Any
-        ``ConfigDict`` for Pydantic v2, or a ``Config`` class type for
-        Pydantic v1.
-
-    See Also
-    --------
-    `kedro_dagster.utils._create_pydantic_model_from_dict` :
-        Uses this config when dynamically creating models.
+    env : str
+        Kedro environment name.
+    metadata : Any
+        Kedro ``ProjectMetadata`` instance.
     """
-    if PYDANTIC_VERSION[0] >= 2:
-        from pydantic import ConfigDict
 
-        # Pydantic v2.0+ uses model_config = ConfigDict(...)
-        config = ConfigDict(**kwargs)
-
-    else:  # pragma: no cover
-        # Pydantic v1.x or fallback uses class Config:
-        class Config:
-            pass
-
-        # Set attributes dynamically from kwargs
-        for key, value in kwargs.items():
-            setattr(Config, key, value)
-
-        config = Config
-
-    return config
+    env: str
+    metadata: Any
 
 
 def find_kedro_project(current_dir: Path) -> Path | None:
@@ -120,14 +95,9 @@ def find_kedro_project(current_dir: Path) -> Path | None:
         Uses this to auto-discover the project root.
     """
     # Use the module-level constant to avoid repeated imports/parsing.
-    if KEDRO_VERSION >= (1, 0, 0):
-        FIND_KEDRO_PROJECT = getattr(importlib.import_module("kedro.utils"), "find_kedro_project", None)
-    elif KEDRO_VERSION >= (0, 19, 12):  # pragma: no cover
-        FIND_KEDRO_PROJECT = getattr(importlib.import_module("kedro.utils"), "_find_kedro_project", None)
-    elif KEDRO_VERSION > (0, 0, 0):  # pragma: no cover
-        FIND_KEDRO_PROJECT = getattr(importlib.import_module("kedro.framework.startup"), "_find_kedro_project", None)
+    from kedro.utils import find_kedro_project as _find_kedro_project
 
-    return FIND_KEDRO_PROJECT(current_dir)  # type: ignore[no-any-return]
+    return _find_kedro_project(current_dir)  # type: ignore[no-any-return]
 
 
 def render_jinja_template(src: str | Path, is_cookiecutter: bool = False, **kwargs: Any) -> str:
@@ -545,8 +515,8 @@ def _create_pydantic_model_from_dict(
 
     See Also
     --------
-    `kedro_dagster.utils.create_pydantic_config` :
-        Creates version-aware Pydantic configuration for models.
+    `kedro_dagster.nodes.NodeTranslator._get_node_parameters_config` :
+        Uses this to create parameter config models.
     """
     fields = {}
     for param_name, param_value in params.items():
@@ -574,14 +544,8 @@ def _create_pydantic_model_from_dict(
     # the resulting model.
     if __base__ is None:
         model = create_model(name, __config__=__config__, **fields)
-    elif PYDANTIC_VERSION[0] >= 2:
+    else:
         model = create_model(name, __base__=__base__, __config__=__config__, **fields)
-    else:  # pragma: no cover
-        model = create_model(name, __base__=__base__, **fields)
-        # Handle config assignment based on Pydantic v1 behaviour
-        if __config__ is not None:
-            # In Pydantic v1, we need to set the Config class manually
-            model.Config = __config__
 
     return model
 
@@ -698,15 +662,8 @@ def get_filter_params_dict(pipeline_config: dict[str, Any]) -> dict[str, Any]:
         "node_names": pipeline_config.get("node_names"),
         "from_inputs": pipeline_config.get("from_inputs"),
         "to_outputs": pipeline_config.get("to_outputs"),
+        "node_namespaces": pipeline_config.get("node_namespaces"),
     }
-
-    # Kedro 1.x renamed the namespace filter kwarg to `node_namespaces` (plural).
-    # Maintain backward compatibility by switching the key based on the Kedro major version.
-    if KEDRO_VERSION[0] >= 1:
-        # Prefer explicit `node_namespaces` from config if present; otherwise map from `node_namespace`.
-        filter_params["node_namespaces"] = pipeline_config.get("node_namespaces")
-    else:  # pragma: no cover
-        filter_params["node_namespace"] = pipeline_config.get("node_namespace")
 
     return filter_params
 

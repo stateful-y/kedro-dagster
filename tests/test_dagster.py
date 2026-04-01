@@ -14,12 +14,16 @@ from kedro.framework.startup import bootstrap_project
 from pydantic import ValidationError
 
 from kedro_dagster.catalog import CatalogTranslator
-from kedro_dagster.config import get_dagster_config
-from kedro_dagster.config.automation import ScheduleOptions
-from kedro_dagster.config.execution import InProcessExecutorOptions, MultiprocessExecutorOptions
-from kedro_dagster.config.job import JobOptions, PipelineOptions
-from kedro_dagster.config.kedro_dagster import KedroDagsterConfig
-from kedro_dagster.config.logging import LoggerOptions
+from kedro_dagster.config import (
+    InProcessExecutorOptions,
+    JobOptions,
+    KedroDagsterConfig,
+    LoggerOptions,
+    MultiprocessExecutorOptions,
+    PipelineOptions,
+    ScheduleOptions,
+    get_dagster_config,
+)
 from kedro_dagster.dagster import ExecutorCreator, LoggerCreator, ScheduleCreator
 from kedro_dagster.nodes import NodeTranslator
 from kedro_dagster.pipelines import PipelineTranslator
@@ -919,13 +923,13 @@ class TestLoggerCreatorRuntime:
                     formatters={
                         "plain": {"format": "%(levelname)s|%(message)s"},
                         "custom": {
-                            "()": "tests.test_dagster_creators.DummyFormatter",
+                            "()": "tests.test_dagster.DummyFormatter",
                             "prefix": "PFX",
                             "format": "%(message)s",
                         },
                     },
                     filters={
-                        "kw": {"()": "tests.test_dagster_creators.DummyFilter", "keyword": "keep"},
+                        "kw": {"()": "tests.test_dagster.DummyFilter", "keyword": "keep"},
                     },
                     handlers=[
                         {
@@ -1086,7 +1090,7 @@ class TestLoggerCreatorRuntime:
                     log_level="INFO",
                     filters={
                         "kw": {
-                            "class": "tests.test_dagster_creators.DummyFilter",
+                            "class": "tests.test_dagster.DummyFilter",
                             "keyword": "keep",
                         }
                     },
@@ -1184,7 +1188,7 @@ class TestLoggerCreatorRuntime:
                     log_level="INFO",
                     formatters={
                         "custom": {
-                            "class": "tests.test_dagster_creators.DummyFormatter",
+                            "class": "tests.test_dagster.DummyFormatter",
                             "prefix": "TEST",
                             "format": "%(message)s",
                         }
@@ -1213,7 +1217,7 @@ class TestLoggerCreatorRuntime:
                     log_level="INFO",
                     filters={
                         "test_filter": {
-                            "class": "tests.test_dagster_creators.DummyFilter",
+                            "class": "tests.test_dagster.DummyFilter",
                             "keyword": "compatible",
                         }
                     },
@@ -1242,7 +1246,7 @@ class TestLoggerCreatorRuntime:
                     log_level="INFO",
                     filters={
                         "test_filter": {
-                            "class": "tests.test_dagster_creators.DummyFilter",
+                            "class": "tests.test_dagster.DummyFilter",
                             "keyword": "direct",
                         }
                     },

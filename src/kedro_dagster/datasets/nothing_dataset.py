@@ -4,7 +4,7 @@ from typing import Any
 
 from kedro.io.core import AbstractDataset
 
-NOTHING_OUTPUT = "__nothing__"
+from kedro_dagster.constants import NOTHING_OUTPUT
 
 
 class DagsterNothingDataset(AbstractDataset):

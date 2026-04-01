@@ -3,22 +3,24 @@
 import warnings
 
 import pytest
+from hypothesis import given, settings
+from hypothesis import strategies as st
 from pydantic import ValidationError
 
-from kedro_dagster.config.automation import ScheduleOptions
-from kedro_dagster.config.execution import (
+from kedro_dagster.config import (
     CeleryDockerExecutorOptions,
     CeleryExecutorOptions,
     CeleryK8sJobExecutorOptions,
     DockerExecutorOptions,
     InProcessExecutorOptions,
+    JobOptions,
     K8sJobExecutorOptions,
+    KedroDagsterConfig,
+    LoggerOptions,
     MultiprocessExecutorOptions,
+    PipelineOptions,
+    ScheduleOptions,
 )
-from kedro_dagster.config.job import JobOptions, PipelineOptions
-from kedro_dagster.config.kedro_dagster import KedroDagsterConfig
-from kedro_dagster.config.logging import LoggerOptions
-from kedro_dagster.utils import KEDRO_VERSION, PYDANTIC_VERSION, create_pydantic_config
 
 
 def test_schedule_options_happy_path():
@@ -39,10 +41,7 @@ def test_pipeline_options_forbid_extra_and_defaults():
     assert p.from_inputs is None
     assert p.to_outputs is None
     assert p.tags is None
-    if KEDRO_VERSION[0] >= 1:
-        assert p.node_namespaces is None
-    else:
-        assert p.node_namespace is None
+    assert p.node_namespaces is None
 
     with pytest.raises(ValidationError):
         PipelineOptions(unknown="x")
@@ -50,12 +49,8 @@ def test_pipeline_options_forbid_extra_and_defaults():
 
 def test_pipeline_options_node_namespaces_list_shape():
     """For Kedro >= 1.0, node_namespaces accepts and exposes list[str]; alias property matches."""
-    if KEDRO_VERSION[0] < 1:
-        pytest.skip("Only relevant for Kedro >= 1.0")
-
     p = PipelineOptions(node_namespaces=["ns1", "ns2"])
     assert p.node_namespaces == ["ns1", "ns2"]
-    assert not hasattr(p, "node_namespace")
 
 
 def test_job_options_requires_pipeline_and_forbid_extra():
@@ -349,24 +344,6 @@ def test_logger_options_forbid_extra_fields():
     assert "Extra inputs are not permitted" in str(exc_info.value)
 
 
-def test_pydantic_version_detection():
-    """PYDANTIC_VERSION should be correctly detected as a tuple of integers."""
-    assert isinstance(PYDANTIC_VERSION, tuple)
-    assert len(PYDANTIC_VERSION) >= 2
-    assert all(isinstance(v, int) for v in PYDANTIC_VERSION)
-    assert PYDANTIC_VERSION[0] in [1, 2, 3]  # Should be a valid major version
-
-
-def test_create_pydantic_config_with_multiple_options():
-    """create_pydantic_config should handle multiple config options."""
-    config = create_pydantic_config(
-        extra="forbid", validate_assignment=True, arbitrary_types_allowed=True, frozen=False
-    )
-
-    assert config is not None
-    # Just verify we can create config with multiple options without errors
-
-
 def test_pipeline_options_config_compatibility():
     """PipelineOptions should work with version-aware Pydantic config."""
     # Should work without errors regardless of Pydantic version
@@ -454,14 +431,150 @@ def test_existing_pydantic_models_still_work():
 
 
 def test_config_dict_behavior_consistent():
-    """Test that config behavior is consistent across Pydantic versions."""
-    config1 = create_pydantic_config(extra="forbid")
-    config2 = create_pydantic_config(extra="allow")
+    """Test that config behavior is consistent with ConfigDict."""
+    from pydantic import ConfigDict
+
+    config1 = ConfigDict(extra="forbid")
+    config2 = ConfigDict(extra="allow")
 
     # Both should be valid config objects
     assert config1 is not None
     assert config2 is not None
 
     # They should be different (different extra behavior)
-    # Note: Can't easily compare ConfigDict objects, but they should at least be different instances
     assert config1 is not config2
+
+
+# ---------------------------------------------------------------------------
+# Hypothesis property-based tests
+# ---------------------------------------------------------------------------
+
+_identifier = st.from_regex(r"[A-Za-z_][A-Za-z0-9_]{0,20}", fullmatch=True)
+_optional_str_list = st.none() | st.lists(_identifier, max_size=3)
+
+
+class TestPipelineOptionsHypothesis:
+    """Property-based tests for PipelineOptions."""
+
+    @given(
+        instance=st.builds(
+            PipelineOptions,
+            pipeline_name=_identifier,
+            from_nodes=_optional_str_list,
+            to_nodes=_optional_str_list,
+            node_names=_optional_str_list,
+            from_inputs=_optional_str_list,
+            to_outputs=_optional_str_list,
+            node_namespaces=_optional_str_list,
+            tags=_optional_str_list,
+        )
+    )
+    @settings(max_examples=20)
+    def test_roundtrip(self, instance: PipelineOptions):
+        """Serialization roundtrip preserves all fields."""
+        dumped = instance.model_dump()
+        restored = PipelineOptions.model_validate(dumped)
+        assert restored == instance
+
+
+class TestScheduleOptionsHypothesis:
+    """Property-based tests for ScheduleOptions."""
+
+    @given(
+        instance=st.builds(
+            ScheduleOptions,
+            cron_schedule=st.just("*/5 * * * *"),
+            execution_timezone=st.none() | st.just("UTC"),
+            description=st.none() | st.text(min_size=1, max_size=50),
+            metadata=st.none() | st.fixed_dictionaries({"owner": st.text(min_size=1, max_size=20)}),
+        )
+    )
+    @settings(max_examples=20)
+    def test_roundtrip(self, instance: ScheduleOptions):
+        """Serialization roundtrip preserves all fields."""
+        dumped = instance.model_dump()
+        restored = ScheduleOptions.model_validate(dumped)
+        assert restored == instance
+
+
+class TestJobOptionsHypothesis:
+    """Property-based tests for JobOptions."""
+
+    @given(
+        instance=st.builds(
+            JobOptions,
+            pipeline=st.builds(PipelineOptions),
+            executor=st.none(),
+            schedule=st.none(),
+        )
+    )
+    @settings(max_examples=20)
+    def test_roundtrip(self, instance: JobOptions):
+        """Serialization roundtrip preserves all fields."""
+        dumped = instance.model_dump()
+        restored = JobOptions.model_validate(dumped)
+        assert restored == instance
+
+
+class TestLoggerOptionsHypothesis:
+    """Property-based tests for LoggerOptions."""
+
+    @given(
+        instance=st.builds(
+            LoggerOptions,
+            log_level=st.sampled_from(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]),
+        )
+    )
+    @settings(max_examples=20)
+    def test_roundtrip(self, instance: LoggerOptions):
+        """Serialization roundtrip preserves all fields."""
+        dumped = instance.model_dump()
+        restored = LoggerOptions.model_validate(dumped)
+        assert restored == instance
+
+
+class TestInProcessExecutorOptionsHypothesis:
+    """Property-based tests for InProcessExecutorOptions."""
+
+    @given(instance=st.builds(InProcessExecutorOptions))
+    @settings(max_examples=20)
+    def test_roundtrip(self, instance: InProcessExecutorOptions):
+        """Serialization roundtrip preserves all fields."""
+        dumped = instance.model_dump()
+        restored = InProcessExecutorOptions.model_validate(dumped)
+        assert restored == instance
+
+
+class TestMultiprocessExecutorOptionsHypothesis:
+    """Property-based tests for MultiprocessExecutorOptions."""
+
+    @given(
+        instance=st.builds(
+            MultiprocessExecutorOptions,
+            max_concurrent=st.integers(min_value=1, max_value=16),
+        )
+    )
+    @settings(max_examples=20)
+    def test_roundtrip(self, instance: MultiprocessExecutorOptions):
+        """Serialization roundtrip preserves all fields."""
+        dumped = instance.model_dump()
+        restored = MultiprocessExecutorOptions.model_validate(dumped)
+        assert restored == instance
+
+
+class TestKedroDagsterConfigHypothesis:
+    """Property-based tests for KedroDagsterConfig."""
+
+    @given(
+        instance=st.builds(
+            KedroDagsterConfig,
+            jobs=st.just({"__default__": JobOptions(pipeline=PipelineOptions())}),
+            executors=st.just(None),
+        )
+    )
+    @settings(max_examples=20)
+    def test_roundtrip(self, instance: KedroDagsterConfig):
+        """Serialization roundtrip preserves all fields."""
+        dumped = instance.model_dump()
+        restored = KedroDagsterConfig.model_validate(dumped)
+        assert restored == instance

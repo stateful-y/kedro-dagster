@@ -352,7 +352,7 @@ The example is preconfigured for MLflow tracking with `kedro-mlflow`. Each envir
    artifact_path: "{namespace}/{variant}/regressor"
 ```
 
-The example also shows MLflow alongside Optuna using the `MLflowCallback`, which logs Optuna trials as nested MLflow runs. The callback is added in the [tuning node](https://github.com/stateful-y/kedro-dagster-example/blob/main/src/kedro_dagster_example/pipelines/model_tuning/nodes.py#L72-L112). See the [MLflow integration guide](../how-to/integrate-mlflow.md) for more details.
+The example also shows MLflow alongside Optuna using the `MLflowCallback`, which logs Optuna trials as nested MLflow runs. The callback is added in the [tuning node](https://github.com/stateful-y/kedro-dagster-example/blob/main/src/kedro_dagster_example/pipelines/model_tuning/nodes.py#L72-L112). See the [MLflow integration guide](../how-to/use-mlflow.md) for more details.
 
 ## Common pitfalls
 

@@ -155,20 +155,31 @@ plugins:
 nav:
   - Home: index.md
   - Tutorials:
+    - pages/tutorials/index.md
     - Getting Started: pages/tutorials/getting-started.md
     - Example Project: pages/tutorials/example-project.md
+    - Migrate Existing Project: pages/tutorials/migrate-existing-project.md
   - How-to Guides:
+    - pages/how-to/index.md
     - Configure Logging: pages/how-to/configure-logging.md
-    - Integrate MLflow: pages/how-to/integrate-mlflow.md
+    - Configure Executors: pages/how-to/configure-executors.md
+    - Use MLflow: pages/how-to/use-mlflow.md
     - Use Partitions: pages/how-to/use-partitions.md
-    - Troubleshooting: pages/how-to/troubleshooting.md
+    - Deploy to Production: pages/how-to/deploy-to-production.md
+    - Troubleshoot: pages/how-to/troubleshoot.md
     - Contributing: pages/how-to/contribute.md
   - Reference:
-    - API: pages/reference/api.md
+    - pages/reference/index.md
     - Configuration: pages/reference/configuration.md
+    - CLI: pages/reference/cli.md
+    - Datasets: pages/reference/datasets.md
+    - API: pages/reference/api.md
   - Explanation:
+    - pages/explanation/index.md
     - Concepts: pages/explanation/concepts.md
     - Architecture: pages/explanation/architecture.md
+    - Data Flow: pages/explanation/data-flow.md
+    - Hook Lifecycle: pages/explanation/hook-lifecycle.md
 
 extra:
   social:

@@ -20,12 +20,12 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
-    "kedro>=0.19,<2.0",
-    "kedro-datasets",
+    "kedro>=1.0.0",
+    "kedro-datasets>=1.0.0",
     "dagster>=1.10,<2.0",
     "dagster-webserver",
     "dagster-dg-cli",
-    "pydantic>=1.0.0,<3.0.0",
+    "pydantic>=2.6.4",
 ]
 
 # [ADDITION] project-specific optional dependency
@@ -42,6 +42,7 @@ dev = [
     {include-group = "lint"},
     {include-group = "docs"},
     {include-group = "fix"},
+    "interrogate>=1.7.0",
 ]
 tests = [
     "pytest>=8.3",
@@ -75,7 +76,7 @@ fix = [
 
 # [ADDITION] Kedro CLI plugin registration
 [project.entry-points."kedro.project_commands"]
-dagster = "kedro_dagster.cli:commands"
+dagster = "kedro_dagster.cli.commands:commands"
 
 [project.urls]
 Homepage = "https://github.com/stateful-y/kedro-dagster"
@@ -154,7 +155,7 @@ ignore-module = false
 ignore-nested-functions = false
 ignore-nested-classes = true
 ignore-setters = false
-fail-under = 75
+fail-under = 100
 exclude = ["setup.py", "docs", "build", "tests", "*_version.py"]
 ignore-regex = ["^get$", "^mock_.*", ".*BaseClass.*"]
 verbose = 0
