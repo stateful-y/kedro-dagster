@@ -63,7 +63,7 @@ jobs:
           file: '${{ github.workspace }}/junit.${{ matrix.python-version }}.xml'
 
       - name: Upload coverage report to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13'
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
