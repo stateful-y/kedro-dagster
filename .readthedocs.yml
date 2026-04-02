@@ -1,4 +1,6 @@
-# .readthedocs.yml
+# Read the Docs configuration
+# See https://docs.readthedocs.io/en/stable/config-file/v2.html for details
+
 version: 2
 
 build:
@@ -15,7 +17,12 @@ build:
       # Create the virtual environment using uv
       - uv venv "${READTHEDOCS_VIRTUALENV_PATH}"
     install:
-      # Sync doc-dependencies (the group “docs”), then install the project itself
+      # Sync doc-dependencies (the group "docs") and install the project itself
       - UV_PROJECT_ENVIRONMENT="${READTHEDOCS_VIRTUALENV_PATH}" uv sync --group docs
+    post_build:
+      # Check for broken links
+      - uvx linkchecker "${READTHEDOCS_OUTPUT}html/index.html" --no-status --no-warnings --ignore-url material/overrides
+
+# MkDocs configuration
 mkdocs:
   configuration: mkdocs.yml

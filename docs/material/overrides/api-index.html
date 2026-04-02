@@ -1,0 +1,27 @@
+{% extends "main.html" %}
+
+{% block site_nav %}
+  <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+    <div class="md-sidebar__scrollwrap">
+      <div class="md-sidebar__inner">
+        <nav class="md-nav md-nav--secondary" aria-label="Module index">
+          <label class="md-nav__title" for="__toc">
+            <span class="md-nav__icon md-icon"></span>
+            Modules
+          </label>
+          {% if page.meta.module_toc %}
+          <ul class="md-nav__list">
+            {% for mod in page.meta.module_toc %}
+            <li class="md-nav__item">
+              <a href="{{ mod.url }}" class="md-nav__link">
+                <span class="md-ellipsis">{{ mod.title }}</span>
+              </a>
+            </li>
+            {% endfor %}
+          </ul>
+          {% endif %}
+        </nav>
+      </div>
+    </div>
+  </div>
+{% endblock %}

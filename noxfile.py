@@ -1,4 +1,6 @@
-"""Nox sessions."""
+"""Nox sessions for Kedro-Dagster."""
+
+from pathlib import Path
 
 import nox
 
@@ -9,37 +11,18 @@ nox.needs_version = ">=2024.3.2"
 nox.options.default_venv_backend = "uv|virtualenv"
 
 # Default sessions to run when nox is called without arguments
-nox.options.sessions = ["fix", "tests_coverage", "serve_docs"]
+nox.options.sessions = ["fix", "test_fast", "serve_docs"]
+
+# Generate list of Python versions from minimum to maximum
+ALL_VERSIONS = ["3.11", "3.12", "3.13", "3.14"]
+MIN_VERSION = "3.11"
+MAX_VERSION = "3.13"
+PYTHON_VERSIONS = [v for v in ALL_VERSIONS if v >= MIN_VERSION and v <= MAX_VERSION]
 
 
-# --------------------------------------------------------------------------------------
-# Compatibility matrix for Kedro and Dagster
-# Update these lists to expand or narrow the test matrix.
-# We prefer spec ranges over exact pins so latest patch for each line is exercised.
-# Examples:
-#   "kedro>=0.19,<1.0" installs latest 0.19.x
-#   "dagster>=1.10,<1.11" installs latest 1.10.x
-# --------------------------------------------------------------------------------------
-KEDRO_SPECS = [
-    "kedro>=0.19,<1.0",
-    "kedro>=1.0,<2.0",
-]
-
-# Keep dagster and dagster-webserver on the same minor line where possible
-DAGSTER_SPECS = [
-    "dagster>=1.10,<1.11",
-    "dagster>=1.11,<1.12",
-    "dagster>=1.12,<1.13",
-]
-
-
-# Test sessions for different Python versions
-@nox.session(python=["3.13"], venv_backend="uv")
-def tests_coverage(session: nox.Session) -> None:
-    """Run the tests with pytest under the specified Python version."""
-    session.env["COVERAGE_FILE"] = f".coverage.{session.python}"
-    session.env["COVERAGE_PROCESS_START"] = "pyproject.toml"
-
+@nox.session(python=PYTHON_VERSIONS[0], venv_backend="uv")
+def test_coverage(session: nox.Session) -> None:
+    """Run the tests with pytest and coverage under the default Python version."""
     # Install dependencies
     session.run_install(
         "uv",
@@ -52,42 +35,284 @@ def tests_coverage(session: nox.Session) -> None:
         env={"UV_PROJECT_ENVIRONMENT": session.virtualenv.location},
     )
 
-    # Clears all .coverage* files
-    session.run("coverage", "erase")
-
-    # Run unit tests under coverage
+    # Run unit tests with pytest-cov for coverage collection.
+    # pytest-cov natively handles xdist workers (-n auto) so we rely on
+    # --cov from addopts rather than wrapping with ``coverage run``.
     session.run(
-        "coverage",
-        "run",
-        "--parallel-mode",
-        "--source=src/kedro_dagster",
-        "-m",
         "pytest",
         "tests",
+        "-n",
+        "auto",
         f"--junitxml=junit.{session.python}.xml",
         *session.posargs,
     )
 
-    # Combine coverage data from parallel runs
-    session.run("coverage", "combine")
 
-    # HTML report, ignoring parse errors and without contexts
-    session.run("coverage", "html", "--ignore-errors", "-d", session.create_tmp())
+@nox.session(python=PYTHON_VERSIONS, venv_backend="uv")
+def test(session: nox.Session) -> None:
+    """Run the test suite across multiple Python versions (no coverage)."""
+    # Install dependencies
+    session.run_install(
+        "uv",
+        "sync",
+        "--extra",
+        "mlflow",
+        "--no-default-groups",
+        "--group",
+        "tests",
+        env={"UV_PROJECT_ENVIRONMENT": session.virtualenv.location},
+    )
 
-    # XML report for CI
-    session.run("coverage", "xml", "-o", f"coverage.{session.python}.xml")
+    # Run unit tests and doctests with parallel execution
+    session.run(
+        "pytest",
+        "tests",
+        "src/kedro_dagster",
+        "--doctest-modules",
+        "--doctest-continue-on-failure",
+        "-n",
+        "auto",
+        "-v",
+        *session.posargs,
+    )
 
 
-@nox.session(python=["3.10", "3.11", "3.12", "3.13"], venv_backend="uv")
+@nox.session(python=PYTHON_VERSIONS, venv_backend="uv")
+def test_fast(session: nox.Session) -> None:
+    """Run fast tests (excludes slow and integration tests)."""
+    # Install dependencies
+    session.run_install(
+        "uv",
+        "sync",
+        "--no-default-groups",
+        "--group",
+        "tests",
+        env={"UV_PROJECT_ENVIRONMENT": session.virtualenv.location},
+    )
+
+    # Run fast tests only with parallel execution
+    # --no-cov disables coverage (from addopts) so it cannot fail this step
+    session.run(
+        "pytest",
+        "tests",
+        "--no-cov",
+        "-m",
+        "not slow and not integration",
+        "-n",
+        "auto",
+        "-v",
+        *session.posargs,
+    )
+
+
+@nox.session(python=PYTHON_VERSIONS, venv_backend="uv")
+def test_slow(session: nox.Session) -> None:
+    """Run slow and integration tests."""
+    # Install dependencies
+    session.run_install(
+        "uv",
+        "sync",
+        "--no-default-groups",
+        "--group",
+        "tests",
+        env={"UV_PROJECT_ENVIRONMENT": session.virtualenv.location},
+    )
+
+    # Run slow/integration tests only with parallel execution
+    session.run(
+        "pytest",
+        "tests",
+        "-m",
+        "slow or integration",
+        "-n",
+        "auto",
+        "-v",
+        *session.posargs,
+    )
+
+
+@nox.session(python=PYTHON_VERSIONS, venv_backend="uv")
+def test_compat(session: nox.Session) -> None:
+    """Run fast tests after pinning one or more dependency versions.
+
+    Usage::
+
+        uvx nox -s test_compat -- some-package==1.0.0
+        uvx nox -s test_compat -- some-package==1.0.0 other-package==2.0.0
+
+    Each positional argument must be a pip requirement specifier
+    (e.g. ``package==version``).  If none are given the session runs
+    with the default (latest compatible) versions.
+    """
+    # Install dependencies
+    session.run_install(
+        "uv",
+        "sync",
+        "--no-default-groups",
+        "--group",
+        "tests",
+        env={"UV_PROJECT_ENVIRONMENT": session.virtualenv.location},
+    )
+
+    # Downgrade / pin requested packages
+    if session.posargs:
+        session.run(
+            "uv",
+            "pip",
+            "install",
+            *session.posargs,
+            "--python",
+            session.virtualenv.location + "/bin/python",
+        )
+
+    # Run fast tests
+    session.run(
+        "pytest",
+        "tests",
+        "--no-cov",
+        "-m",
+        "not slow and not integration",
+        "-n",
+        "auto",
+        "-v",
+    )
+
+
+@nox.session(venv_backend="uv")
+def test_docstrings(session: nox.Session) -> None:
+    """Run docstring examples with pytest."""
+    # Install dependencies
+    session.run_install(
+        "uv",
+        "sync",
+        "--no-default-groups",
+        "--group",
+        "tests",
+        env={"UV_PROJECT_ENVIRONMENT": session.virtualenv.location},
+    )
+
+    # Run doctest on source code
+    session.run(
+        "pytest",
+        "--doctest-modules",
+        "--doctest-continue-on-failure",
+        "--no-cov",
+        "src/kedro_dagster",
+        *session.posargs,
+    )
+
+
+@nox.session(venv_backend="uv")
+def lint(session: nox.Session) -> None:
+    """Run linters and type checkers."""
+    # Install dependencies
+    session.run_install(
+        "uv",
+        "sync",
+        "--no-default-groups",
+        "--group",
+        "lint",
+        env={"UV_PROJECT_ENVIRONMENT": session.virtualenv.location},
+    )
+
+    # Run ruff check
+    session.run("ruff", "check", "src", "tests", external=True)
+
+    # Run rumdl markdown linter
+    session.run("uvx", "rumdl", "check", ".", external=True)
+
+    # Run ty
+    session.run("ty", "check", "src", external=True)
+
+
+@nox.session(venv_backend="uv")
+def fix(session: nox.Session) -> None:
+    """Format the code base to adhere to our styles, and complain about what we cannot do automatically."""
+    # Install dependencies
+    session.run_install(
+        "uv",
+        "sync",
+        "--no-default-groups",
+        "--group",
+        "dev",
+        env={"UV_PROJECT_ENVIRONMENT": session.virtualenv.location},
+    )
+    # Run pre-commit
+    session.run("pre-commit", "run", "--all-files", "--show-diff-on-failure", *session.posargs, external=True)
+
+
+@nox.session(venv_backend="uv")
+def build_docs(session: nox.Session) -> None:
+    """Build the documentation."""
+    # Install dependencies
+    session.run_install(
+        "uv",
+        "sync",
+        "--no-default-groups",
+        "--group",
+        "docs",
+        env={"UV_PROJECT_ENVIRONMENT": session.virtualenv.location},
+    )
+
+    # Build the docs (hooks automatically export notebooks and prepare site)
+    session.run("mkdocs", "build", "--clean", external=True)
+
+
+@nox.session(venv_backend="uv")
+def serve_docs(session: nox.Session) -> None:
+    """Run a development server for working on documentation."""
+    # Install dependencies
+    session.run_install(
+        "uv",
+        "sync",
+        "--no-default-groups",
+        "--group",
+        "docs",
+        env={"UV_PROJECT_ENVIRONMENT": session.virtualenv.location},
+    )
+
+    # Serve the docs (hooks automatically export notebooks and prepare site)
+    session.log("###### Starting local server. Press Control+C to stop server ######")
+    session.run("mkdocs", "serve", "-a", "localhost:8080", external=True)
+
+
+@nox.session(venv_backend="uv")
+def link_docs(session: nox.Session) -> None:
+    """Check the built documentation for dead links."""
+    site_dir = Path("site")
+    if not site_dir.exists():
+        session.error("site/ directory not found. Run 'just build' or 'nox -s build_docs' first.")
+
+    session.run(
+        "uvx",
+        "linkchecker",
+        str(site_dir / "index.html"),
+        "--no-status",
+        "--no-warnings",
+        "--ignore-url",
+        "material/overrides",
+        *session.posargs,
+        external=True,
+    )
+
+
+KEDRO_SPECS = [
+    "kedro>=1.0,<2.0",
+]
+
+DAGSTER_SPECS = [
+    "dagster>=1.10,<1.11",
+    "dagster>=1.11,<1.12",
+    "dagster>=1.12,<1.13",
+]
+
+
+@nox.session(python=PYTHON_VERSIONS, venv_backend="uv")
 @nox.parametrize("kedro_spec", KEDRO_SPECS)
 @nox.parametrize("dagster_spec", DAGSTER_SPECS)
 @nox.parametrize("with_mlflow", [False, True])
-def tests_versions(session: nox.Session, dagster_spec: str, kedro_spec: str, with_mlflow: bool) -> None:
-    """Run the test suite across a matrix of Kedro and Dagster versions.
-
-    This installs the project with test dependencies, then overrides Kedro, Dagster,
-    and Dagster Webserver to the specified constraints using uv.
-    """
+def test_versions(session: nox.Session, dagster_spec: str, kedro_spec: str, with_mlflow: bool) -> None:
+    """Run the test suite across a matrix of Kedro and Dagster versions."""
     # Install base deps (tests group + optional mlflow extra)
     sync_args = [
         "uv",
@@ -101,7 +326,6 @@ def tests_versions(session: nox.Session, dagster_spec: str, kedro_spec: str, wit
     session.run_install(*sync_args, env={"UV_PROJECT_ENVIRONMENT": session.virtualenv.location})
 
     # Install specific Kedro / Dagster lines for this run
-    # Keep dagster-webserver and dagster-dg-cli aligned with dagster line
     webserver_spec = dagster_spec.replace("dagster", "dagster-webserver", 1)
     dg_cli_spec = dagster_spec.replace("dagster", "dagster-dg-cli", 1)
 
@@ -122,69 +346,3 @@ def tests_versions(session: nox.Session, dagster_spec: str, kedro_spec: str, wit
         "tests",
         *session.posargs,
     )
-
-
-@nox.session(venv_backend="uv")
-def fix(session: nox.Session) -> None:
-    """Format the code base to adhere to our styles, and complain about what we cannot do automatically."""
-    # Install dependencies
-    session.run_install(
-        "uv",
-        "sync",
-        "--no-default-groups",
-        "--group",
-        "fix",
-        env={"UV_PROJECT_ENVIRONMENT": session.virtualenv.location},
-    )
-    # Run pre-commit
-    session.run("pre-commit", "run", "--all-files", "--show-diff-on-failure", *session.posargs, external=True)
-
-
-@nox.session(venv_backend="uv")
-def build_docs(session: nox.Session) -> None:
-    """Run a development server for working on documentation."""
-    # Install dependencies
-    session.run_install(
-        "uv",
-        "sync",
-        "--no-default-groups",
-        "--group",
-        "docs",
-        env={"UV_PROJECT_ENVIRONMENT": session.virtualenv.location},
-    )
-    # Build the docs
-    session.run("mkdocs", "build", "--clean", external=True)
-
-
-@nox.session(venv_backend="uv")
-def serve_docs(session: nox.Session) -> None:
-    """Run a development server for working on documentation."""
-    # Install dependencies
-    session.run_install(
-        "uv",
-        "sync",
-        "--no-default-groups",
-        "--group",
-        "docs",
-        env={"UV_PROJECT_ENVIRONMENT": session.virtualenv.location},
-    )
-    # Build and serve the docs
-    session.run("mkdocs", "build", "--clean", external=True)
-    session.log("###### Starting local server. Press Control+C to stop server ######")
-    session.run("mkdocs", "serve", "-a", "localhost:8080", external=True)
-
-
-@nox.session(venv_backend="uv")
-def deploy_docs(session: nox.Session) -> None:
-    """Build fresh docs and deploy them."""
-    # Install dependencies
-    session.run_install(
-        "uv",
-        "sync",
-        "--no-default-groups",
-        "--group",
-        "docs",
-        env={"UV_PROJECT_ENVIRONMENT": session.virtualenv.location},
-    )
-    # Deploy docs to GitHub pages
-    session.run("mkdocs", "gh-deploy", "--clean", external=True)

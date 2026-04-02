@@ -1,0 +1,94 @@
+name: Nightly Build
+
+on:
+  schedule:
+    # Run every day at 2:30 AM UTC
+    - cron: "30 2 * * *"
+  workflow_dispatch: # Allow manual triggering
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    env:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
+
+      - name: Set up Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
+
+      - name: Install nox
+        run: uv tool install nox
+
+      - name: Run tests with coverage
+        run: nox -s test_coverage
+
+      - name: Run docstring tests
+        run: nox -s test_docstrings
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v5
+        if: ${{ matrix.python-version == '3.10' && env.CODECOV_TOKEN != '' }}
+        with:
+          token: ${{ env.CODECOV_TOKEN }}
+
+  # [ADDITION] Run versioned tests nightly
+  test-versions:
+    uses: ./.github/workflows/tests-versions.yml
+
+  create-issue-on-failure:
+    needs: [test, test-versions]
+    if: ${{ failure() }}
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Create issue on failure
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const title = '🔴 Nightly build failed';
+            const body = `The nightly build failed on ${{ github.sha }}.
+
+            **Workflow run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            **Branch:** ${{ github.ref_name }}
+            **Commit:** ${{ github.sha }}
+
+            Please investigate and fix the issue.`;
+
+            // Check if there's already an open issue for nightly build failures
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'nightly-build-failure'
+            });
+
+            if (issues.data.length === 0) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: title,
+                body: body,
+                labels: ['nightly-build-failure', 'bug']
+              });
+            } else {
+              // Add a comment to the existing issue
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issues.data[0].number,
+                body: `Another nightly build failure occurred:\n\n${body}`
+              });
+            }

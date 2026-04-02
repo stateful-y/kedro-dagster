@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from kedro_dagster.datasets.nothing_dataset import NOTHING_OUTPUT, DagsterNothingDataset
+from kedro_dagster.constants import NOTHING_OUTPUT
+from kedro_dagster.datasets.nothing_dataset import DagsterNothingDataset
 
 
 class TestDagsterNothingDataset:

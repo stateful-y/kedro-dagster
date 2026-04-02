@@ -14,7 +14,7 @@ resources |= {
 }
 
 # Define the default executor for Dagster jobs
-default_executor = dg.multiprocess_executor.configured(dict(max_concurrent=2))
+default_executor = dg.multiprocess_executor.configured({"max_concurrent": 2})
 # It could also come from the Kedro-Dagster config if a "default_executor" is defined
 # default_executor = {
 #   "default": dagster_code_location.named_executors["default_executor"]

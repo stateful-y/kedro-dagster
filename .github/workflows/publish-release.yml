@@ -1,0 +1,138 @@
+name: Publish GitHub Release
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+
+env:
+  dists-artifact-name: python-package-distributions
+
+jobs:
+  create-release:
+    # Only run if PR was merged and has the changelog label
+    if: github.event.pull_request.merged == true && contains(github.event.pull_request.labels.*.name, 'changelog')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - name: Find release tag
+        id: find_tag
+        run: |
+          # Extract version from PR title (e.g., "chore(release): update CHANGELOG.md for v0.2.0" or "v0.1.0-alpha.1")
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          VERSION=$(echo "$PR_TITLE" | grep -oP 'v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+(\.[0-9]+)?)?' || echo "")
+
+          if [ -z "$VERSION" ]; then
+            echo "No version found in PR title"
+            exit 1
+          fi
+
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Extract release notes from CHANGELOG
+        id: release_notes
+        run: |
+          VERSION="${{ steps.find_tag.outputs.version }}"
+          # Strip the 'v' prefix for CHANGELOG lookup (e.g., v0.4.0 -> 0.4.0)
+          VERSION_NO_V="${VERSION#v}"
+
+          # Debug: Show what we're working with
+          echo "Looking for version: $VERSION_NO_V (from tag: $VERSION)"
+          echo "First 100 lines of CHANGELOG.md:"
+          head -n 100 CHANGELOG.md
+
+          # Extract the section for this version from CHANGELOG.md
+          # This uses awk to get content between the version header and the next version header
+          RELEASE_NOTES=$(awk -v ver="$VERSION_NO_V" '
+            /^## \[.*\]/ {
+              if (found) exit;
+              if ($0 ~ "\\[" ver "\\]") {
+                found=1;
+                next;
+              }
+            }
+            found {print}
+          ' CHANGELOG.md | head -c 50000)
+
+          if [ -z "$RELEASE_NOTES" ]; then
+            echo "ERROR: No release notes found for version $VERSION_NO_V (tag: $VERSION)"
+            echo "Available versions in CHANGELOG.md:"
+            grep "^## \[" CHANGELOG.md
+            exit 1
+          fi
+
+          echo "notes<<EOF" >> $GITHUB_OUTPUT
+          echo "$RELEASE_NOTES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Download release artifacts
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          workflow: changelog.yml
+          name: ${{ env.dists-artifact-name }}
+          path: dist/
+          search_artifacts: true
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.find_tag.outputs.version }}"
+          gh release create "$VERSION" \
+            --title "$VERSION" \
+            --notes "${{ steps.release_notes.outputs.notes }}" \
+            dist/*
+
+  pypi-publish:
+    name: Publish to PyPI
+    needs:
+      - create-release
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/kedro_dagster
+    permissions:
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - name: Find release tag
+        id: find_tag
+        run: |
+          # Extract version from PR title (e.g., "chore(release): update CHANGELOG.md for v0.2.0")
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          VERSION=$(echo "$PR_TITLE" | grep -oP 'v[0-9]+\.[0-9]+\.[0-9]+' || echo "")
+
+          if [ -z "$VERSION" ]; then
+            echo "No version found in PR title"
+            exit 1
+          fi
+
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Download release artifacts
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          workflow: changelog.yml
+          name: ${{ env.dists-artifact-name }}
+          path: dist/
+          search_artifacts: true
+          workflow_conclusion: success
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          attestations: true
+          verify-metadata: false

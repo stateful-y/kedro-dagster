@@ -1,7 +1,7 @@
 """Translation of Kedro nodes to Dagster ops and assets.
 
-This module provides the :class:`NodeTranslator` which is responsible for
-turning Kedro nodes into Dagster runtime primitives:
+This module provides the `kedro_dagster.nodes.NodeTranslator`
+which is responsible for turning Kedro nodes into Dagster runtime primitives:
 
 - Ops that can be composed in a Dagster graph-based job
 - Multi-assets that represent the materialization of a Kedro node's outputs
@@ -18,15 +18,13 @@ from typing import TYPE_CHECKING, Any
 import dagster as dg
 from kedro.io import MemoryDataset
 from kedro.pipeline import Pipeline
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
-from kedro_dagster.datasets.nothing_dataset import NOTHING_OUTPUT
+from kedro_dagster.constants import NOTHING_OUTPUT
 from kedro_dagster.utils import (
-    KEDRO_VERSION,
     _create_pydantic_model_from_dict,
     _get_node_pipeline_name,
     _is_param_name,
-    create_pydantic_config,
     format_dataset_name,
     format_node_name,
     get_asset_key_from_dataset_name,
@@ -51,23 +49,43 @@ class NodeTranslator:
 
     The translator exposes two main translation methods:
 
-    - :meth:`create_op` wraps a Kedro node function within a Dagster op for use
-      inside graph-based jobs (used by :class:`~kedro_dagster.pipelines.PipelineTranslator`).
-    - :meth:`create_asset` wraps a Kedro node as a Dagster multi-asset, one
-      output per Kedro dataset.
+    - `kedro_dagster.nodes.NodeTranslator.create_op` wraps a Kedro
+      node function within a Dagster op for use inside graph-based jobs (used by
+      `kedro_dagster.pipelines.PipelineTranslator`).
+    - `kedro_dagster.nodes.NodeTranslator.create_asset` wraps a
+      Kedro node as a Dagster multi-asset, one output per Kedro dataset.
 
     Partitioned datasets are handled by propagating Dagster partitions through
     the op/asset definitions and by passing partition mappings as needed.
 
-    Args:
-        pipelines (list[Pipeline]): Kedro pipelines used to derive assets and groups.
-        catalog (CatalogProtocol): Kedro catalog instance for dataset resolution.
-        hook_manager (PluginManager): Kedro hook manager to invoke node-related hooks.
-        run_id (str): Kedro run ID to forward to hooks. In Kedro < 1.0, this is called `session_id`.
-        asset_partitions (dict[str, Any]): Mapping of asset name -> {"partitions_def", "partition_mappings"}.
-        named_resources (dict[str, dg.ResourceDefinition]): Pre-created Dagster resources keyed by name.
-        env (str): Kedro environment (used for namespacing asset keys/resources).
-        mlflow_config (BaseModel | None): Optional MLflow configuration from the Kedro context.
+    Parameters
+    ----------
+    pipelines : list[Pipeline]
+        Kedro pipelines used to derive assets and groups.
+    catalog : CatalogProtocol
+        Kedro catalog instance for dataset resolution.
+    hook_manager : PluginManager
+        Kedro hook manager to invoke node-related hooks.
+    run_id : str
+        Kedro run ID to forward to hooks. In Kedro < 1.0, this is
+        called ``session_id``.
+    asset_partitions : dict[str, Any]
+        Mapping of asset name to ``{"partitions_def", "partition_mappings"}``.
+    named_resources : dict[str, ResourceDefinition]
+        Pre-created Dagster resources keyed by name.
+    env : str
+        Kedro environment (used for namespacing asset keys/resources).
+    mlflow_config : BaseModel or None, optional
+        Optional MLflow configuration from the Kedro context.
+
+    See Also
+    --------
+    `kedro_dagster.pipelines.PipelineTranslator` :
+        Consumes ops produced by this translator.
+    `kedro_dagster.catalog.CatalogTranslator` :
+        Produces IO managers and partition info consumed here.
+    `kedro_dagster.translator.KedroProjectTranslator` :
+        Orchestrates the full translation pipeline.
     """
 
     def __init__(
@@ -93,16 +111,25 @@ class NodeTranslator:
     def _get_node_partitions_definition(self, node: "Node") -> dg.PartitionsDefinition | None:
         """Infer the partitions definition for a node's outputs.
 
-        If a node produces multiple partitioned outputs with different definitions,
-        a :class:`dagster.MultiPartitionsDefinition` is returned; for a single
-        partitioned output, the definition is returned directly. If none of the
-        outputs are partitioned, returns ``None``.
+        If a node produces multiple partitioned outputs with different
+        definitions, a ``MultiPartitionsDefinition`` is returned; for a single
+        partitioned output, the definition is returned directly. If none of
+        the outputs are partitioned, returns ``None``.
 
-        Args:
-            node (Node): Kedro node to inspect.
+        Parameters
+        ----------
+        node : Node
+            Kedro node to inspect.
 
-        Returns:
-            dg.PartitionsDefinition | None: Partitions definition (possibly multi) or ``None``.
+        Returns
+        -------
+        PartitionsDefinition or None
+            Partitions definition (possibly multi) or ``None``.
+
+        See Also
+        --------
+        `kedro_dagster.nodes.NodeTranslator.create_asset` :
+            Uses the returned partition definition for multi-asset creation.
         """
         partitioned_assets: dict[str, dg.PartitionsDefinition] = {}
 
@@ -125,14 +152,23 @@ class NodeTranslator:
         """Generate a Dagster Config model mirroring Kedro node parameters.
 
         Kedro parameters are injected into the op/asset as a Pydantic-based
-        Dagster :class:`~dagster.Config` model so that they can be overridden at
-        job submission time while retaining validation.
+        Dagster ``Config`` model so that they can be overridden at job
+        submission time while retaining validation.
 
-        Args:
-            node (Node): Kedro node whose parameters will be loaded from the catalog.
+        Parameters
+        ----------
+        node : Node
+            Kedro node whose parameters will be loaded from the catalog.
 
-        Returns:
-            dg.Config: Config subclass representing the node parameters (possibly empty).
+        Returns
+        -------
+        Config
+            Config subclass representing the node parameters (possibly empty).
+
+        See Also
+        --------
+        `kedro_dagster.nodes.NodeTranslator.create_op` :
+            Injects the resulting config into the Dagster op.
         """
         params: dict[str, Any] = {}
         for dataset_name in node.inputs:
@@ -144,24 +180,36 @@ class NodeTranslator:
             name="ParametersConfig",
             params=params,
             __base__=dg.Config,
-            __config__=create_pydantic_config(extra="allow", frozen=False),
+            __config__=ConfigDict(extra="allow", frozen=False),
         )
 
-    def _get_in_asset_params(self, dataset_name: str, asset_name: str, out_dataset_names: list[str]) -> dict[str, Any]:
-        """Compute :class:`dagster.AssetIn` kwargs for an input dataset.
+    def _get_in_asset_params(self, dataset_name: str, asset_name: str, out_dataset_names: list[str]) -> dict[str, Any]:  # noqa: ARG002
+        """Compute ``AssetIn`` kwargs for an input dataset.
 
         In particular, attaches an appropriate ``partition_mapping`` when the
         upstream input and downstream outputs are partitioned and a mapping is
-        declared in the catalog via :class:`~kedro_dagster.datasets.DagsterPartitionedDataset`.
+        declared in the catalog via
+        `kedro_dagster.datasets.DagsterPartitionedDataset`.
 
-        Args:
-            dataset_name (str): Kedro dataset name for the input.
-            asset_name (str): Dagster-safe asset name for the input.
-            out_dataset_names (list[str]): Downstream output dataset names of the consuming node
-                (used to select a specific mapping when multiple are defined).
+        Parameters
+        ----------
+        dataset_name : str
+            Kedro dataset name for the input.
+        asset_name : str
+            Dagster-safe asset name for the input.
+        out_dataset_names : list[str]
+            Downstream output dataset names of the consuming node (used to
+            select a specific mapping when multiple are defined).
 
-        Returns:
-            dict[str, Any]: Keyword arguments to pass to :class:`dagster.AssetIn`.
+        Returns
+        -------
+        dict[str, Any]
+            Keyword arguments to pass to ``AssetIn``.
+
+        See Also
+        --------
+        `kedro_dagster.nodes.NodeTranslator.create_asset` :
+            Calls this helper for each input dataset.
         """
         in_asset_params: dict[str, Any] = {}
 
@@ -188,21 +236,37 @@ class NodeTranslator:
         return_group_name: bool = False,
         return_kinds: bool = False,
     ) -> dict[str, Any]:
-        """Compute :class:`dagster.AssetOut` kwargs for an output dataset.
+        """Compute ``AssetOut`` kwargs for an output dataset.
 
-        This inspects the Kedro catalog entry to propagate metadata and to select
-        a specific IO manager when the dataset is not in-memory. Optionally, it
-        also annotates the asset with ``kinds`` for integration (e.g. MLflow).
+        This inspects the Kedro catalog entry to propagate metadata and to
+        select a specific IO manager when the dataset is not in-memory.
+        Optionally, it also annotates the asset with ``kinds`` for integration
+        (e.g. MLflow).
 
-        Args:
-            dataset_name (str): Kedro dataset name for the output.
-            asset_name (str): Dagster-safe asset name for the output.
-            node (Node): Kedro node being wrapped.
-            return_group_name (bool): Whether to include ``group_name`` in the returned params.
-            return_kinds (bool): Whether to include an explicit ``kinds`` set.
+        Parameters
+        ----------
+        dataset_name : str
+            Kedro dataset name for the output.
+        asset_name : str
+            Dagster-safe asset name for the output.
+        node : Node
+            Kedro node being wrapped.
+        return_group_name : bool, optional
+            Whether to include ``group_name`` in the returned params.
+        return_kinds : bool, optional
+            Whether to include an explicit ``kinds`` set.
 
-        Returns:
-            dict[str, Any]: Keyword arguments to pass to :class:`dagster.AssetOut`.
+        Returns
+        -------
+        dict[str, Any]
+            Keyword arguments to pass to ``AssetOut``.
+
+        See Also
+        --------
+        `kedro_dagster.nodes.NodeTranslator.create_asset` :
+            Calls this helper for each output dataset.
+        `kedro_dagster.nodes.NodeTranslator.create_op` :
+            Also calls this helper for op output definitions.
         """
         metadata, description = None, None
         group_name = _get_node_pipeline_name(node)
@@ -219,11 +283,11 @@ class NodeTranslator:
                     if candidate_key in self._named_resources:
                         io_manager_key = candidate_key
 
-        out_asset_params: dict[str, Any] = dict(
-            io_manager_key=io_manager_key,
-            metadata=metadata,
-            description=description,
-        )
+        out_asset_params: dict[str, Any] = {
+            "io_manager_key": io_manager_key,
+            "metadata": metadata,
+            "description": description,
+        }
 
         if return_group_name:
             out_asset_params["group_name"] = group_name
@@ -241,8 +305,17 @@ class NodeTranslator:
     def asset_names(self) -> list[str]:
         """Return a list of all asset names referenced by the provided pipelines.
 
-        Returns:
-            list[str]: Unique asset names referenced across all pipelines.
+        Returns
+        -------
+        list[str]
+            Unique asset names referenced across all pipelines.
+
+        See Also
+        --------
+        `kedro_dagster.utils.format_dataset_name` :
+            Formats each dataset name into a Dagster-safe asset name.
+        `kedro_dagster.catalog.CatalogTranslator` :
+            Provides the IO managers for the assets referenced here.
         """
         if not hasattr(self, "_asset_names"):
             asset_names: list[str] = []
@@ -265,25 +338,44 @@ class NodeTranslator:
     ) -> dg.OpDefinition:
         """Create a Dagster op wrapping a Kedro node for use in a graph job.
 
-        The op wires inputs/outputs to Dagster assets and propagates Kedro hooks.
-        When ``partition_keys`` is provided, the op name is suffixed with the
-        downstream partition key to ensure uniqueness per cloned invocation.
+        The op wires inputs/outputs to Dagster assets and propagates Kedro
+        hooks. When ``partition_keys`` is provided, the op name is suffixed
+        with the downstream partition key to ensure uniqueness per cloned
+        invocation.
 
-        Args:
-            node (Node): Kedro node to wrap.
-            is_in_first_layer (bool): Whether the node is in the first topological layer
-                of the pipeline (adds a synthetic input to trigger ``before_pipeline_run``).
-            is_in_last_layer (bool): Whether the node is in the last topological layer
-                (adds a synthetic output to trigger ``after_pipeline_run``).
-            partition_keys (dict[str, str] | None): Optional mapping with keys ``upstream_partition_key`` and
-                ``downstream_partition_key`` encoded as "asset_name|partition_key"; used by
-                the :class:`~kedro_dagster.pipelines.PipelineTranslator` during static fan-out.
-            partition_keys_per_in_asset_names (dict[str, list[str]] | None): For nodes that consume ``Nothing`` assets that
-                are repeated per partition, provide a map of input asset name -> list of
-                formatted partition keys so multiple Nothing inputs can be declared.
+        Parameters
+        ----------
+        node : Node
+            Kedro node to wrap.
+        is_in_first_layer : bool, optional
+            Whether the node is in the first topological layer of the
+            pipeline (adds a synthetic input to trigger
+            ``before_pipeline_run``).
+        is_in_last_layer : bool, optional
+            Whether the node is in the last topological layer (adds a
+            synthetic output to trigger ``after_pipeline_run``).
+        partition_keys : dict[str, str] or None, optional
+            Optional mapping with keys ``upstream_partition_key`` and
+            ``downstream_partition_key`` encoded as
+            ``"asset_name|partition_key"``; used by
+            `kedro_dagster.pipelines.PipelineTranslator`
+            during static fan-out.
+        partition_keys_per_in_asset_names : dict[str, list[str]] or None, optional
+            For nodes that consume ``Nothing`` assets that are repeated per
+            partition, provide a map of input asset name to list of formatted
+            partition keys so multiple Nothing inputs can be declared.
 
-        Returns:
-            dg.OpDefinition: Fully constructed Dagster op.
+        Returns
+        -------
+        OpDefinition
+            Fully constructed Dagster op.
+
+        See Also
+        --------
+        `kedro_dagster.nodes.NodeTranslator.create_asset` :
+            Alternative translation as a Dagster multi-asset.
+        `kedro_dagster.pipelines.PipelineTranslator.translate_pipeline` :
+            Consumes the ops produced here.
         """
         LOGGER.debug(f"Creating op for node '{node.name}'")
         partition_key = None
@@ -351,13 +443,21 @@ class NodeTranslator:
         def node_graph_op(context: dg.OpExecutionContext, config: NodeParametersConfig, **inputs):  # type: ignore[no-untyped-def, valid-type]
             """Execute the Kedro node as a Dagster op.
 
-            Args:
-                context (OpExecutionContext): Dagster op execution context.
-                config (Config): Node parameters config model.
-                **inputs: Materialized inputs keyed by formatted asset names and parameters.
+            Parameters
+            ----------
+            context : OpExecutionContext
+                Dagster op execution context.
+            config : Config
+                Node parameters config model.
+            **inputs
+                Materialized inputs keyed by formatted asset names and
+                parameters.
 
-            Returns:
-                Any | tuple[Any, ...] | None: Node outputs as a single value, tuple, or ``None`` when no outputs.
+            Returns
+            -------
+            Any or tuple[Any, ...] or None
+                Node outputs as a single value, tuple, or ``None`` when
+                no outputs.
             """
             context.log.info(f"Running node `{node.name}` in graph. Dagster run_id = {context.run_id}")
             config_values = config.model_dump()  # type: ignore[attr-defined]
@@ -407,17 +507,13 @@ class NodeTranslator:
                 if is_nothing_asset_name(self._catalog, in_dataset_name):
                     inputs[in_dataset_name] = None
 
-            before_node_run_params = dict(
-                node=node,
-                catalog=self._catalog,
-                inputs=inputs,
-                is_async=False,
-            )
-            # Kedro 1.x hooks renamed session_id to run_id
-            if KEDRO_VERSION[0] >= 1:
-                before_node_run_params["run_id"] = self._run_id
-            else:  # pragma: no cover
-                before_node_run_params["session_id"] = self._run_id
+            before_node_run_params = {
+                "node": node,
+                "catalog": self._catalog,
+                "inputs": inputs,
+                "is_async": False,
+                "run_id": self._run_id,
+            }
 
             self._hook_manager.hook.before_node_run(**before_node_run_params)
 
@@ -425,38 +521,24 @@ class NodeTranslator:
                 outputs = node.run(inputs)
 
             except Exception as exc:
-                if KEDRO_VERSION[0] >= 1:
-                    self._hook_manager.hook.on_node_error(
-                        error=exc,
-                        node=node,
-                        catalog=self._catalog,
-                        inputs=inputs,
-                        is_async=False,
-                        run_id=self._run_id,
-                    )
-                else:  # pragma: no cover
-                    self._hook_manager.hook.on_node_error(
-                        error=exc,
-                        node=node,
-                        catalog=self._catalog,
-                        inputs=inputs,
-                        is_async=False,
-                        session_id=self._run_id,
-                    )
+                self._hook_manager.hook.on_node_error(
+                    error=exc,
+                    node=node,
+                    catalog=self._catalog,
+                    inputs=inputs,
+                    is_async=False,
+                    run_id=self._run_id,
+                )
                 raise exc
 
-            after_node_run_params = dict(
-                node=node,
-                catalog=self._catalog,
-                inputs=inputs,
-                outputs=outputs,
-                is_async=False,
-            )
-            # Kedro 1.x hooks renamed session_id to run_id
-            if KEDRO_VERSION[0] >= 1:
-                after_node_run_params["run_id"] = self._run_id
-            else:  # pragma: no cover
-                after_node_run_params["session_id"] = self._run_id
+            after_node_run_params = {
+                "node": node,
+                "catalog": self._catalog,
+                "inputs": inputs,
+                "outputs": outputs,
+                "is_async": False,
+                "run_id": self._run_id,
+            }
 
             self._hook_manager.hook.after_node_run(**after_node_run_params)
 
@@ -499,14 +581,23 @@ class NodeTranslator:
     def create_asset(self, node: "Node") -> dg.AssetsDefinition:
         """Create a Dagster multi-asset from a Kedro node.
 
-        One asset output is created per Kedro output dataset. Partitioning and
-        partition mappings are propagated when available.
+        One asset output is created per Kedro output dataset. Partitioning
+        and partition mappings are propagated when available.
 
-        Args:
-            node (Node): Kedro node to wrap.
+        Parameters
+        ----------
+        node : Node
+            Kedro node to wrap.
 
-        Returns:
-            dg.AssetsDefinition: Multi-asset representing the node outputs.
+        Returns
+        -------
+        AssetsDefinition
+            Multi-asset representing the node outputs.
+
+        See Also
+        --------
+        `kedro_dagster.nodes.NodeTranslator.create_op` :
+            Alternative translation as a Dagster op for graph jobs.
         """
         LOGGER.debug(f"Creating asset for node '{node.name}'")
 
@@ -561,13 +652,21 @@ class NodeTranslator:
         def dagster_asset(context: dg.AssetExecutionContext, config: NodeParametersConfig, **inputs):  # type: ignore[no-untyped-def, valid-type]
             """Execute the Kedro node as a Dagster asset.
 
-            Args:
-                context (AssetExecutionContext): Dagster asset execution context.
-                config (Config): Node parameters config model.
-                **inputs: Materialized inputs keyed by formatted asset names and parameters.
+            Parameters
+            ----------
+            context : AssetExecutionContext
+                Dagster asset execution context.
+            config : Config
+                Node parameters config model.
+            **inputs
+                Materialized inputs keyed by formatted asset names and
+                parameters.
 
-            Returns:
-                Any | tuple[Any, ...] | None: Node outputs as a single value or a tuple when multiple outputs exist.
+            Returns
+            -------
+            Any or tuple[Any, ...] or None
+                Node outputs as a single value or a tuple when multiple
+                outputs exist.
             """
             context.log.info(f"Running node `{node.name}` in asset.")
 
@@ -596,14 +695,24 @@ class NodeTranslator:
         return dagster_asset
 
     def to_dagster(self) -> tuple[dict[str, dg.OpDefinition], dict[str, dg.AssetSpec | dg.AssetsDefinition]]:
-        """Translate all Kedro nodes involved into Dagster op factories and assets.
+        """Translate all Kedro nodes into Dagster op factories and assets.
 
-        Returns:
-            tuple[dict[str, dg.OpDefinition], dict[str, dg.AssetSpec | dg.AssetsDefinition]]: 2-tuple of
-            (op factories, assets), where:
-            - op factories map names to callables that produce partition-aware ops when invoked;
-            - assets map names to either external :class:`dagster.AssetSpec` (for upstream inputs)
-            or concrete :class:`dagster.AssetsDefinition` produced by nodes.
+        Returns
+        -------
+        tuple[dict[str, OpDefinition], dict[str, AssetSpec | AssetsDefinition]]
+            2-tuple of (op factories, assets), where:
+
+            - op factories map names to callables that produce
+              partition-aware ops when invoked;
+            - assets map names to either external ``AssetSpec`` (for upstream
+              inputs) or concrete ``AssetsDefinition`` produced by nodes.
+
+        See Also
+        --------
+        `kedro_dagster.nodes.NodeTranslator.create_op` :
+            Creates individual op definitions.
+        `kedro_dagster.nodes.NodeTranslator.create_asset` :
+            Creates individual asset definitions.
         """
         LOGGER.info("Translating Kedro nodes to Dagster ops and assets...")
 

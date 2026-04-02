@@ -5,7 +5,7 @@ from importlib.resources import files
 
 import yaml
 
-from kedro_dagster.config.kedro_dagster import KedroDagsterConfig
+from kedro_dagster.config import KedroDagsterConfig
 from kedro_dagster.utils import render_jinja_template
 
 
