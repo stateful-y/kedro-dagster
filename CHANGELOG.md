@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+{%- if version %}
+## [{{ version | trim_start_matches(pat="v") }}] - {{ timestamp | date(format="%Y-%m-%d") }}
+{%- set release_type = "" %}
+{%- if version is matching("v?[0-9]+\.0\.0") %}
+{%- set release_type = "major" %}
+{%- elif version is matching("v?[0-9]+\.[0-9]+\.0") %}
+{%- set release_type = "minor" %}
+{%- else %}
+{%- set release_type = "patch" %}
+{%- endif %}
+
+This **{{ release_type }} release** includes {{ commits | length }} commit{%- if commits | length != 1 %}s{%- endif %}.
+{% else %}
+## [Unreleased]
+{%- endif %}
+{%- for group, commits in commits | group_by(attribute="group") %}
+
+### {{ group | striptags | trim | upper_first }}
+{%- for commit in commits %}
+- {{ commit.message | upper_first }}{%- if commit.remote.pr_number %} ([#{{ commit.remote.pr_number }}](https://github.com/stateful-y/kedro-dagster/pull/{{ commit.remote.pr_number }})){%- endif %}{%- if commit.remote.username %} by @{{ commit.remote.username }}{%- endif %}
+{%- endfor %}
+{%- endfor %}
+{%- set new_contributors = commits | filter(attribute="remote.username") | map(attribute="remote.username") | unique %}
+{%- if new_contributors | length > 0 %}
+
+### Contributors
+
+Thanks to all contributors for this release:
+{%- for contributor in new_contributors %}
+- @{{ contributor }}
+{%- endfor %}
+{%- endif %}
+
 ## [Unreleased]
 
 ### Refactoring
