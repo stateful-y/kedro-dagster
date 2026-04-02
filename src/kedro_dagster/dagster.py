@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any
 
 import dagster as dg
 
-from kedro_dagster.config.execution import (
+from kedro_dagster.config import (
     CeleryDockerExecutorOptions,
     CeleryExecutorOptions,
     CeleryK8sJobExecutorOptions,
@@ -26,7 +26,7 @@ from kedro_dagster.config.execution import (
 )
 
 if TYPE_CHECKING:
-    from kedro_dagster.config.kedro_dagster import KedroDagsterConfig
+    from kedro_dagster.config import KedroDagsterConfig
 
 LOGGER = getLogger(__name__)
 
@@ -34,8 +34,19 @@ LOGGER = getLogger(__name__)
 class ExecutorCreator:
     """Create Dagster executor definitions from Kedro-Dagster configuration.
 
-    Args:
-        dagster_config (KedroDagsterConfig): Parsed Kedro-Dagster config containing executor entries.
+    Parameters
+    ----------
+    dagster_config : KedroDagsterConfig
+        Parsed Kedro-Dagster config containing executor entries.
+
+    See Also
+    --------
+    `kedro_dagster.dagster.ScheduleCreator` :
+        Creates schedule definitions from configuration.
+    `kedro_dagster.dagster.LoggerCreator` :
+        Creates logger definitions from configuration.
+    `kedro_dagster.config.execution.ExecutorOptions` :
+        Union of supported executor option models.
     """
 
     _OPTION_EXECUTOR_MAP = {
@@ -58,17 +69,32 @@ class ExecutorCreator:
     def register_executor(self, executor_option: type[ExecutorOptions], executor: dg.ExecutorDefinition) -> None:
         """Register a mapping between an options model and a Dagster executor factory.
 
-        Args:
-            executor_option (type[ExecutorOptions]): Pydantic model type acting as the key.
-            executor (ExecutorDefinition): Dagster executor factory to use for that key.
+        Parameters
+        ----------
+        executor_option : type[ExecutorOptions]
+            Pydantic model type acting as the key.
+        executor : ExecutorDefinition
+            Dagster executor factory to use for that key.
+
+        See Also
+        --------
+        `kedro_dagster.dagster.ExecutorCreator.create_executors` :
+            Consumes registered executor mappings.
         """
         self._OPTION_EXECUTOR_MAP[executor_option] = executor
 
     def create_executors(self) -> dict[str, dg.ExecutorDefinition]:
         """Instantiate executor definitions declared in the configuration.
 
-        Returns:
-            dict[str, dg.ExecutorDefinition]: Mapping of executor name to configured executor.
+        Returns
+        -------
+        dict[str, ExecutorDefinition]
+            Mapping of executor name to configured executor.
+
+        See Also
+        --------
+        `kedro_dagster.dagster.ExecutorCreator.register_executor` :
+            Registers new executor types before creation.
         """
         LOGGER.info("Creating Dagster executors...")
         # Register all available executors dynamically
@@ -92,7 +118,7 @@ class ExecutorCreator:
                     msg = (
                         f"Executor '{executor_name}' not supported. "
                         f"Please use one of the following executors: "
-                        f"{', '.join([str(k) for k in self._OPTION_EXECUTOR_MAP.keys()])}"
+                        f"{', '.join([str(k) for k in self._OPTION_EXECUTOR_MAP])}"
                     )
                     LOGGER.error(msg)
                     raise ValueError(msg)
@@ -122,7 +148,7 @@ class ExecutorCreator:
                             msg = (
                                 f"Executor type `{type(job_config.executor)}` for job '{job_name}' not supported. "
                                 f"Please use one of the following executor types: "
-                                f"{', '.join([str(k) for k in self._OPTION_EXECUTOR_MAP.keys()])}"
+                                f"{', '.join([str(k) for k in self._OPTION_EXECUTOR_MAP])}"
                             )
                             LOGGER.error(msg)
                             raise ValueError(msg)
@@ -139,9 +165,21 @@ class ExecutorCreator:
 class ScheduleCreator:
     """Create Dagster schedule definitions from Kedro configuration.
 
-    Args:
-        dagster_config (KedroDagsterConfig): Parsed Kedro-Dagster config containing schedule entries.
-        named_jobs (dict[str, dg.JobDefinition]): Mapping of job names to Dagster job definitions.
+    Parameters
+    ----------
+    dagster_config : KedroDagsterConfig
+        Parsed Kedro-Dagster config containing schedule entries.
+    named_jobs : dict[str, JobDefinition]
+        Mapping of job names to Dagster job definitions.
+
+    See Also
+    --------
+    `kedro_dagster.dagster.ExecutorCreator` :
+        Creates executor definitions from configuration.
+    `kedro_dagster.dagster.LoggerCreator` :
+        Creates logger definitions from configuration.
+    `kedro_dagster.config.automation.ScheduleOptions` :
+        Schedule option model.
     """
 
     def __init__(self, dagster_config: "KedroDagsterConfig", named_jobs: dict[str, dg.JobDefinition]):
@@ -151,9 +189,15 @@ class ScheduleCreator:
     def create_schedules(self) -> dict[str, dg.ScheduleDefinition]:
         """Create schedule definitions from the configuration.
 
-        Returns:
-            dict[str, dg.ScheduleDefinition]: Dict of schedule definitions keyed by job name.
+        Returns
+        -------
+        dict[str, ScheduleDefinition]
+            Dict of schedule definitions keyed by job name.
 
+        See Also
+        --------
+        `kedro_dagster.config.automation.ScheduleOptions` :
+            Schedule option model used as input.
         """
         LOGGER.info("Creating Dagster schedules...")
         named_schedule_config = {}
@@ -201,8 +245,19 @@ class ScheduleCreator:
 class LoggerCreator:
     """Create Dagster logger definitions from Kedro-Dagster configuration.
 
-    Args:
-        dagster_config (KedroDagsterConfig): Parsed Kedro-Dagster config containing logger entries.
+    Parameters
+    ----------
+    dagster_config : KedroDagsterConfig
+        Parsed Kedro-Dagster config containing logger entries.
+
+    See Also
+    --------
+    `kedro_dagster.dagster.ExecutorCreator` :
+        Creates executor definitions from configuration.
+    `kedro_dagster.dagster.ScheduleCreator` :
+        Creates schedule definitions from configuration.
+    `kedro_dagster.config.logging.LoggerOptions` :
+        Logger option model.
     """
 
     def __init__(self, dagster_config: "KedroDagsterConfig"):
@@ -211,11 +266,20 @@ class LoggerCreator:
     def _get_logger_definition(self, logger_name: str) -> dg.LoggerDefinition:
         """Create a Dagster logger definition from the configuration.
 
-        Args:
-            logger_name (str): Name of the logger.
+        Parameters
+        ----------
+        logger_name : str
+            Name of the logger.
 
-        Returns:
-            dg.LoggerDefinition: Dagster logger definition.
+        Returns
+        -------
+        LoggerDefinition
+            Dagster logger definition.
+
+        See Also
+        --------
+        `kedro_dagster.dagster.LoggerCreator.create_loggers` :
+            Entry point that calls this method for each configured logger.
         """
 
         def _resolve_reference(ref: Any) -> Any:
@@ -233,6 +297,7 @@ class LoggerCreator:
             raise TypeError(f"Unable to resolve reference {ref!r}")
 
         def dagster_logger(context: dg.InitLoggerContext) -> logging.Logger:
+            """Build a stdlib logger from the Dagster logger config."""
             # Use the provided config directly instead of dynamic schema
             config_data = dict(context.logger_config)
             level = config_data.get("log_level", "INFO").upper()
@@ -351,13 +416,22 @@ class LoggerCreator:
     def create_loggers(self) -> dict[str, dg.LoggerDefinition]:
         """Create logger definitions from the configuration.
 
-        Returns:
-            dict[str, LoggerDefinition]: Mapping of fully-qualified logger name to definition.
+        Returns
+        -------
+        dict[str, LoggerDefinition]
+            Mapping of fully-qualified logger name to definition.
+
+        See Also
+        --------
+        `kedro_dagster.dagster.LoggerCreator._get_logger_definition` :
+            Creates a single logger definition.
+        `kedro_dagster.config.logging.LoggerOptions` :
+            Logger option model used as input.
         """
         LOGGER.info("Creating Dagster loggers...")
         named_loggers = {}
         if self._dagster_config.loggers:
-            for logger_name in self._dagster_config.loggers.keys():
+            for logger_name in self._dagster_config.loggers:
                 LOGGER.debug(f"Creating logger '{logger_name}'...")
                 logger = self._get_logger_definition(logger_name)
                 named_loggers[logger_name] = logger

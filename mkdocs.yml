@@ -1,83 +1,126 @@
-site_name: Kedro-Dagster's documentation
-site_url: https://kedro-dagster.readthedocs.io/en/latest/
-repo_name: stateful-y/kedro-dagster
+site_name: Kedro-Dagster
+site_description: Kedro-Dagster makes it easy to deploy Kedro projects to Dagster
+site_url: https://kedro-dagster.readthedocs.io/
 repo_url: https://github.com/stateful-y/kedro-dagster
-
+repo_name: stateful-y/kedro-dagster
 edit_uri: edit/main/docs/
 
-nav:
-  - Home: index.md
-  - Introduction: pages/intro.md
-  - Getting started: pages/getting-started.md
-  - Example: pages/example.md
-  - User guide: pages/guide.md
-  - Reference: pages/reference.md
-  - FAQ: pages/faq.md
+hooks:
+  - docs/hooks.py
 
 theme:
   name: material
   custom_dir: docs/material/overrides
-
-  features:
-    - announce.dismiss
-    - content.action.edit
-    - content.code.annotate
-    - content.code.copy
-    - navigation.tracking
-    - navigation.tabs
-    - navigation.tabs.sticky
-    - navigation.sections
-    - navigation.expand
-    - navigation.indexes
-    - navigation.footer
-    - toc.follow
-    - toc.integrate
-    - search.suggest
-    - search.highlight
-
-  favicon: images/favicon.png
+  favicon: assets/favicon.png
   logo: assets/logo.png
 
   palette:
-    - media: "(prefers-color-scheme)"
-      toggle:
-        icon: material/link
-        name: Switch to light mode
-
+    # Palette toggle for light mode
     - media: "(prefers-color-scheme: light)"
       scheme: default
-      primary: indigo
-      accent: amber
+      primary: custom
+      accent: custom
       toggle:
-        icon: material/toggle-switch
+        icon: material/brightness-7
         name: Switch to dark mode
-
+    # Palette toggle for dark mode
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
-      primary: indigo
-      accent: amber
+      primary: custom
+      accent: custom
       toggle:
-        icon: material/toggle-switch-off
-        name: Switch to system preference
+        icon: material/brightness-4
+        name: Switch to light mode
+
+  features:
+    - content.code.copy
+    - content.code.annotate
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.tracking
+    - navigation.sections
+    - navigation.indexes
+    - navigation.prune
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - toc.integrate
 
 markdown_extensions:
   - admonition
   - attr_list
+  - def_list
+  - footnotes
   - md_in_html
+  - meta
+  - sane_lists
+  - toc:
+      permalink: true
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret
+  - pymdownx.critic
   - pymdownx.details
-  - pymdownx.highlight
-  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.magiclink
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - class: mermaid
+          name: mermaid
   - pymdownx.tabbed:
       alternate_style: true
-  - pymdownx.snippets:
-      base_path: ["."]  # for root of repo
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+  - pymdownx.emoji
+
+extra_javascript:
+  - javascripts/readthedocs.js
+  - javascripts/mathjax.js
+  - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
+  - https://code.jquery.com/jquery-3.7.1.min.js
+  - https://cdn.datatables.net/2.2.2/js/dataTables.min.js
+
+extra_css:
+  - stylesheets/theme.css
+  - https://cdn.datatables.net/2.2.2/css/dataTables.dataTables.min.css
+
+exclude_docs: |
+  api-submodule.html
+
+not_in_nav: |
+  assets/README.md
+  pages/api/*.md
+  pages/api/generated/*.md
+
+validation:
+  nav:
+    omitted_files: warn
+    not_found: warn
+    absolute_links: warn
+  links:
+    not_found: warn
+    anchors: warn
+    absolute_links: ignore  # Ignore absolute links - we handle them in hooks
+    unrecognized_links: ignore  # Ignore unrecognized links - examples HTML is generated
 
 plugins:
+  - search
+  - tags
+  - autorefs
   - git-revision-date-localized:
       enable_creation_date: true
       type: date
-  - search:
-      separator: '[\s\u200b\-_,:!=\[\]()"`/]+|\.(?!\d)|&[lg]t;|(?!\b)(?=[A-Z][a-z])'
   - glightbox:
       touchNavigation: true
       loop: false
@@ -97,20 +140,52 @@ plugins:
   - mkdocstrings:
       handlers:
         python:
-          options:
-            heading_level: 4
-            show_root_heading: false
-            show_root_toc_entry: false
-            show_source: true
-            docstring_style: google
-            merge_init_into_class: true
-            docstring_section_style: list
-            separate_signature: true
-            filters: ["!^_"]
-            docstring_options:
-              ignore_init_summary: true
-              warn_unknown_params: false
-              returns_named_value: false
           paths: [src]
+          options:
+            docstring_style: numpy
+            show_source: true
+            show_root_heading: true
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            members_order: source
+            signature_crossrefs: true
+            scoped_crossrefs: true
+            relative_crossrefs: true
 
-copyright: Copyright &copy; 2024 - 2025 Guillaume Tauzin
+nav:
+  - Home: index.md
+  - Tutorials:
+    - pages/tutorials/index.md
+    - Getting Started: pages/tutorials/getting-started.md
+    - Example Project: pages/tutorials/example-project.md
+    - Migrate Existing Project: pages/tutorials/migrate-existing-project.md
+  - How-to Guides:
+    - pages/how-to/index.md
+    - Configure Logging: pages/how-to/configure-logging.md
+    - Configure Executors: pages/how-to/configure-executors.md
+    - Use MLflow: pages/how-to/use-mlflow.md
+    - Use Partitions: pages/how-to/use-partitions.md
+    - Deploy to Production: pages/how-to/deploy-to-production.md
+    - Troubleshoot: pages/how-to/troubleshoot.md
+    - Contributing: pages/how-to/contribute.md
+  - Reference:
+    - pages/reference/index.md
+    - Configuration: pages/reference/configuration.md
+    - CLI: pages/reference/cli.md
+    - Datasets: pages/reference/datasets.md
+    - API: pages/reference/api.md
+  - Explanation:
+    - pages/explanation/index.md
+    - Concepts: pages/explanation/concepts.md
+    - Architecture: pages/explanation/architecture.md
+    - Data Flow: pages/explanation/data-flow.md
+    - Hook Lifecycle: pages/explanation/hook-lifecycle.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/stateful-y/kedro-dagster
+
+watch:
+  - mkdocs.yml
+  - docs

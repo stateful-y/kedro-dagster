@@ -16,131 +16,131 @@ from kedro_dagster.pipelines import PipelineTranslator
 
 
 @pytest.mark.parametrize("env", ["base", "local"])
-def test_static_partitions_and_identity_mapping(env, request):
-    """Identity mapping keeps upstream and downstream partition keys aligned (p -> p)."""
-    options = request.getfixturevalue(f"kedro_project_partitioned_identity_mapping_{env}")
-    project_path = options.project_path
+class TestIdentityPartitionMapping:
+    """Tests for identity partition mapping between upstream and downstream assets."""
 
-    bootstrap_project(project_path)
-    session = KedroSession.create(project_path=project_path, env=env)
-    context = session.load_context()
+    def test_identity_mapping_keeps_partition_keys_aligned(self, env, request):
+        """Identity mapping keeps upstream and downstream partition keys aligned (p -> p)."""
+        options = request.getfixturevalue(f"kedro_project_partitioned_identity_mapping_{env}")
+        project_path = options.project_path
 
-    pipeline = pipelines.get("__default__")
+        bootstrap_project(project_path)
+        session = KedroSession.create(project_path=project_path, env=env)
+        context = session.load_context()
 
-    catalog_translator = CatalogTranslator(
-        catalog=context.catalog,
-        pipelines=[pipeline],
-        hook_manager=context._hook_manager,
-        env=env,
-    )
-    named_io_managers, asset_partitions = catalog_translator.to_dagster()
+        pipeline = pipelines.get("__default__")
 
-    # Validate partitions collected
-    assert "intermediate_ds" in asset_partitions
-    assert "output2_ds" in asset_partitions
-    assert isinstance(asset_partitions["intermediate_ds"]["partitions_def"], dg.PartitionsDefinition)
-    assert isinstance(asset_partitions["output2_ds"]["partitions_def"], dg.PartitionsDefinition)
+        catalog_translator = CatalogTranslator(
+            catalog=context.catalog,
+            pipelines=[pipeline],
+            hook_manager=context._hook_manager,
+            env=env,
+        )
+        named_io_managers, asset_partitions = catalog_translator.to_dagster()
 
-    # Build node translator, compute partition keys mapping for the node producing output2
-    node_translator = NodeTranslator(
-        pipelines=[pipeline],
-        catalog=context.catalog,
-        hook_manager=context._hook_manager,
-        asset_partitions=asset_partitions,
-        named_resources={**named_io_managers, "io_manager": dg.fs_io_manager},
-        env=env,
-        run_id=session.session_id,
-    )
+        assert "intermediate_ds" in asset_partitions
+        assert "output2_ds" in asset_partitions
+        assert isinstance(asset_partitions["intermediate_ds"]["partitions_def"], dg.PartitionsDefinition)
+        assert isinstance(asset_partitions["output2_ds"]["partitions_def"], dg.PartitionsDefinition)
 
-    # The internal helper will be used by PipelineTranslator, but we assert identity mapping indirectly
-    # by creating an op with a specific upstream partition key and checking the emitted materialization tag.
-    node = next(n for n in pipeline.nodes if "output2_ds" in n.outputs)
-    op = node_translator.create_op(
-        node,
-        partition_keys={
-            "upstream_partition_key": "intermediate_ds|p1",
-            "downstream_partition_key": "output2_ds|p1",
-        },
-    )
+        node_translator = NodeTranslator(
+            pipelines=[pipeline],
+            catalog=context.catalog,
+            hook_manager=context._hook_manager,
+            asset_partitions=asset_partitions,
+            named_resources={**named_io_managers, "io_manager": dg.fs_io_manager},
+            env=env,
+            run_id=session.session_id,
+        )
 
-    assert "upstream_partition_key" in op.tags and op.tags["upstream_partition_key"].endswith("|p1")
-    assert "downstream_partition_key" in op.tags and op.tags["downstream_partition_key"].endswith("|p1")
+        node = next(n for n in pipeline.nodes if "output2_ds" in n.outputs)
+        op = node_translator.create_op(
+            node,
+            partition_keys={
+                "upstream_partition_key": "intermediate_ds|p1",
+                "downstream_partition_key": "output2_ds|p1",
+            },
+        )
+
+        assert "upstream_partition_key" in op.tags and op.tags["upstream_partition_key"].endswith("|p1")
+        assert "downstream_partition_key" in op.tags and op.tags["downstream_partition_key"].endswith("|p1")
 
 
 @pytest.mark.parametrize("env", ["base", "local"])
-def test_static_partitions_and_static_mapping(env, request):
-    """Ensure StaticPartitionMapping routes upstream partitions to configured downstream keys."""
-    options = request.getfixturevalue(f"kedro_project_partitioned_static_mapping_{env}")
-    project_path = options.project_path
+class TestStaticPartitionMapping:
+    """Tests for static partition mapping between upstream and downstream assets."""
 
-    bootstrap_project(project_path)
-    session = KedroSession.create(project_path=project_path, env=env)
-    context = session.load_context()
+    def test_static_mapping_routes_partitions_to_configured_downstream_keys(self, env, request):
+        """StaticPartitionMapping routes upstream partitions to configured downstream keys."""
+        options = request.getfixturevalue(f"kedro_project_partitioned_static_mapping_{env}")
+        project_path = options.project_path
 
-    pipeline = pipelines.get("__default__")
+        bootstrap_project(project_path)
+        session = KedroSession.create(project_path=project_path, env=env)
+        context = session.load_context()
 
-    catalog_translator = CatalogTranslator(
-        catalog=context.catalog,
-        pipelines=[pipeline],
-        hook_manager=context._hook_manager,
-        env=env,
-    )
-    named_io_managers, asset_partitions = catalog_translator.to_dagster()
+        pipeline = pipelines.get("__default__")
 
-    node_translator = NodeTranslator(
-        pipelines=[pipeline],
-        catalog=context.catalog,
-        hook_manager=context._hook_manager,
-        asset_partitions=asset_partitions,
-        named_resources={**named_io_managers, "io_manager": dg.fs_io_manager},
-        env=env,
-        run_id=session.session_id,
-    )
+        catalog_translator = CatalogTranslator(
+            catalog=context.catalog,
+            pipelines=[pipeline],
+            hook_manager=context._hook_manager,
+            env=env,
+        )
+        named_io_managers, asset_partitions = catalog_translator.to_dagster()
 
-    dagster_config = get_dagster_config(context)
-    named_op_factories, named_assets = node_translator.to_dagster()
+        node_translator = NodeTranslator(
+            pipelines=[pipeline],
+            catalog=context.catalog,
+            hook_manager=context._hook_manager,
+            asset_partitions=asset_partitions,
+            named_resources={**named_io_managers, "io_manager": dg.fs_io_manager},
+            env=env,
+            run_id=session.session_id,
+        )
 
-    executor_creator = ExecutorCreator(dagster_config=dagster_config)
-    named_executors = executor_creator.create_executors()
+        dagster_config = get_dagster_config(context)
+        named_op_factories, named_assets = node_translator.to_dagster()
 
-    logger_creator = LoggerCreator(dagster_config=dagster_config)
-    named_loggers = logger_creator.create_loggers()
+        executor_creator = ExecutorCreator(dagster_config=dagster_config)
+        named_executors = executor_creator.create_executors()
 
-    pipeline_translator = PipelineTranslator(
-        dagster_config=dagster_config,
-        context=context,
-        catalog=context.catalog,
-        project_path=str(project_path),
-        env=env,
-        named_assets=named_assets,
-        asset_partitions=asset_partitions,
-        named_op_factories=named_op_factories,
-        named_resources={**named_io_managers, "io_manager": dg.fs_io_manager},
-        named_executors=named_executors,
-        named_loggers=named_loggers,
-        enable_mlflow=False,
-        run_id=session.session_id,
-    )
-    jobs = pipeline_translator.to_dagster()
-    job = jobs["default"]
+        logger_creator = LoggerCreator(dagster_config=dagster_config)
+        named_loggers = logger_creator.create_loggers()
 
-    # Locate the after-pipeline-run hook node and inspect its inputs
-    hook_name = "after_pipeline_run_hook_default"
-    node_def = None
-    if hasattr(job, "graph") and hasattr(job.graph, "node_defs"):
-        for nd in job.graph.node_defs:
-            if getattr(nd, "name", None) == hook_name:
-                node_def = nd
-                break
-    if node_def is None and hasattr(job, "all_node_defs"):
-        for nd in job.all_node_defs:
-            if getattr(nd, "name", None) == hook_name:
-                node_def = nd
-                break
+        pipeline_translator = PipelineTranslator(
+            dagster_config=dagster_config,
+            context=context,
+            catalog=context.catalog,
+            project_path=str(project_path),
+            env=env,
+            named_assets=named_assets,
+            asset_partitions=asset_partitions,
+            named_op_factories=named_op_factories,
+            named_resources={**named_io_managers, "io_manager": dg.fs_io_manager},
+            named_executors=named_executors,
+            named_loggers=named_loggers,
+            enable_mlflow=False,
+            run_id=session.session_id,
+        )
+        jobs = pipeline_translator.to_dagster()
+        job = jobs["default"]
 
-    assert node_def is not None, "Hook op definition not found in job"
-    ins_keys = set(getattr(node_def, "ins").keys())
+        hook_name = "after_pipeline_run_hook_default"
+        node_def = None
+        if hasattr(job, "graph") and hasattr(job.graph, "node_defs"):
+            for nd in job.graph.node_defs:
+                if getattr(nd, "name", None) == hook_name:
+                    node_def = nd
+                    break
+        if node_def is None and hasattr(job, "all_node_defs"):
+            for nd in job.all_node_defs:
+                if getattr(nd, "name", None) == hook_name:
+                    node_def = nd
+                    break
 
-    # Expect p1->a, p2->b
-    assert "node2__p1__a_after_pipeline_run_hook_input" in ins_keys
-    assert "node2__p2__b_after_pipeline_run_hook_input" in ins_keys
+        assert node_def is not None, "Hook op definition not found in job"
+        ins_keys = set(node_def.ins.keys())
+
+        assert "node2__p1__a_after_pipeline_run_hook_input" in ins_keys
+        assert "node2__p2__b_after_pipeline_run_hook_input" in ins_keys

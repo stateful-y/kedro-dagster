@@ -12,12 +12,21 @@ import structlog
 def getLogger(name: str | None = None) -> _logging.Logger:
     """Return a logger, preferring Dagster's logger when a run is active.
 
-    Args:
-        name: Optional logger name, consistent with ``logging.getLogger``.
+    Parameters
+    ----------
+    name : str or None, optional
+        Logger name, consistent with ``logging.getLogger``.
 
-    Returns:
-        logging.Logger: A standard logger instance. When a Dagster run is
-        active, this is backed by Dagster's logging machinery.
+    Returns
+    -------
+    logging.Logger
+        A standard logger instance. When a Dagster run is active, this is
+        backed by Dagster's logging machinery.
+
+    See Also
+    --------
+    `kedro_dagster.dagster.LoggerCreator` :
+        Creates Dagster logger definitions from configuration.
     """
     try:
         # If there's an active Dagster context, this will succeed
@@ -39,9 +48,18 @@ def dagster_rich_formatter() -> structlog.stdlib.ProcessorFormatter:
     for development and interactive use. It includes timestamps, logger names,
     log levels, and stack info when available.
 
-    Returns:
-        structlog.stdlib.ProcessorFormatter: A formatter configured for rich
-        console output with automatic fallback for older structlog versions.
+    Returns
+    -------
+    structlog.stdlib.ProcessorFormatter
+        A formatter configured for rich console output with automatic
+        fallback for older structlog versions.
+
+    See Also
+    --------
+    `kedro_dagster.logging.dagster_json_formatter` :
+        JSON formatter for log aggregation systems.
+    `kedro_dagster.logging.dagster_colored_formatter` :
+        Colored formatter using coloredlogs.
     """
     foreign_pre_chain = [
         structlog.stdlib.add_logger_name,
@@ -79,9 +97,18 @@ def dagster_json_formatter() -> structlog.stdlib.ProcessorFormatter:
     systems, monitoring tools, and production environments. Each log entry is
     a single JSON object with consistent field names and ISO timestamps.
 
-    Returns:
-        structlog.stdlib.ProcessorFormatter: A formatter configured for JSON
-        output with automatic fallback for older structlog versions.
+    Returns
+    -------
+    structlog.stdlib.ProcessorFormatter
+        A formatter configured for JSON output with automatic fallback
+        for older structlog versions.
+
+    See Also
+    --------
+    `kedro_dagster.logging.dagster_rich_formatter` :
+        Rich console formatter for development use.
+    `kedro_dagster.logging.dagster_colored_formatter` :
+        Colored formatter using coloredlogs.
     """
     foreign_pre_chain = [
         structlog.stdlib.add_logger_name,
@@ -119,9 +146,18 @@ def dagster_colored_formatter() -> coloredlogs.ColoredFormatter:
     logger names, log levels, and messages, but with color highlighting for
     better readability in terminal environments.
 
-    Returns:
-        coloredlogs.ColoredFormatter: A formatter with blue level names,
-        green timestamps, and red error messages.
+    Returns
+    -------
+    coloredlogs.ColoredFormatter
+        A formatter with blue level names, green timestamps, and red error
+        messages.
+
+    See Also
+    --------
+    `kedro_dagster.logging.dagster_rich_formatter` :
+        Rich console formatter for development use.
+    `kedro_dagster.logging.dagster_json_formatter` :
+        JSON formatter for log aggregation systems.
     """
     fmt = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     datefmt = "%Y-%m-%d %H:%M:%S %z"

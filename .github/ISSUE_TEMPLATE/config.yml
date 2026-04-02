@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
-  - name: Slack workspace
-    about: Come chat with the Kedro community!
-    url: https://slack.kedro.org
+  - name: Question or Discussion
+    url: https://github.com/stateful-y/kedro-dagster/discussions
+    about: Please use GitHub Discussions for questions and general discussions
   - name: Documentation
-    url: https://kedro-dagster.readthedocs.io/en/latest/
-    about: To learn more about how Kedro-Dagster works
+    url: https://kedro-dagster.readthedocs.io/
+    about: Check the documentation for guides and API references

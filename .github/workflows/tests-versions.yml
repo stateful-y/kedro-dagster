@@ -29,9 +29,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.11", "3.12", "3.13"]
         os: [ubuntu-latest]
-        kedro_spec: ["kedro>=0.19,<1.0", "kedro>=1.0,<2.0"]
+        kedro_spec: ["kedro>=1.0,<2.0"]
         dagster_spec: ["dagster>=1.10,<1.11", "dagster>=1.11,<1.12", "dagster>=1.12,<1.13",]
     steps:
       - name: Checkout repository
@@ -55,6 +55,6 @@ jobs:
         shell: bash
         run: |
           # Parameter order must match Nox's generated session names: (with_mlflow, dagster_spec, kedro_spec)
-          nox -s "tests_versions-${{ matrix.python-version }}(with_mlflow=True, dagster_spec='${{ matrix.dagster_spec }}', kedro_spec='${{ matrix.kedro_spec }}')"
+          nox -s "test_versions-${{ matrix.python-version }}(with_mlflow=True, dagster_spec='${{ matrix.dagster_spec }}', kedro_spec='${{ matrix.kedro_spec }}')"
         env:
           PYTEST_XDIST_AUTO_NUM_WORKERS: 0

@@ -1,0 +1,38 @@
+name: Feature Request
+description: Suggest a new feature or enhancement
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Feature description
+      description: What would you like to see?
+      placeholder: I would like to be able to...
+    validations:
+      required: true
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Why is this needed?
+      description: What problem does this solve?
+      placeholder: This would help with...
+    validations:
+      required: true
+
+  - type: textarea
+    id: example
+    attributes:
+      label: Example usage
+      description: Show how you'd like to use this feature (optional)
+      render: python
+      placeholder: |
+        from kedro_dagster import new_feature
+        result = new_feature()
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Alternatives considered, implementation ideas, examples, etc.

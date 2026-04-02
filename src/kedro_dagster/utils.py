@@ -3,6 +3,7 @@
 import hashlib
 import importlib
 import re
+from dataclasses import dataclass
 from logging import getLogger
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -11,6 +12,7 @@ import dagster as dg
 from jinja2 import Environment, FileSystemLoader
 from pydantic import create_model
 
+from kedro_dagster.constants import DAGSTER_ALLOWED_PATTERN, KEDRO_DAGSTER_SEPARATOR
 from kedro_dagster.datasets import DagsterNothingDataset
 
 try:
@@ -26,8 +28,6 @@ if TYPE_CHECKING:
     from pydantic import BaseModel
 
 LOGGER = getLogger(__name__)
-DAGSTER_ALLOWED_PATTERN = re.compile(r"^[A-Za-z0-9_]+$")
-KEDRO_DAGSTER_SEPARATOR = "__"
 
 
 def _get_version(package: str) -> tuple[int, int, int]:
@@ -55,36 +55,22 @@ def _get_version(package: str) -> tuple[int, int, int]:
 # Compute and expose module-level constants for importers.
 KEDRO_VERSION = _get_version("kedro")
 DAGSTER_VERSION = _get_version("dagster")
-PYDANTIC_VERSION = _get_version("pydantic")
 
 
-def create_pydantic_config(**kwargs: Any) -> Any:
-    """Create Pydantic configuration compatible with both v1 and v2.
+@dataclass
+class CliContext:
+    """Runtime context passed to CLI command handlers.
 
-    Args:
-        **kwargs: Configuration options (e.g., validate_assignment=True, extra="forbid")
-
-    Returns:
-        ConfigDict for Pydantic v2, or a Config class type for Pydantic v1.
+    Parameters
+    ----------
+    env : str
+        Kedro environment name.
+    metadata : Any
+        Kedro ``ProjectMetadata`` instance.
     """
-    if PYDANTIC_VERSION[0] >= 2:
-        from pydantic import ConfigDict
 
-        # Pydantic v2.0+ uses model_config = ConfigDict(...)
-        config = ConfigDict(**kwargs)
-
-    else:  # pragma: no cover
-        # Pydantic v1.x or fallback uses class Config:
-        class Config:
-            pass
-
-        # Set attributes dynamically from kwargs
-        for key, value in kwargs.items():
-            setattr(Config, key, value)
-
-        config = Config
-
-    return config
+    env: str
+    metadata: Any
 
 
 def find_kedro_project(current_dir: Path) -> Path | None:
@@ -93,33 +79,48 @@ def find_kedro_project(current_dir: Path) -> Path | None:
     This wraps Kedro's ``_find_kedro_project`` with a version-compatible
     import that works across Kedro releases where the function moved modules.
 
-    Args:
-        current_dir: Directory to start searching from.
+    Parameters
+    ----------
+    current_dir : Path
+        Directory to start searching from.
 
-    Returns:
-        Path | None: Project root path if found, else ``None``.
+    Returns
+    -------
+    Path or None
+        Project root path if found, else ``None``.
+
+    See Also
+    --------
+    `kedro_dagster.translator.KedroProjectTranslator` :
+        Uses this to auto-discover the project root.
     """
     # Use the module-level constant to avoid repeated imports/parsing.
-    if KEDRO_VERSION >= (1, 0, 0):
-        FIND_KEDRO_PROJECT = getattr(importlib.import_module("kedro.utils"), "find_kedro_project", None)
-    elif KEDRO_VERSION >= (0, 19, 12):  # pragma: no cover
-        FIND_KEDRO_PROJECT = getattr(importlib.import_module("kedro.utils"), "_find_kedro_project", None)
-    elif KEDRO_VERSION > (0, 0, 0):  # pragma: no cover
-        FIND_KEDRO_PROJECT = getattr(importlib.import_module("kedro.framework.startup"), "_find_kedro_project", None)
+    from kedro.utils import find_kedro_project as _find_kedro_project
 
-    return FIND_KEDRO_PROJECT(current_dir)  # type: ignore[no-any-return]
+    return _find_kedro_project(current_dir)  # type: ignore[no-any-return]
 
 
 def render_jinja_template(src: str | Path, is_cookiecutter: bool = False, **kwargs: Any) -> str:
     """Render a Jinja template from a file or string.
 
-    Args:
-        src (str | Path): Path to the template file or template string.
-        is_cookiecutter (bool): Whether to use cookiecutter-style rendering.
-        **kwargs: Variables to pass to the template.
+    Parameters
+    ----------
+    src : str or Path
+        Path to the template file or template string.
+    is_cookiecutter : bool, optional
+        Whether to use cookiecutter-style rendering.
+    **kwargs
+        Variables to pass to the template.
 
-    Returns:
-        str: Rendered template as a string.
+    Returns
+    -------
+    str
+        Rendered template as a string.
+
+    See Also
+    --------
+    `kedro_dagster.utils.write_jinja_template` :
+        Renders and writes a template to disk in one step.
     """
     # Resolve to an absolute filesystem path to avoid platform-specific quirks
     # with drive-less absolute paths on Windows (e.g., "/tmp").
@@ -148,10 +149,19 @@ def render_jinja_template(src: str | Path, is_cookiecutter: bool = False, **kwar
 def write_jinja_template(src: str | Path, dst: str | Path, **kwargs: Any) -> None:
     """Render and write a Jinja template to a destination file.
 
-    Args:
-        src (str | Path): Path to the template file.
-        dst (str | Path): Path to the output file.
-        **kwargs: Variables to pass to the template.
+    Parameters
+    ----------
+    src : str or Path
+        Path to the template file.
+    dst : str or Path
+        Path to the output file.
+    **kwargs
+        Variables to pass to the template.
+
+    See Also
+    --------
+    `kedro_dagster.utils.render_jinja_template` :
+        Renders a template without writing to disk.
     """
     dst = Path(dst)
     parsed_template = render_jinja_template(src, **kwargs)
@@ -162,12 +172,17 @@ def write_jinja_template(src: str | Path, dst: str | Path, **kwargs: Any) -> Non
 def get_asset_key_from_dataset_name(dataset_name: str, env: str) -> dg.AssetKey:
     """Get a Dagster AssetKey from a Kedro dataset name and environment.
 
-    Args:
-        dataset_name (str): Kedro dataset name.
-        env (str): Kedro environment.
+    Parameters
+    ----------
+    dataset_name : str
+        Kedro dataset name.
+    env : str
+        Kedro environment.
 
-    Returns:
-        AssetKey: Corresponding Dagster AssetKey.
+    Returns
+    -------
+    AssetKey
+        Corresponding Dagster AssetKey.
     """
     return dg.AssetKey([env] + dataset_name.split("."))
 
@@ -175,12 +190,22 @@ def get_asset_key_from_dataset_name(dataset_name: str, env: str) -> dg.AssetKey:
 def is_nothing_asset_name(catalog: "CatalogProtocol", dataset_name: str) -> bool:
     """Return True if the catalog entry is a DagsterNothingDataset.
 
-    Args:
-        catalog (CatalogProtocol): Kedro DataCatalog or mapping-like object.
-        dataset_name (str): Kedro dataset name.
+    Parameters
+    ----------
+    catalog : CatalogProtocol
+        Kedro DataCatalog or mapping-like object.
+    dataset_name : str
+        Kedro dataset name.
 
-    Returns:
-        bool: True if the dataset is a DagsterNothingDataset, False otherwise.
+    Returns
+    -------
+    bool
+        ``True`` if the dataset is a ``DagsterNothingDataset``.
+
+    See Also
+    --------
+    `kedro_dagster.datasets.DagsterNothingDataset` :
+        Sentinel dataset type for Dagster Nothing assets.
     """
     dataset = get_dataset_from_catalog(catalog, dataset_name)
     return isinstance(dataset, DagsterNothingDataset)
@@ -189,16 +214,28 @@ def is_nothing_asset_name(catalog: "CatalogProtocol", dataset_name: str) -> bool
 def get_dataset_from_catalog(catalog: "CatalogProtocol", dataset_name: str) -> Any | None:
     """Retrieve a dataset instance from a Kedro catalog across versions.
 
-    This helper avoids relying on the private ``_get_dataset`` when it's not
+    This helper avoids relying on the private ``_get_dataset`` when it is not
     available (as in some Kedro 1.x catalog wrappers) and falls back to
     mapping-like access when possible.
 
-    Args:
-        catalog (CatalogProtocol): Kedro catalog or mapping-like object.
-        dataset_name (str): Name of the dataset to retrieve.
+    Parameters
+    ----------
+    catalog : CatalogProtocol
+        Kedro catalog or mapping-like object.
+    dataset_name : str
+        Name of the dataset to retrieve.
 
-    Returns:
-        Any | None: Dataset instance if found, else ``None``.
+    Returns
+    -------
+    Any or None
+        Dataset instance if found, else ``None``.
+
+    See Also
+    --------
+    `kedro_dagster.utils.is_nothing_asset_name` :
+        Uses this to check for sentinel Nothing datasets.
+    `kedro_dagster.catalog.CatalogTranslator` :
+        Translates catalog datasets into Dagster IO managers.
     """
     result = None
     get_method = getattr(catalog, "_get_dataset", None)
@@ -239,15 +276,25 @@ def get_match_pattern_from_catalog_resolver(config_resolver: "CatalogConfigResol
 
     Kedro 1.x exposes ``match_dataset_pattern`` while older Kedro versions
     exposed ``match_pattern``. This helper abstracts over that difference and
-    returns the first matching pattern string or ``None`` when no match is found
-    or when the API is unavailable.
+    returns the first matching pattern string or ``None`` when no match is
+    found or when the API is unavailable.
 
-    Args:
-        config_resolver: An instance of Kedro's CatalogConfigResolver.
-        ds_name: Dataset name to match against resolver patterns.
+    Parameters
+    ----------
+    config_resolver : CatalogConfigResolver
+        An instance of Kedro's CatalogConfigResolver.
+    ds_name : str
+        Dataset name to match against resolver patterns.
 
-    Returns:
-        str | None: The first matching pattern or ``None``.
+    Returns
+    -------
+    str or None
+        The first matching pattern or ``None``.
+
+    See Also
+    --------
+    `kedro_dagster.utils.get_partition_mapping` :
+        Uses pattern matching to resolve partition mappings.
     """
     # Try both method names regardless of Kedro version, preferring the newer name
     for method_name in ("match_dataset_pattern", "match_pattern"):
@@ -267,14 +314,29 @@ def get_partition_mapping(
     config_resolver: "CatalogConfigResolver",
 ) -> dg.PartitionMapping | None:
     """Get the appropriate partition mapping for an asset based on its downstream datasets.
-    Args:
-        partition_mappings (dict[str, PartitionMapping]): Dictionary of partition mappings.
-        upstream_asset_name (str): Name of the upstream asset.
-        downstream_dataset_names (list[str]): List of downstream dataset names.
-        config_resolver (CatalogConfigResolver): Catalog config resolver to match patterns.
 
-    Returns:
-        PartitionMapping | None: Partition mapping or None if not found.
+    Parameters
+    ----------
+    partition_mappings : dict[str, PartitionMapping]
+        Dictionary of partition mappings.
+    upstream_asset_name : str
+        Name of the upstream asset.
+    downstream_dataset_names : list[str]
+        List of downstream dataset names.
+    config_resolver : CatalogConfigResolver
+        Catalog config resolver to match patterns.
+
+    Returns
+    -------
+    PartitionMapping or None
+        Partition mapping or ``None`` if not found.
+
+    See Also
+    --------
+    `kedro_dagster.utils.get_match_pattern_from_catalog_resolver` :
+        Resolves dataset patterns for mapping lookups.
+    `kedro_dagster.datasets.partitioned_dataset.DagsterPartitionedDataset` :
+        Defines partition mappings consumed here.
     """
     mapped_downstream_asset_names = partition_mappings.keys()
     if downstream_dataset_names:
@@ -310,13 +372,22 @@ def get_partition_mapping(
 
 
 def format_partition_key(partition_key: Any) -> str:
-    """Format a partition key into a Dagster-safe suffix (^[A-Za-z0-9_]+$).
+    """Format a partition key into a Dagster-safe suffix (``^[A-Za-z0-9_]+$``).
 
-    Args:
-        partition_key (Any): Partition key to serialize.
+    Parameters
+    ----------
+    partition_key : Any
+        Partition key to serialize.
 
-    Returns:
-        str: Serialized partition key.
+    Returns
+    -------
+    str
+        Serialized partition key.
+
+    See Also
+    --------
+    `kedro_dagster.utils.format_dataset_name` :
+        Formats dataset names under the same naming convention.
     """
     dagster_partition_key = re.sub(r"[^A-Za-z0-9_]", "_", partition_key)
     dagster_partition_key = dagster_partition_key.strip("_")
@@ -329,11 +400,22 @@ def format_partition_key(partition_key: Any) -> str:
 def format_dataset_name(name: str) -> str:
     """Convert a dataset name so that it is valid under Dagster's naming convention.
 
-    Args:
-        name (str): Name to format.
+    Parameters
+    ----------
+    name : str
+        Name to format.
 
-    Returns:
-        str: Formatted name.
+    Returns
+    -------
+    str
+        Formatted name.
+
+    See Also
+    --------
+    `kedro_dagster.utils.unformat_asset_name` :
+        Inverse operation converting Dagster names back to Kedro names.
+    `kedro_dagster.utils.format_node_name` :
+        Analogous formatter for Kedro node names.
     """
     # Special-case Dagster reserved identifiers to avoid conflicts with op/asset arg names
     # See dagster._core.definitions.utils.DISALLOWED_NAMES which includes "input" and "output".
@@ -358,11 +440,22 @@ def format_dataset_name(name: str) -> str:
 def format_node_name(name: str) -> str:
     """Convert a node name so that it is valid under Dagster's naming convention.
 
-    Args:
-        name (str): Node name to format.
+    Parameters
+    ----------
+    name : str
+        Node name to format.
 
-    Returns:
-        str: Formatted name.
+    Returns
+    -------
+    str
+        Formatted name.
+
+    See Also
+    --------
+    `kedro_dagster.utils.format_dataset_name` :
+        Analogous formatter for Kedro dataset names.
+    `kedro_dagster.nodes.NodeTranslator.create_op` :
+        Uses formatted node names for Dagster op definitions.
     """
     dagster_name = name.replace(".", KEDRO_DAGSTER_SEPARATOR)
 
@@ -380,11 +473,20 @@ def format_node_name(name: str) -> str:
 def unformat_asset_name(name: str) -> str:
     """Convert a Dagster-formatted asset name back to Kedro's naming convention.
 
-    Args:
-        name (str): Dagster-formatted name.
+    Parameters
+    ----------
+    name : str
+        Dagster-formatted name.
 
-    Returns:
-        str: Original Kedro name.
+    Returns
+    -------
+    str
+        Original Kedro name.
+
+    See Also
+    --------
+    `kedro_dagster.utils.format_dataset_name` :
+        Inverse operation converting Kedro names to Dagster names.
     """
 
     return name.replace(KEDRO_DAGSTER_SEPARATOR, ".")
@@ -395,14 +497,26 @@ def _create_pydantic_model_from_dict(
 ) -> "BaseModel":
     """Dynamically create a Pydantic model from a dictionary of parameters.
 
-    Args:
-        name (str): Name of the model.
-        params (dict[str, Any]): Parameters for the model.
-        __base__: Base class for the model.
-        __config__ (Any): Optional Pydantic config.
+    Parameters
+    ----------
+    name : str
+        Name of the model.
+    params : dict[str, Any]
+        Parameters for the model.
+    __base__ : Any
+        Base class for the model.
+    __config__ : Any, optional
+        Optional Pydantic config.
 
-    Returns:
-        BaseModel: Created Pydantic model.
+    Returns
+    -------
+    BaseModel
+        Created Pydantic model.
+
+    See Also
+    --------
+    `kedro_dagster.nodes.NodeTranslator._get_node_parameters_config` :
+        Uses this to create parameter config models.
     """
     fields = {}
     for param_name, param_value in params.items():
@@ -430,14 +544,8 @@ def _create_pydantic_model_from_dict(
     # the resulting model.
     if __base__ is None:
         model = create_model(name, __config__=__config__, **fields)
-    elif PYDANTIC_VERSION[0] >= 2:
+    else:
         model = create_model(name, __base__=__base__, __config__=__config__, **fields)
-    else:  # pragma: no cover
-        model = create_model(name, __base__=__base__, **fields)
-        # Handle config assignment based on Pydantic v1 behaviour
-        if __config__ is not None:
-            # In Pydantic v1, we need to set the Config class manually
-            model.Config = __config__
 
     return model
 
@@ -445,8 +553,17 @@ def _create_pydantic_model_from_dict(
 def is_mlflow_enabled() -> bool:
     """Check if MLflow is enabled in the Kedro context.
 
-    Returns:
-        bool: True if MLflow is enabled, False otherwise.
+    Returns
+    -------
+    bool
+        ``True`` if MLflow is enabled, ``False`` otherwise.
+
+    See Also
+    --------
+    `kedro_dagster.utils.get_mlflow_resource_from_config` :
+        Creates a Dagster resource when MLflow is enabled.
+    `kedro_dagster.utils.get_mlflow_run_url` :
+        Returns the MLflow UI URL for the active run.
     """
     try:
         import kedro_mlflow  # NOQA
@@ -460,11 +577,20 @@ def is_mlflow_enabled() -> bool:
 def _is_param_name(dataset_name: str) -> bool:
     """Determine if a dataset name should be treated as a parameter.
 
-    Args:
-    dataset_name (str): Dataset name.
+    Parameters
+    ----------
+    dataset_name : str
+        Dataset name.
 
-    Returns:
-        bool: True if the name is a parameter, False otherwise.
+    Returns
+    -------
+    bool
+        ``True`` if the name is a parameter, ``False`` otherwise.
+
+    See Also
+    --------
+    `kedro_dagster.utils.is_nothing_asset_name` :
+        Checks if a dataset is a Nothing sentinel.
     """
     return dataset_name.startswith("params:") or dataset_name == "parameters"
 
@@ -472,15 +598,33 @@ def _is_param_name(dataset_name: str) -> bool:
 def _get_node_pipeline_name(node: "Node") -> str:
     """Return the name of the pipeline that a node belongs to.
 
-    Args:
-    node (Node): Kedro node.
+    Parameters
+    ----------
+    node : Node
+        Kedro node.
 
-    Returns:
-        str: Name of the pipeline the node belongs to.
+    Returns
+    -------
+    str
+        Name of the pipeline the node belongs to.
+
+    See Also
+    --------
+    `kedro_dagster.utils.format_node_name` :
+        Formats node names for Dagster compatibility.
+    `kedro_dagster.nodes.NodeTranslator` :
+        Uses pipeline names when building Dagster assets.
     """
     from kedro.framework.project import find_pipelines
 
-    pipelines: dict[str, Pipeline] = find_pipelines()
+    try:
+        pipelines: dict[str, Pipeline] = find_pipelines()
+    except Exception:
+        LOGGER.warning(
+            f"Node `{node.name}` could not be matched to a pipeline. "
+            "Assigning '__none__' as its corresponding pipeline name."
+        )
+        return "__none__"
 
     for pipeline_name, pipeline in pipelines.items():
         if pipeline_name != "__default__":
@@ -501,28 +645,32 @@ def _get_node_pipeline_name(node: "Node") -> str:
 def get_filter_params_dict(pipeline_config: dict[str, Any]) -> dict[str, Any]:
     """Extract filter parameters from a pipeline config dict.
 
-    Args:
-        pipeline_config (dict[str, Any]): Pipeline configuration.
+    Parameters
+    ----------
+    pipeline_config : dict[str, Any]
+        Pipeline configuration.
 
-    Returns:
-        dict[str, Any]: Filter parameters.
+    Returns
+    -------
+    dict[str, Any]
+        Filter parameters.
+
+    See Also
+    --------
+    `kedro_dagster.config.job.PipelineOptions` :
+        Model whose fields are extracted by this function.
+    `kedro_dagster.translator.KedroProjectTranslator.get_defined_pipelines` :
+        Uses filter params to select and filter pipelines.
     """
-    filter_params: dict[str, Any] = dict(
-        tags=pipeline_config.get("tags"),
-        from_nodes=pipeline_config.get("from_nodes"),
-        to_nodes=pipeline_config.get("to_nodes"),
-        node_names=pipeline_config.get("node_names"),
-        from_inputs=pipeline_config.get("from_inputs"),
-        to_outputs=pipeline_config.get("to_outputs"),
-    )
-
-    # Kedro 1.x renamed the namespace filter kwarg to `node_namespaces` (plural).
-    # Maintain backward compatibility by switching the key based on the Kedro major version.
-    if KEDRO_VERSION[0] >= 1:
-        # Prefer explicit `node_namespaces` from config if present; otherwise map from `node_namespace`.
-        filter_params["node_namespaces"] = pipeline_config.get("node_namespaces")
-    else:  # pragma: no cover
-        filter_params["node_namespace"] = pipeline_config.get("node_namespace")
+    filter_params: dict[str, Any] = {
+        "tags": pipeline_config.get("tags"),
+        "from_nodes": pipeline_config.get("from_nodes"),
+        "to_nodes": pipeline_config.get("to_nodes"),
+        "node_names": pipeline_config.get("node_names"),
+        "from_inputs": pipeline_config.get("from_inputs"),
+        "to_outputs": pipeline_config.get("to_outputs"),
+        "node_namespaces": pipeline_config.get("node_namespaces"),
+    }
 
     return filter_params
 
@@ -530,11 +678,22 @@ def get_filter_params_dict(pipeline_config: dict[str, Any]) -> dict[str, Any]:
 def get_mlflow_resource_from_config(mlflow_config: "BaseModel") -> dg.ResourceDefinition:
     """Create a Dagster resource definition from MLflow config.
 
-    Args:
-        mlflow_config (BaseModel): MLflow configuration.
+    Parameters
+    ----------
+    mlflow_config : BaseModel
+        MLflow configuration.
 
-    Returns:
-        ResourceDefinition: Dagster resource definition for MLflow.
+    Returns
+    -------
+    ResourceDefinition
+        Dagster resource definition for MLflow.
+
+    See Also
+    --------
+    `kedro_dagster.utils.is_mlflow_enabled` :
+        Checks whether MLflow integration is available.
+    `kedro_dagster.utils.get_mlflow_run_url` :
+        Returns the MLflow UI URL for the active run.
     """
     if mlflow_tracking is None:  # pragma: no cover
         msg = "dagster-mlflow is not installed. Please install it to use MLflow integration."
@@ -551,13 +710,24 @@ def get_mlflow_resource_from_config(mlflow_config: "BaseModel") -> dg.ResourceDe
 
 
 def get_mlflow_run_url(mlflow_config: "BaseModel") -> str:
-    """Returns a fully functional MLflow UI URL for the currently active run.
+    """Return a fully functional MLflow UI URL for the currently active run.
 
-    Args:
-        mlflow_config (BaseModel): MLflow configuration.
+    Parameters
+    ----------
+    mlflow_config : BaseModel
+        MLflow configuration.
 
-    Returns:
-        str: URL to the MLflow UI for the active run.
+    Returns
+    -------
+    str
+        URL to the MLflow UI for the active run.
+
+    See Also
+    --------
+    `kedro_dagster.utils.is_mlflow_enabled` :
+        Checks whether MLflow integration is available.
+    `kedro_dagster.utils.get_mlflow_resource_from_config` :
+        Creates the Dagster resource for MLflow.
     """
     import mlflow
 

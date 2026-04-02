@@ -3,8 +3,7 @@
 This module orchestrates the end-to-end conversion from a Kedro project
 into a Dagster code location composed of assets, jobs, resources, schedules,
 sensors, and loggers. It bootstraps the Kedro session, loads configuration,
-translates the catalog and nodes, and wires the resulting definitions together.
-"""
+translates the catalog and nodes, and wires the resulting definitions together."""
 
 from dataclasses import dataclass
 from logging import getLogger
@@ -41,14 +40,27 @@ LOGGER = getLogger(__name__)
 class DagsterCodeLocation:
     """A typed container for all artifacts that make up a Dagster code location.
 
-    Attributes:
-        named_assets: Dictionary of named Dagster assets.
-        named_resources: Dictionary of named Dagster resources.
-        named_jobs: Dictionary of named Dagster jobs.
-        named_executors: Dictionary of named Dagster executors.
-        named_schedules: Dictionary of named Dagster schedules.
-        named_sensors: Dictionary of named Dagster sensors.
-        named_loggers: Dictionary of named Dagster loggers.
+    Attributes
+    ----------
+    named_assets : dict[str, AssetSpec | AssetsDefinition]
+        Dictionary of named Dagster assets.
+    named_resources : dict[str, ResourceDefinition]
+        Dictionary of named Dagster resources.
+    named_jobs : dict[str, JobDefinition]
+        Dictionary of named Dagster jobs.
+    named_executors : dict[str, ExecutorDefinition]
+        Dictionary of named Dagster executors.
+    named_schedules : dict[str, ScheduleDefinition]
+        Dictionary of named Dagster schedules.
+    named_sensors : dict[str, SensorDefinition]
+        Dictionary of named Dagster sensors.
+    named_loggers : dict[str, LoggerDefinition]
+        Dictionary of named Dagster loggers.
+
+    See Also
+    --------
+    `kedro_dagster.translator.KedroProjectTranslator.to_dagster` :
+        Produces instances of this dataclass.
     """
 
     named_assets: dict[str, dg.AssetSpec | dg.AssetsDefinition]
@@ -63,10 +75,19 @@ class DagsterCodeLocation:
 class KedroProjectTranslator:
     """Translate a Kedro project into a Dagster code location.
 
-    Args:
-        env (str): Kedro environment to use.
-        project_path (Path | None): Path to the Kedro project. If omitted, auto-discovered.
-        conf_source (str | None): Optional path to the Kedro configuration source directory.
+    Parameters
+    ----------
+    env : str
+        Kedro environment to use.
+    project_path : Path or None, optional
+        Path to the Kedro project. If omitted, auto-discovered.
+    conf_source : str or None, optional
+        Optional path to the Kedro configuration source directory.
+
+    See Also
+    --------
+    `kedro_dagster.translator.DagsterCodeLocation` :
+        Container returned by `to_dagster`.
     """
 
     def __init__(
@@ -91,8 +112,17 @@ class KedroProjectTranslator:
         This bootstraps the Kedro project, starts a session, loads the context,
         and discovers pipelines to prepare for translation.
 
-        Args:
-            conf_source (str | None): Optional configuration source directory.
+        Parameters
+        ----------
+        conf_source : str or None, optional
+            Optional configuration source directory.
+
+        See Also
+        --------
+        `kedro_dagster.translator.KedroProjectTranslator.to_dagster` :
+            Orchestrates translation after initialization.
+        `kedro_dagster.translator.KedroProjectTranslator.get_defined_pipelines` :
+            Uses pipelines discovered during initialization.
         """
         # Lazy import to avoid circular dependency
         from kedro.framework.project import find_pipelines
@@ -130,13 +160,25 @@ class KedroProjectTranslator:
     def get_defined_pipelines(self, dagster_config: "BaseModel", translate_all: bool) -> list["Pipeline"]:
         """Resolve the list of pipelines to translate.
 
-        Args:
-            dagster_config (BaseModel): Validated configuration for Kedro-Dagster.
-            translate_all (bool): If True, translate all discovered pipelines; otherwise,
-                only those referenced by jobs in the configuration.
+        Parameters
+        ----------
+        dagster_config : BaseModel
+            Validated configuration for Kedro-Dagster.
+        translate_all : bool
+            If ``True``, translate all discovered pipelines; otherwise, only
+            those referenced by jobs in the configuration.
 
-        Returns:
-            list[Pipeline]: Kedro pipelines to translate.
+        Returns
+        -------
+        list[Pipeline]
+            Kedro pipelines to translate.
+
+        See Also
+        --------
+        `kedro_dagster.utils.get_filter_params_dict` :
+            Extracts filter parameters from pipeline config.
+        `kedro_dagster.translator.KedroProjectTranslator.to_dagster` :
+            Calls this to determine which pipelines to translate.
         """
         # Lazy import to avoid circular dependency
         from kedro.framework.project import find_pipelines, pipelines
@@ -158,12 +200,22 @@ class KedroProjectTranslator:
     def to_dagster(self, translate_all: bool = False) -> DagsterCodeLocation:
         """Translate the Kedro project into a Dagster code location.
 
-        Args:
-            translate_all (bool): Whether to translate all pipelines or only those referenced
-                in the ``dagster.yml`` configuration.
+        Parameters
+        ----------
+        translate_all : bool, optional
+            Whether to translate all pipelines or only those referenced
+            in the ``dagster.yml`` configuration.
 
-        Returns:
-            DagsterCodeLocation: Translated Dagster code location composed of assets, jobs, resources, and more.
+        Returns
+        -------
+        DagsterCodeLocation
+            Translated Dagster code location composed of assets, jobs,
+            resources, and more.
+
+        See Also
+        --------
+        `kedro_dagster.translator.DagsterCodeLocation` :
+            Container returned by this method.
         """
         LOGGER.info("Translating Kedro project into Dagster...")
 

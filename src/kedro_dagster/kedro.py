@@ -5,8 +5,9 @@ from typing import TYPE_CHECKING, Any
 
 import dagster as dg
 from kedro import __version__ as kedro_version
+from pydantic import ConfigDict
 
-from kedro_dagster.utils import KEDRO_VERSION, PYDANTIC_VERSION, create_pydantic_config, get_filter_params_dict
+from kedro_dagster.utils import get_filter_params_dict
 
 LOGGER = getLogger(__name__)
 
@@ -18,13 +19,25 @@ if TYPE_CHECKING:
 class KedroRunTranslator:
     """Translator for Kedro run params.
 
-    Args:
-        context (KedroContext): Kedro context.
-        catalog (CatalogProtocol): Kedro data catalog.
-        project_path (str): Path to the Kedro project.
-        env (str): Kedro environment.
-        run_id (str): Kedro run ID. In Kedro < 1.0, this is called `session_id`.
+    Parameters
+    ----------
+    context : KedroContext
+        Kedro context.
+    catalog : CatalogProtocol
+        Kedro data catalog.
+    project_path : str
+        Path to the Kedro project.
+    env : str
+        Kedro environment.
+    run_id : str
+        Kedro run ID. In Kedro < 1.0, this is called ``session_id``.
 
+    See Also
+    --------
+    `kedro_dagster.translator.KedroProjectTranslator` :
+        Creates and consumes this translator.
+    `kedro_dagster.pipelines.PipelineTranslator` :
+        Uses the resulting resource in job definitions.
     """
 
     def __init__(
@@ -38,15 +51,12 @@ class KedroRunTranslator:
         self._context = context
         self._catalog = catalog
         self._hook_manager = context._hook_manager
-        self._kedro_params = dict(
-            project_path=project_path,
-            env=env,
-            kedro_version=kedro_version,
-        )
-        if KEDRO_VERSION[0] >= 1:
-            self._kedro_params["run_id"] = run_id
-        else:  # pragma: no cover
-            self._kedro_params["session_id"] = run_id
+        self._kedro_params = {
+            "project_path": project_path,
+            "env": env,
+            "kedro_version": kedro_version,
+            "run_id": run_id,
+        }
 
     def to_dagster(
         self,
@@ -55,13 +65,22 @@ class KedroRunTranslator:
     ) -> dg.ConfigurableResource:
         """Create a Dagster resource for Kedro pipeline hooks.
 
-        Args:
-            pipeline_name (str): Name of the Kedro pipeline.
-            filter_params (dict[str, Any]): Parameters used to filter the pipeline.
+        Parameters
+        ----------
+        pipeline_name : str
+            Name of the Kedro pipeline.
+        filter_params : dict[str, Any]
+            Parameters used to filter the pipeline.
 
-        Returns:
-            ConfigurableResource: Dagster resource for Kedro pipeline hooks.
+        Returns
+        -------
+        ConfigurableResource
+            Dagster resource for Kedro pipeline hooks.
 
+        See Also
+        --------
+        `kedro_dagster.kedro.KedroRunTranslator._translate_on_pipeline_error_hook` :
+            Creates error sensors from the resulting jobs.
         """
         LOGGER.info(f"Creating Kedro run resource for pipeline '{pipeline_name}'")
 
@@ -70,39 +89,23 @@ class KedroRunTranslator:
         catalog = self._catalog
 
         class RunParamsModel(dg.Config):
-            if KEDRO_VERSION[0] >= 1:
-                run_id: str
-            else:
-                session_id: str
+            run_id: str
             project_path: str
             env: str
             kedro_version: str
             pipeline_name: str
             load_versions: list[str] | None = None
-            if KEDRO_VERSION[0] >= 1:
-                runtime_params: dict[str, Any] | None = None
-            else:  # pragma: no cover
-                extra_params: dict[str, Any] | None = None
+            runtime_params: dict[str, Any] | None = None
             runner: str | None = None
             node_names: list[str] | None = None
             from_nodes: list[str] | None = None
             to_nodes: list[str] | None = None
             from_inputs: list[str] | None = None
             to_outputs: list[str] | None = None
-            # Kedro 1.x renamed the namespace filter kwarg to `node_namespaces` (plural).
-            # Expose the appropriate field name based on the installed Kedro version while
-            # keeping the rest of the configuration stable.
-            if KEDRO_VERSION[0] >= 1:
-                node_namespaces: list[str] | None = None
-            else:  # pragma: no cover
-                node_namespace: str | None = None
+            node_namespaces: list[str] | None = None
             tags: list[str] | None = None
 
-            # Version-aware Pydantic configuration
-            if PYDANTIC_VERSION[0] >= 2:  # noqa: PLR2004
-                model_config = create_pydantic_config(validate_assignment=True, extra="forbid")
-            else:  # pragma: no cover
-                Config = create_pydantic_config(validate_assignment=True, extra="forbid")
+            model_config = ConfigDict(validate_assignment=True, extra="forbid")
 
         class KedroRunResource(RunParamsModel, dg.ConfigurableResource):
             """Resource for Kedro context."""
@@ -111,10 +114,12 @@ class KedroRunTranslator:
             def run_params(self) -> dict[str, Any]:
                 """Return all run parameters as a dictionary.
 
-                Returns:
-                    dict[str, Any]: Dictionary containing all Kedro run parameters
-                        including run_id/session_id, project path, environment, pipeline
-                        name, and filtering options.
+                Returns
+                -------
+                dict[str, Any]
+                    Dictionary containing all Kedro run parameters including
+                    run_id/session_id, project path, environment, pipeline
+                    name, and filtering options.
                 """
                 return self.model_dump()  # type: ignore[no-any-return]
 
@@ -122,24 +127,21 @@ class KedroRunTranslator:
             def pipeline(self) -> dict[str, Any]:
                 """Load and return the filtered Kedro pipeline.
 
-                Applies filtering parameters (node names, tags, namespaces, from/to nodes)
-                to the base pipeline to produce the final executable pipeline.
+                Applies filtering parameters (node names, tags, namespaces,
+                from/to nodes) to the base pipeline to produce the final
+                executable pipeline.
 
-                Returns:
-                    dict[str, Any]: The filtered Kedro pipeline object.
+                Returns
+                -------
+                dict[str, Any]
+                    The filtered Kedro pipeline object.
                 """
                 # Lazy import to avoid circular dependency
                 from kedro.framework.project import pipelines
 
                 node_namespace_key: str | None = None
                 node_namespace_val: Any | None = None
-                if KEDRO_VERSION[0] >= 1:
-                    node_namespace_key, node_namespace_val = "node_namespaces", getattr(self, "node_namespaces")
-                else:  # pragma: no cover
-                    node_namespace_key, node_namespace_val = (
-                        "node_namespace",
-                        getattr(self, "node_namespace"),
-                    )
+                node_namespace_key, node_namespace_val = "node_namespaces", self.node_namespaces
 
                 pipeline_config: dict[str, Any] = {
                     "tags": self.tags,
@@ -180,37 +182,29 @@ class KedroRunTranslator:
                 )
                 conf_creds = context._get_config_credentials()
 
-                if KEDRO_VERSION[0] >= 1:
-                    save_version = self.run_id
-                else:  # pragma: no cover
-                    save_version = self.session_id
+                save_version = self.run_id
 
-                after_catalog_created_params = dict(
-                    catalog=catalog,
-                    conf_catalog=conf_catalog,
-                    conf_creds=conf_creds,
-                    save_version=save_version,
-                    load_versions=self.load_versions,
-                )
+                after_catalog_created_params = {
+                    "catalog": catalog,
+                    "conf_catalog": conf_catalog,
+                    "conf_creds": conf_creds,
+                    "save_version": save_version,
+                    "load_versions": self.load_versions,
+                }
 
-                # Kedro 1.x uses 'parameters', Kedro 0.19 uses 'feed_dict'
-                if KEDRO_VERSION[0] >= 1:
-                    parameters = context._get_parameters()
-                    after_catalog_created_params["parameters"] = parameters
-                else:  # pragma: no cover
-                    feed_dict = context._get_feed_dict()
-                    after_catalog_created_params["feed_dict"] = feed_dict
+                parameters = context._get_parameters()
+                after_catalog_created_params["parameters"] = parameters
 
                 hook_manager.hook.after_catalog_created(**after_catalog_created_params)
 
         run_params = (
             self._kedro_params
             | filter_params
-            | dict(
-                pipeline_name=pipeline_name,
-                load_versions=None,
-                runner=None,
-            )
+            | {
+                "pipeline_name": pipeline_name,
+                "load_versions": None,
+                "runner": None,
+            }
         )
 
         return KedroRunResource(**run_params)
@@ -220,13 +214,21 @@ class KedroRunTranslator:
     ) -> dict[str, dg.SensorDefinition]:
         """Translate Kedro pipeline hooks to Dagster resource and sensor.
 
-        Args:
-            named_jobs (dict[str, JobDefinition]): Dictionary of named Dagster jobs.
+        Parameters
+        ----------
+        named_jobs : dict[str, JobDefinition]
+            Dictionary of named Dagster jobs.
 
-        Returns:
-            dict[str, dg.SensorDefinition]: Dictionary with the sensor definition
-            for the `on_pipeline_error` hook.
+        Returns
+        -------
+        dict[str, SensorDefinition]
+            Dictionary with the sensor definition for the
+            ``on_pipeline_error`` hook.
 
+        See Also
+        --------
+        `kedro_dagster.kedro.KedroRunTranslator.to_dagster` :
+            Creates the resource consumed by this sensor.
         """
         LOGGER.info("Creating Dagster run sensors...")
 
@@ -237,6 +239,7 @@ class KedroRunTranslator:
             default_status=dg.DefaultSensorStatus.RUNNING,
         )
         def on_pipeline_error_sensor(context: dg.RunFailureSensorContext) -> None:
+            """Sensor that fires Kedro on_pipeline_error hooks on run failure."""
             kedro_context_resource = context.resource_defs["kedro_run"]
             run_params = kedro_context_resource.run_params
             pipeline = kedro_context_resource.pipeline

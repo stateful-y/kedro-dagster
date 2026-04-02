@@ -4,17 +4,17 @@ from __future__ import annotations
 
 from kedro.framework.session import KedroSession
 from kedro.framework.startup import bootstrap_project
-
-from kedro_dagster.config import get_dagster_config
-from kedro_dagster.config.execution import (
-    InProcessExecutorOptions,
-    MultiprocessExecutorOptions,
-)
-from kedro_dagster.config.job import JobOptions
 from tests.scenarios.kedro_projects import (
     dagster_executors_config,
     dagster_schedules_config,
     make_jobs_config,
+)
+
+from kedro_dagster.config import (
+    InProcessExecutorOptions,
+    JobOptions,
+    MultiprocessExecutorOptions,
+    get_dagster_config,
 )
 
 

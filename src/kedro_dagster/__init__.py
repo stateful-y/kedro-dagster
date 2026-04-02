@@ -2,6 +2,11 @@
 
 import logging as _logging
 
+try:
+    from kedro_dagster._version import __version__
+except ModuleNotFoundError:
+    __version__ = "0.0.0"
+
 from .catalog import CatalogTranslator
 from .dagster import ExecutorCreator, LoggerCreator, ScheduleCreator
 from .datasets import NOTHING_OUTPUT, DagsterNothingDataset, DagsterPartitionedDataset

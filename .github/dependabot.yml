@@ -1,19 +1,19 @@
 version: 2
-
 updates:
-  - package-ecosystem: "uv"
+  # Maintain dependencies for GitHub Actions
+  - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
     labels:
       - "dependencies"
-  - package-ecosystem: "github-actions"
+      - "ci"
+
+  # Maintain dependencies for pip
+  - package-ecosystem: "pip"
     directory: "/"
     schedule:
-      interval: "monthly"
+      interval: "weekly"
     labels:
-      - "ci"
-    groups:
-      actions:
-        patterns:
-          - "*"
+      - "dependencies"
+      - "python"
