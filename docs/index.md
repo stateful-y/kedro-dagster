@@ -32,7 +32,7 @@ Dagster's UI and execution backends.
 
     ---
 
-    Understand the design and core ideas behind Kedro-Dagster.
+    Learn how Kedro-Dagster maps catalogs, nodes, and pipelines to Dagster assets, ops, and jobs.
 
     [Concepts](pages/explanation/concepts.md)
 
@@ -48,9 +48,9 @@ Dagster's UI and execution backends.
 
     ---
 
-    Complete field tables for `dagster.yml` and all CLI flags.
+    Complete field tables for `dagster.yml`, all CLI flags, and the Python API.
 
-    [Configuration Reference](pages/reference/configuration.md) | [CLI Reference](pages/reference/cli.md)
+    [Configuration Reference](pages/reference/configuration.md) | [CLI Reference](pages/reference/cli.md) | [API Reference](pages/reference/api.md)
 
 - **Need Help?**
 

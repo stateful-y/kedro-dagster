@@ -356,9 +356,14 @@ The example also shows MLflow alongside Optuna using the `MLflowCallback`, which
 
 ## Common pitfalls
 
-- **Dev database not reachable**: Ensure the Docker container is running and env vars match `conf/dev/credentials.yml`.
-- **UI not reflecting config changes**: Stop and restart `kedro dagster dev`.
-- **Asset names differ from Kedro names**: Dots in Kedro dataset names become `__` in Dagster. See [naming conventions](../explanation/architecture.md#naming-conventions).
+- **Dev database not reachable**
+:   Ensure the Docker container is running and env vars match `conf/dev/credentials.yml`.
+
+- **UI not reflecting config changes**
+:   Stop and restart `kedro dagster dev`.
+
+- **Asset names differ from Kedro names**
+:   Dots in Kedro dataset names become `__` in Dagster. See [naming conventions](../explanation/architecture.md#naming-conventions).
 
 ---
 

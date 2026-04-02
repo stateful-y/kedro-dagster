@@ -52,7 +52,6 @@ tests = [
     "pytest-xdist>=3.8",
     "covdefaults>=2.3",
     "hypothesis>=6.100",
-    # [ADDITION] project-specific test deps
     "psutil>=6.1",
     "pyaml>=25.1",
     "pandas>=2.3",
@@ -67,7 +66,6 @@ docs = [
     "mkdocs-material>=9.7",
     "mkdocstrings[python]>=0.26.0",
     "pymdown-extensions>=10.20.1",
-    # [ADDITION] project-specific docs plugins
     "mkdocs-git-revision-date-localized-plugin>=1.5",
     "mkdocs-glightbox>=0.5",
 ]

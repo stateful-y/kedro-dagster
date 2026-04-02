@@ -75,3 +75,9 @@ When writing custom hooks for a Kedro-Dagster project:
 - Node-level hooks execute within the same process as the node op, so
   in-memory state sharing between `before_node_run` and `after_node_run`
   works as expected.
+
+## See also
+
+- [Architecture](architecture.md): how the Kedro-to-Dagster translation works end-to-end
+- [How to Configure Logging](../how-to/configure-logging.md): logger setup that interacts with hooks
+- [How to Use MLflow](../how-to/use-mlflow.md): MLflow hook integration details

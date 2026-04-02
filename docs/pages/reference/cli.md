@@ -118,12 +118,6 @@ kedro dagster list-defs -e production
 
 ---
 
-## See also
-
-- [Getting Started](../tutorials/getting-started.md): tutorial walkthrough using these commands
-- [Configuration Reference](configuration.md): `dagster.yml` fields that control what `init` generates and `dev` loads
-- [API Reference](api.md): code-level documentation for CLI internals
-
 ## Proxied `dg` Commands
 
 With Dagster >= 1.10.6, all commands from the `dg` CLI are available under `kedro dagster`. Each proxied command receives an additional `--env/-e` option to specify the Kedro environment. All other arguments are forwarded to the underlying `dg` command.
@@ -135,7 +129,7 @@ Run `kedro dagster --help` to see the full list of available commands for your D
 kedro dagster <command> -e local [ARGS]...
 ```
 
-## See Also
+## See also
 
 - [Configuration Reference](configuration.md): `dagster.yml` field tables
 - [Getting Started](../tutorials/getting-started.md): First-time setup walkthrough

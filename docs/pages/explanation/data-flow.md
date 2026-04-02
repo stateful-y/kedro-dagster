@@ -51,6 +51,12 @@ materialization, enabling:
 - Static partitioning (by region, category)
 - Dynamic partitioning (keys determined at runtime)
 
+!!! warning "Experimental"
+
+    Static partitioning is supported experimentally in Kedro-Dagster.
+    Other partitioning mappings are not supported. The API and behavior
+    may change in future releases.
+
 Partition mappings define how upstream and downstream partitioned assets
 relate to each other. Kedro-Dagster supports identity mappings (one-to-one),
 all-partitions mappings (fan-in), and custom mappings.
@@ -58,3 +64,9 @@ all-partitions mappings (fan-in), and custom mappings.
 When a partitioned asset is materialized, Kedro-Dagster resolves the
 partition key, constructs the appropriate file path, and delegates to the
 underlying Kedro dataset for the actual read/write operation.
+
+## See also
+
+- [Architecture](architecture.md): how the full Kedro-to-Dagster translation works
+- [How to Use Dagster Partitions](../how-to/use-partitions.md): practical guide to partitioned datasets
+- [Datasets Reference](../reference/datasets.md): `DagsterPartitionedDataset` and `DagsterNothingDataset` API details

@@ -40,7 +40,7 @@ kedro dagster init
 This creates three files:
 
 | File | Purpose |
-|------|---------|
+| ---- | ------- |
 | `conf/base/dagster.yml` | Orchestration configuration (jobs, executors, schedules) |
 | `src/<package>/definitions.py` | Dagster entry point that loads your project |
 | `dg.toml` | Dagster `dg` CLI configuration (Dagster >= 1.10.6) |
@@ -114,21 +114,14 @@ Check that:
 
 ## Common migration issues
 
-**Problem: `ModuleNotFoundError` when starting Dagster**
-:   Your project's source package is not installed. Run `pip install -e .` or `uv sync` from the project root.
-
-**Problem: Assets are missing from the graph**
-:   Datasets defined only in `parameters.yml` or prefixed with `params:` are passed as config, not assets. This is expected behavior.
-
 **Problem: Node names contain invalid characters**
 :   Dagster requires `^[A-Za-z0-9_]+$` for names. The translator converts dots to double underscores automatically. If names still fail, check for other special characters in your node names.
 
 **Problem: Hook order differs from `kedro run`**
 :   Hooks fire at equivalent lifecycle points, but the exact timing may differ slightly because Dagster executes ops independently. Avoid hooks that depend on execution order between unrelated nodes.
 
-## See also
+## Next steps
 
-- [Getting Started](../tutorials/getting-started.md): tutorial for new projects
-- [Architecture](../explanation/architecture.md): how the translation maps Kedro concepts to Dagster
-- [Configuration Reference](../reference/configuration.md): all `dagster.yml` options
-- [Troubleshooting](../how-to/troubleshoot.md): more common issues and solutions
+- **Explore the configuration:** See all available `dagster.yml` options in the [Configuration Reference](../reference/configuration.md).
+- **Understand the translation:** Learn how Kedro concepts map to Dagster in [Architecture](../explanation/architecture.md).
+- **Troubleshoot issues:** Consult the [Troubleshooting](../how-to/troubleshoot.md) guide for common migration problems.

@@ -81,31 +81,6 @@ ENV KEDRO_ENV=production
 
 ## 4. Configure the Dagster instance
 
-In production, Dagster needs persistent storage for run history, event logs, and schedules. Create a `dagster.yaml` (Dagster's own config, separate from `dagster.yml` in Kedro):
-
-```yaml
-run_storage:
-  module: dagster_postgres.run_storage
-  class: PostgresRunStorage
-  config:
-    postgres_url:
-      env: DAGSTER_PG_URL
-
-event_log_storage:
-  module: dagster_postgres.event_log_storage
-  class: PostgresEventLogStorage
-  config:
-    postgres_url:
-      env: DAGSTER_PG_URL
-
-schedule_storage:
-  module: dagster_postgres.schedule_storage
-  class: PostgresScheduleStorage
-  config:
-    postgres_url:
-      env: DAGSTER_PG_URL
-```
-
 See the [Dagster deployment documentation](https://docs.dagster.io/deployment) for complete instance configuration options.
 
 ## 5. Verify before deploying

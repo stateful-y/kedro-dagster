@@ -12,20 +12,6 @@ When you run `kedro dagster dev`, Kedro-Dagster reads your Kedro project and the
 
 All generated objects are registered in a single `dagster.Definitions` instance exposed by the generated `definitions.py`.
 
-```mermaid
-flowchart LR
-    A["Kedro Project\nconf/ + src/"] --> B["KedroProjectTranslator"]
-    B --> C["CatalogTranslator"]
-    B --> D["NodeTranslator"]
-    B --> E["PipelineTranslator"]
-    C --> F["Assets + IO Managers"]
-    D --> G["Ops + Multi-Assets"]
-    E --> H["Jobs + Schedules"]
-    F --> I["dagster.Definitions"]
-    G --> I
-    H --> I
-```
-
 For a walkthrough with concrete examples, see the [Example Project](../tutorials/example-project.md).
 
 ## Concept mapping

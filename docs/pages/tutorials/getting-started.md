@@ -146,10 +146,10 @@ kedro dagster dev --env local
 
 The Dagster UI opens at [http://127.0.0.1:3000](http://127.0.0.1:3000).
 
- wc -l /home/gigi/Workspace/stateful-y/kedro-dagster/docs/pages/tutorials/getting-started.md /home/gigi/Workspace/stateful-y/kedro-dagster/docs/pages/explanation/architecture.md! note "Logging Configuration"
+!!! note "Logging Configuration"
     By default, Kedro/Kedro-Dagster and Dagster use different log formats on the terminal. You can unify them by using Dagster formatters in your Kedro project's `logging.yml`. See the [logging guide](../how-to/configure-logging.md) for details.
 
- wc -l /home/gigi/Workspace/stateful-y/kedro-dagster/docs/pages/tutorials/getting-started.md /home/gigi/Workspace/stateful-y/kedro-dagster/docs/pages/explanation/architecture.md! tip "Logging from Your Kedro Nodes"
+!!! tip "Logging from Your Kedro Nodes"
 
     To see logs from your Kedro node functions in the Dagster UI, replace `logging.getLogger` with `kedro_dagster.logging.getLogger` inside your node functions:
 

@@ -45,18 +45,6 @@ Use `StaticPartitionsDefinition` with explicit partition keys, or use Dagster sc
 
 Some configuration changes require a full server restart and are not hot-reloaded.
 
-### Dev database not reachable
-
-If using the example project's `dev` environment, ensure the Docker container is running and environment variables match `conf/dev/credentials.yml`:
-
-```bash
-docker compose -f docker/dev.docker-compose.yml up -d
-export POSTGRES_USER=dev_db
-export POSTGRES_PASSWORD=dev_password
-export POSTGRES_HOST=localhost
-export POSTGRES_PORT=5432
-```
-
 ## Debugging guide
 
 When encountering an issue, follow this systematic approach:
@@ -101,6 +89,12 @@ If not found, [open a new issue](https://github.com/stateful-y/kedro-dagster/iss
 - Minimal reproducible example
 - Error message and stack trace
 - Configuration files (sanitized)
+
+## See also
+
+- [How to Configure Logging](configure-logging.md): logger setup and common logging pitfalls
+- [Architecture](../explanation/architecture.md): understanding the Kedro-to-Dagster translation
+- [CLI Reference](../reference/cli.md): available commands and options
 
 ## Still need help?
 
