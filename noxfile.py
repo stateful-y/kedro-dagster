@@ -14,7 +14,7 @@ nox.options.default_venv_backend = "uv|virtualenv"
 nox.options.sessions = ["fix", "test_fast", "serve_docs"]
 
 # Generate list of Python versions from minimum to maximum
-ALL_VERSIONS = ["3.11", "3.12", "3.13", "3.14"]
+ALL_VERSIONS = ["3.11", "3.12", "3.13"]
 MIN_VERSION = "3.11"
 MAX_VERSION = "3.13"
 PYTHON_VERSIONS = [v for v in ALL_VERSIONS if v >= MIN_VERSION and v <= MAX_VERSION]
