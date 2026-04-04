@@ -66,7 +66,6 @@ docs = [
     "mkdocs-material>=9.7",
     "mkdocstrings[python]>=0.26.0",
     "pymdown-extensions>=10.20.1",
-    "mkdocs-git-revision-date-localized-plugin>=1.5",
     "mkdocs-glightbox>=0.5",
 ]
 fix = [

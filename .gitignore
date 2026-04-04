@@ -55,7 +55,6 @@ coverage.xml
 .ty_cache/
 .pytype/
 .pyre/
-.mypy_cache/
 
 # Documentation
 docs/_build/
@@ -66,6 +65,13 @@ docs/build
 
 # Distribution
 *.whl
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# Marimo
+examples/__marimo__/
 
 # Environment
 .env

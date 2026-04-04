@@ -1,5 +1,5 @@
 site_name: Kedro-Dagster
-site_description: Kedro-Dagster makes it easy to deploy Kedro projects to Dagster
+site_description: Seamless integration between Kedro and Dagster
 site_url: https://kedro-dagster.readthedocs.io/
 repo_url: https://github.com/stateful-y/kedro-dagster
 repo_name: stateful-y/kedro-dagster
@@ -118,9 +118,6 @@ plugins:
   - search
   - tags
   - autorefs
-  - git-revision-date-localized:
-      enable_creation_date: true
-      type: date
   - glightbox:
       touchNavigation: true
       loop: false
@@ -158,28 +155,28 @@ nav:
     - pages/tutorials/index.md
     - Getting Started: pages/tutorials/getting-started.md
     - Example Project: pages/tutorials/example-project.md
-    - Migrate Existing Project: pages/tutorials/migrate-existing-project.md
+    - Migrate an Existing Project: pages/tutorials/migrate-existing-project.md
   - How-to Guides:
     - pages/how-to/index.md
     - Configure Logging: pages/how-to/configure-logging.md
     - Configure Executors: pages/how-to/configure-executors.md
-    - Use MLflow: pages/how-to/use-mlflow.md
     - Use Partitions: pages/how-to/use-partitions.md
+    - Use MLflow: pages/how-to/use-mlflow.md
     - Deploy to Production: pages/how-to/deploy-to-production.md
-    - Troubleshoot: pages/how-to/troubleshoot.md
+    - Troubleshooting: pages/how-to/troubleshoot.md
     - Contributing: pages/how-to/contribute.md
-  - Reference:
-    - pages/reference/index.md
-    - Configuration: pages/reference/configuration.md
-    - CLI: pages/reference/cli.md
-    - Datasets: pages/reference/datasets.md
-    - API: pages/reference/api.md
   - Explanation:
     - pages/explanation/index.md
     - Concepts: pages/explanation/concepts.md
     - Architecture: pages/explanation/architecture.md
     - Data Flow: pages/explanation/data-flow.md
     - Hook Lifecycle: pages/explanation/hook-lifecycle.md
+  - Reference:
+    - pages/reference/index.md
+    - Configuration: pages/reference/configuration.md
+    - CLI: pages/reference/cli.md
+    - API: pages/reference/api.md
+    - Datasets: pages/reference/datasets.md
 
 extra:
   social:

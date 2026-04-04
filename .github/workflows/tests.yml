@@ -116,23 +116,23 @@ jobs:
         run: uv python install ${{ matrix.python-version }}
 
       - name: Run tests with coverage
-        if: matrix.python-version == '3.10'
+        if: matrix.python-version == '3.11'
         run: nox -s test_coverage --python ${{ matrix.python-version }}
 
       - name: Run tests
-        if: matrix.python-version != '3.10'
+        if: matrix.python-version != '3.11'
         run: nox -s test --python ${{ matrix.python-version }}
 
       - name: Upload test results to Codecov
-        if: ${{ !cancelled() && matrix.python-version == '3.10' && env.CODECOV_TOKEN != '' }}
+        if: ${{ !cancelled() && matrix.python-version == '3.11' && env.CODECOV_TOKEN != '' }}
         uses: codecov/test-results-action@v1
         with:
           token: ${{ env.CODECOV_TOKEN }}
           file: '${{ github.workspace }}/junit.${{ matrix.python-version }}.xml'
 
       - name: Upload coverage report to Codecov
-        uses: codecov/codecov-action@v5
-        if: ${{ matrix.python-version == '3.10' && env.CODECOV_TOKEN != '' }}
+        uses: codecov/codecov-action@v6
+        if: ${{ matrix.python-version == '3.11' && env.CODECOV_TOKEN != '' }}
         with:
           token: ${{ env.CODECOV_TOKEN }}
           files: '${{ github.workspace }}/coverage.${{ matrix.python-version }}.xml'

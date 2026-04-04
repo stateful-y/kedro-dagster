@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
     env:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     steps:
@@ -36,8 +36,8 @@ jobs:
         run: nox -s test_docstrings
 
       - name: Upload coverage reports
-        uses: codecov/codecov-action@v5
-        if: ${{ matrix.python-version == '3.10' && env.CODECOV_TOKEN != '' }}
+        uses: codecov/codecov-action@v6
+        if: ${{ matrix.python-version == '3.12' && env.CODECOV_TOKEN != '' }}
         with:
           token: ${{ env.CODECOV_TOKEN }}
 
