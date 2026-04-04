@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+## [0.6.0] - 2026-04-04
+
+This **minor release** includes 5 commits.
+
+
+### Refactoring
+- Harmonize project structure and codebase with kedro-azureml-pipeline  ([#92](https://github.com/stateful-y/kedro-dagster/pull/92)) by @gtauzin
+
+### Miscellaneous Tasks
+- Align template-managed files with v0.18.0 baseline  ([#98](https://github.com/stateful-y/kedro-dagster/pull/98)) by @gtauzin
+- Cap max Python version at 3.13  ([#100](https://github.com/stateful-y/kedro-dagster/pull/100)) by @gtauzin
+- Cap max Python version at 3.13  ([#101](https://github.com/stateful-y/kedro-dagster/pull/101)) by @gtauzin
+
+### Revert
+- Restore docs/index.md to pre-PR#98 state  ([#102](https://github.com/stateful-y/kedro-dagster/pull/102)) by @gtauzin
+
+### Contributors
+
+Thanks to all contributors for this release:
+- @gtauzin
 ## [Unreleased]
 
 ### Refactoring
