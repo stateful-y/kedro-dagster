@@ -111,16 +111,13 @@ validation:
   links:
     not_found: warn
     anchors: warn
-    absolute_links: ignore
-    unrecognized_links: ignore
+    absolute_links: ignore  # Ignore absolute links - we handle them in hooks
+    unrecognized_links: ignore  # Ignore unrecognized links - examples HTML is generated
 
 plugins:
   - search
   - tags
   - autorefs
-  - git-revision-date-localized:
-      enable_creation_date: true
-      type: date
   - glightbox:
       touchNavigation: true
       loop: false
