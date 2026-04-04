@@ -8,6 +8,8 @@ updates:
     labels:
       - "dependencies"
       - "ci"
+    commit-message:
+      prefix: "build(deps)"
 
   # Maintain dependencies for pip
   - package-ecosystem: "pip"
@@ -17,3 +19,5 @@ updates:
     labels:
       - "dependencies"
       - "python"
+    commit-message:
+      prefix: "build(deps)"
