@@ -36,7 +36,7 @@ jobs:
         run: nox -s test_docstrings
 
       - name: Upload coverage reports
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         if: ${{ matrix.python-version == '3.12' && env.CODECOV_TOKEN != '' }}
         with:
           token: ${{ env.CODECOV_TOKEN }}
