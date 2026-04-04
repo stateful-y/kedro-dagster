@@ -5,17 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+
+## [0.6.0] - 2026-04-04
+
+This **minor release** includes 5 commits.
+
 
 ### Refactoring
 
 - Harmonize project structure and codebase to align with the stateful-y `python-package-copier` template by @gtauzin
 - Split CLI from single `cli.py` into `cli/` subpackage with `commands.py` and `functions.py` by @gtauzin
 - Consolidate config models from multiple files (`automation.py`, `execution.py`, `job.py`, `kedro_dagster.py`, `logging.py`) into single `config/models.py` by @gtauzin
-- Formalize `datasets/` as a proper subpackage with `__init__.py` organizing exports by @gtauzin
-- Harmonize all Pydantic model docstrings from `Attributes` to `Parameters` section style by @gtauzin
-- Rename test files to match source module names (`test_catalog_translator.py` -> `test_catalog.py`, `test_dagster_creators.py` -> `test_dagster.py`, `test_kedro_run_translator.py` -> `test_kedro.py`, `test_node_translator.py` -> `test_nodes.py`) by @gtauzin
-- Raise interrogate docstring coverage requirement from 75% to 100% by @gtauzin
+- Rename test files to match source module names by @gtauzin
 
 ### Bug Fixes
 
@@ -25,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Documentation
 
 - Restructure documentation into Diataxis quadrants (tutorials, how-to guides, reference, explanation) by @gtauzin
-- Rewrite all documentation content following Diataxis principles by @gtauzin
+- Rewrite all docstrings based on NumpyDoc by @gtauzin
 - Add contributing guide with full development setup and workflow documentation by @gtauzin
 
 ### Miscellaneous Tasks
