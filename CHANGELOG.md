@@ -12,31 +12,11 @@ This **minor release** includes 5 commits.
 
 
 ### Refactoring
-- Harmonize project structure and codebase with kedro-azureml-pipeline  ([#92](https://github.com/stateful-y/kedro-dagster/pull/92)) by @gtauzin
-
-### Miscellaneous Tasks
-- Align template-managed files with v0.18.0 baseline  ([#98](https://github.com/stateful-y/kedro-dagster/pull/98)) by @gtauzin
-- Cap max Python version at 3.13  ([#100](https://github.com/stateful-y/kedro-dagster/pull/100)) by @gtauzin
-- Cap max Python version at 3.13  ([#101](https://github.com/stateful-y/kedro-dagster/pull/101)) by @gtauzin
-
-### Revert
-- Restore docs/index.md to pre-PR#98 state  ([#102](https://github.com/stateful-y/kedro-dagster/pull/102)) by @gtauzin
-
-### Contributors
-
-Thanks to all contributors for this release:
-- @gtauzin
-## [Unreleased]
-
-### Refactoring
 
 - Harmonize project structure and codebase to align with the stateful-y `python-package-copier` template by @gtauzin
 - Split CLI from single `cli.py` into `cli/` subpackage with `commands.py` and `functions.py` by @gtauzin
 - Consolidate config models from multiple files (`automation.py`, `execution.py`, `job.py`, `kedro_dagster.py`, `logging.py`) into single `config/models.py` by @gtauzin
-- Formalize `datasets/` as a proper subpackage with `__init__.py` organizing exports by @gtauzin
-- Harmonize all Pydantic model docstrings from `Attributes` to `Parameters` section style by @gtauzin
-- Rename test files to match source module names (`test_catalog_translator.py` -> `test_catalog.py`, `test_dagster_creators.py` -> `test_dagster.py`, `test_kedro_run_translator.py` -> `test_kedro.py`, `test_node_translator.py` -> `test_nodes.py`) by @gtauzin
-- Raise interrogate docstring coverage requirement from 75% to 100% by @gtauzin
+- Rename test files to match source module names by @gtauzin
 
 ### Bug Fixes
 
@@ -46,7 +26,7 @@ Thanks to all contributors for this release:
 ### Documentation
 
 - Restructure documentation into Diataxis quadrants (tutorials, how-to guides, reference, explanation) by @gtauzin
-- Rewrite all documentation content following Diataxis principles by @gtauzin
+- Rewrite all docstrings based on NumpyDoc by @gtauzin
 - Add contributing guide with full development setup and workflow documentation by @gtauzin
 
 ### Miscellaneous Tasks
