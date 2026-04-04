@@ -13,9 +13,9 @@ Kedro-Dagster is a [Kedro](https://kedro.readthedocs.io/) plugin that enables se
 
     Install Kedro-Dagster and run your first pipeline in Dagster
 
-    **Install** → **Initialize** → **Run** → **Done**
+    **Install** -> **Initialize** -> **Run** -> **Done**
 
-    [Getting Started](pages/getting-started.md)
+    [Getting Started](pages/tutorials/getting-started.md)
 
 -   **Need Help?**
 
@@ -23,7 +23,7 @@ Kedro-Dagster is a [Kedro](https://kedro.readthedocs.io/) plugin that enables se
 
     Find answers to common questions and troubleshooting tips
 
-    [FAQ & Troubleshooting](pages/faq.md)
+    [Troubleshooting](pages/how-to/troubleshoot.md)
 
 -   **Learn the Concepts**
 
@@ -31,7 +31,7 @@ Kedro-Dagster is a [Kedro](https://kedro.readthedocs.io/) plugin that enables se
 
     Understand how Kedro and Dagster work together
 
-    [Introduction](pages/intro.md) · [User guide](pages/user-guide.md)
+    [Concepts](pages/explanation/concepts.md) - [Architecture](pages/explanation/architecture.md)
 
 -   **See It In Action**
 
@@ -39,7 +39,7 @@ Kedro-Dagster is a [Kedro](https://kedro.readthedocs.io/) plugin that enables se
 
     Explore a complete example with partitions, MLflow, and more
 
-    [Example Project](pages/example.md)
+    [Example Project](pages/tutorials/example-project.md)
 
 </div>
 
@@ -51,46 +51,42 @@ Kedro-Dagster is a [Kedro](https://kedro.readthedocs.io/) plugin that enables se
 
 ## Table of Contents
 
-### [Introduction](pages/intro.md)
+### [Tutorials](pages/tutorials/index.md)
 
-  *Overview of Kedro-Dagster, its purpose, and key concepts.*
+  *Step-by-step guides that walk you through using Kedro-Dagster from scratch.*
 
-- [What Is Kedro?](pages/intro.md#what-is-kedro)
-- [What Is Dagster?](pages/intro.md#what-is-dagster)
-- [Why Kedro-Dagster?](pages/intro.md#why-kedrodagster)
-- [Key features](pages/intro.md#key-features)
-- [Limitations & considerations](pages/intro.md#limitations-and-considerations)
-- [Contributing & community](pages/intro.md#contributing-and-community)
+- [Getting Started](pages/tutorials/getting-started.md) - Install and deploy your first pipeline
+- [Example Project](pages/tutorials/example-project.md) - A complete example with partitions, MLflow, and more
+- [Migrate an Existing Project](pages/tutorials/migrate-existing-project.md) - Add Kedro-Dagster to a current Kedro project
 
-### [Getting started](pages/getting-started.md)
+### [How-to Guides](pages/how-to/index.md)
 
-  *Step-by-step guide to installing and setting up Kedro-Dagster in your project.*
+  *Practical directions for common tasks.*
 
-- [1. Create a Kedro project (Optional)](pages/getting-started.md#1-create-a-kedro-project-optional)
-- [2. Installation](pages/getting-started.md#2-installation)
-- [3. Initialize the Kedro-Dagster plugin](pages/getting-started.md#3-initialize-the-kedro-dagster-plugin)
-- [4. Configure jobs, loggers, executors, and schedules](pages/getting-started.md#4-configure-jobs-loggers-executors-and-schedules)
-- [5. Browse the Dagster UI](pages/getting-started.md#5-browse-the-dagster-ui)
+- [Configure Logging](pages/how-to/configure-logging.md) - Unify Kedro and Dagster logs
+- [Configure Executors](pages/how-to/configure-executors.md) - Set up multiprocess, Docker, or Kubernetes executors
+- [Use Partitions](pages/how-to/use-partitions.md) - Work with partitioned datasets
+- [Use MLflow](pages/how-to/use-mlflow.md) - Integrate experiment tracking
+- [Deploy to Production](pages/how-to/deploy-to-production.md) - Production deployment patterns
+- [Troubleshooting](pages/how-to/troubleshoot.md) - Common issues and solutions
 
-### [Example](pages/example.md)
+### [Explanation](pages/explanation/index.md)
 
-  *A practical example demonstrating how to use Kedro-Dagster in a real project.*
+  *Background and context on Kedro-Dagster's design and behavior.*
 
-- [Project overview](pages/example.md#project-overview)
-- [Quick start](pages/example.md#quick-start)
-- [User guide](pages/user-guide.md#user-guide)
+- [Concepts](pages/explanation/concepts.md) - Asset-first alignment, key features, and limitations
+- [Architecture](pages/explanation/architecture.md) - How Kedro projects are translated into Dagster code locations
+- [Data Flow](pages/explanation/data-flow.md) - How data moves through the system
+- [Hook Lifecycle](pages/explanation/hook-lifecycle.md) - Kedro hooks interaction with Dagster
 
-### [User guide](pages/user-guide.md)
+### [Reference](pages/reference/index.md)
 
-  *In-depth documentation on the design, architecture, and core concepts of the plugin.*
+  *Technical descriptions of every configurable option, CLI command, and public API.*
 
-- [Project configuration](pages/user-guide.md#project-configuration)
-- [Kedro-Dagster concept mapping](pages/user-guide.md#kedro-dagster-concept-mapping)
-- [Compatibility notes between Kedro and Dagster](pages/user-guide.md#compatibility-notes-between-kedro-and-dagster)
-
-### [Reference](pages/api-reference.md)
-
-  *Complete API reference for all Kedro-Dagster classes and functions with searchable index.*
+- [Configuration Reference](pages/reference/configuration.md) - `dagster.yml` field tables
+- [CLI Reference](pages/reference/cli.md) - All `kedro dagster` commands
+- [API Reference](pages/reference/api.md) - Auto-generated class and function docs
+- [Datasets](pages/reference/datasets.md) - Custom dataset types
 
 ## License
 
