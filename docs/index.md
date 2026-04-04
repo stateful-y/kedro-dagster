@@ -3,45 +3,71 @@
 
 # Welcome to Kedro-Dagster's documentation
 
-Kedro-Dagster is a [Kedro](https://kedro.readthedocs.io/) plugin that enables seamless integration between [Kedro](https://kedro.readthedocs.io/), a framework for creating reproducible and maintainable data science code, and [Dagster](https://dagster.io/), a data orchestrator for data (and machine learning) pipelines. This plugin enables the use of Dagster's orchestration capabilities to deploy, automate, and monitor Kedro pipelines effectively.
+Kedro-Dagster is an integration plugin that lets you deploy
+[Kedro](https://docs.kedro.org/) data pipelines on
+[Dagster](https://docs.dagster.io/) without modifying your existing project
+code. It translates your catalog, nodes, and pipelines into Dagster assets,
+ops, and jobs so you can schedule, monitor, and inspect runs through
+Dagster's UI and execution backends.
 
 <div class="grid cards" markdown>
 
--   **Get Started in 5 Minutes**
+- **Get Started in 5 Minutes**
 
     ---
 
-    Install Kedro-Dagster and run your first pipeline in Dagster
-
-    **Install** -> **Initialize** -> **Run** -> **Done**
+    Install Kedro-Dagster and run your first pipeline in Dagster.
 
     [Getting Started](pages/tutorials/getting-started.md)
 
--   **Need Help?**
+- **How-to Guides**
 
     ---
 
-    Find answers to common questions and troubleshooting tips
+    Step-by-step instructions.
 
-    [Troubleshooting](pages/how-to/troubleshoot.md)
+    [How-to Guides](pages/how-to/index.md)
 
--   **Learn the Concepts**
-
-    ---
-
-    Understand how Kedro and Dagster work together
-
-    [Concepts](pages/explanation/concepts.md) - [Architecture](pages/explanation/architecture.md)
-
--   **See It In Action**
+- **Understand the Design**
 
     ---
 
-    Explore a complete example with partitions, MLflow, and more
+    Learn how Kedro-Dagster maps catalogs, nodes, and pipelines to Dagster assets, ops, and jobs.
+
+    [Concepts](pages/explanation/concepts.md)
+
+- **See It In Action**
+
+    ---
+
+    Explore a complete example with partitions, MLflow, and more.
 
     [Example Project](pages/tutorials/example-project.md)
 
+- **Reference**
+
+    ---
+
+    Complete field tables for `dagster.yml`, all CLI flags, and the Python API.
+
+    [Configuration Reference](pages/reference/configuration.md) | [CLI Reference](pages/reference/cli.md) | [API Reference](pages/reference/api.md)
+
+- **Need Help?**
+
+    ---
+
+    Find answers to common questions and troubleshooting tips.
+
+    [Troubleshooting](pages/how-to/troubleshoot.md)
+
 </div>
+
+## Key capabilities
+
+- **No code changes**: integrate Dagster without touching your Kedro datasets, catalog, or pipelines.
+- **Full orchestration**: schedule, monitor, and inspect Kedro pipelines through Dagster's UI, asset lineage tracking, and cloud-native executors.
+- **Configuration-driven**: define jobs, executors, schedules, and loggers in a `dagster.yml` per environment.
+- **Ecosystem compatibility**: works with Kedro hooks, Kedro-MLflow, and all Dagster-supported execution backends (multiprocess, Docker, Kubernetes, Dask, Celery).
 
 <figure markdown>
 ![Lineage graph of assets involved in the specified jobs](assets/getting-started/asset_graph_dark.png#only-dark)
@@ -49,46 +75,12 @@ Kedro-Dagster is a [Kedro](https://kedro.readthedocs.io/) plugin that enables se
 <figcaption>Example of a Dagster Asset Lineage Graph generated from a Kedro project.</figcaption>
 </figure>
 
-## Table of Contents
-
-### [Tutorials](pages/tutorials/index.md)
-
-  *Step-by-step guides that walk you through using Kedro-Dagster from scratch.*
-
-- [Getting Started](pages/tutorials/getting-started.md) - Install and deploy your first pipeline
-- [Example Project](pages/tutorials/example-project.md) - A complete example with partitions, MLflow, and more
-- [Migrate an Existing Project](pages/tutorials/migrate-existing-project.md) - Add Kedro-Dagster to a current Kedro project
-
-### [How-to Guides](pages/how-to/index.md)
-
-  *Practical directions for common tasks.*
-
-- [Configure Logging](pages/how-to/configure-logging.md) - Unify Kedro and Dagster logs
-- [Configure Executors](pages/how-to/configure-executors.md) - Set up multiprocess, Docker, or Kubernetes executors
-- [Use Partitions](pages/how-to/use-partitions.md) - Work with partitioned datasets
-- [Use MLflow](pages/how-to/use-mlflow.md) - Integrate experiment tracking
-- [Deploy to Production](pages/how-to/deploy-to-production.md) - Production deployment patterns
-- [Troubleshooting](pages/how-to/troubleshoot.md) - Common issues and solutions
-
-### [Explanation](pages/explanation/index.md)
-
-  *Background and context on Kedro-Dagster's design and behavior.*
-
-- [Concepts](pages/explanation/concepts.md) - Asset-first alignment, key features, and limitations
-- [Architecture](pages/explanation/architecture.md) - How Kedro projects are translated into Dagster code locations
-- [Data Flow](pages/explanation/data-flow.md) - How data moves through the system
-- [Hook Lifecycle](pages/explanation/hook-lifecycle.md) - Kedro hooks interaction with Dagster
-
-### [Reference](pages/reference/index.md)
-
-  *Technical descriptions of every configurable option, CLI command, and public API.*
-
-- [Configuration Reference](pages/reference/configuration.md) - `dagster.yml` field tables
-- [CLI Reference](pages/reference/cli.md) - All `kedro dagster` commands
-- [API Reference](pages/reference/api.md) - Auto-generated class and function docs
-- [Datasets](pages/reference/datasets.md) - Custom dataset types
-
 ## License
 
-Kedro-Dagster is open source and licensed under the [Apache 2.0 License](https://www.apache.org/licenses/LICENSE-2.0).
-You are free to use, modify, and distribute this software under the terms of this license.
+Kedro-Dagster is open source and licensed under the [Apache-2.0 License](https://opensource.org/licenses/Apache-2.0).
+
+## Acknowledgements
+
+This project is maintained by [stateful-y](https://stateful-y.io), an ML consultancy specializing in MLOps and data science & engineering.
+
+![Made by stateful-y](assets/made_by_stateful-y.png){width=200}
