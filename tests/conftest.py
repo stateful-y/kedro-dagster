@@ -6,6 +6,7 @@ import importlib.metadata as _ilmd
 from collections.abc import Callable
 from pathlib import Path
 
+import dagster_shared.serdes.serdes as _serdes_mod
 import kedro.framework.session.session as _kedro_session_mod
 from kedro.framework import project as _kedro_project
 from pytest import fixture
@@ -28,6 +29,21 @@ from .scenarios.kedro_projects import (
     options_spaceflights_quickstart,
 )
 from .scenarios.project_factory import KedroProjectOptions, build_kedro_project_scenario
+
+# Under pytest-xdist with coverage, dagster's serdes @whitelist_for_serdes
+# decorator can fire twice for the same class, causing a SerdesUsageError.
+# Monkey-patch WhitelistMap.register_object to silently skip duplicates.
+_original_register_object = _serdes_mod.WhitelistMap.register_object
+
+
+def _idempotent_register_object(self, name, object_class, serializer_class, storage_name=None, **kwargs):
+    deserializer_name = storage_name or name
+    if deserializer_name in self.object_deserializers:
+        return
+    _original_register_object(self, name, object_class, serializer_class, storage_name=storage_name, **kwargs)
+
+
+_serdes_mod.WhitelistMap.register_object = _idempotent_register_object
 
 
 @fixture(scope="session")
