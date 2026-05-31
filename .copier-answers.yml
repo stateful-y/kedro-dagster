@@ -10,7 +10,7 @@ github_username: stateful-y
 include_actions: True
 include_examples: False
 license: Apache-2.0
-max_python_version: '3.13'
+max_python_version: '3.14'
 min_python_version: '3.11'
 package_name: kedro_dagster
 project_name: Kedro-Dagster
