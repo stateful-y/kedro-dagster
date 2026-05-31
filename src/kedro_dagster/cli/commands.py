@@ -132,14 +132,15 @@ if DAGSTER_VERSION >= (1, 10, 6):
         """
         # Discover the available dg commands from the official CLI entrypoint factory
         dg_root: click.Group = create_dg_cli()
-        dg_command_names = list(dg_root.commands.keys())
+        dg_ctx = click.Context(dg_root)
+        dg_command_names = dg_root.list_commands(dg_ctx)
 
         # Skip commands we already expose explicitly in this group
         existing = set(getattr(dagster_commands, "commands", {}).keys())
         wrapped_command_names = [cmf for cmf in dg_command_names if cmf not in existing]
 
         for cmd_name in wrapped_command_names:
-            cmd_obj = dg_root.commands[cmd_name]
+            cmd_obj = dg_root.get_command(dg_ctx, cmd_name)
 
             def _callback_factory(name: str) -> Any:
                 """Return a Click callback that proxies to 'dg <name>'."""
