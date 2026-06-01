@@ -30,6 +30,11 @@ jobs:
         os: [ubuntu-latest]
         kedro_spec: ["kedro>=1.0,<2.0"]
         dagster_spec: ["dagster>=1.10,<1.11", "dagster>=1.11,<1.12", "dagster>=1.12,<1.13",]
+        exclude:
+          - python-version: "3.14"
+            dagster_spec: "dagster>=1.10,<1.11"
+          - python-version: "3.14"
+            dagster_spec: "dagster>=1.11,<1.12"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
