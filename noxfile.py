@@ -329,14 +329,19 @@ def test_versions(session: nox.Session, dagster_spec: str, kedro_spec: str, with
     webserver_spec = dagster_spec.replace("dagster", "dagster-webserver", 1)
     dg_cli_spec = dagster_spec.replace("dagster", "dagster-dg-cli", 1)
 
+    pin_specs = [kedro_spec, dagster_spec, webserver_spec, dg_cli_spec]
+    # Re-resolve dagster-mlflow so it matches the pinned dagster version;
+    # otherwise the latest dagster-mlflow (installed by --extra mlflow) may
+    # be incompatible with the pinned dagster.  dagster-mlflow uses its own
+    # version scheme (0.x) so we cannot derive a range from dagster_spec.
+    if with_mlflow:
+        pin_specs.append("dagster-mlflow")
+
     session.run_install(
         "uv",
         "pip",
         "install",
-        kedro_spec,
-        dagster_spec,
-        webserver_spec,
-        dg_cli_spec,
+        *pin_specs,
         env={"UV_PROJECT_ENVIRONMENT": session.virtualenv.location},
     )
 

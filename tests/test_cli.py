@@ -545,7 +545,7 @@ class TestCliListDefs:
         assert kwargs["env"]["KEDRO_ENV"] == kedro_project_spaceflights_quickstart_base.env
 
     @pytest.mark.skipif(utils.DAGSTER_VERSION < (1, 11, 0), reason="dg list defs commands require dagster>=1.11.0")
-    def test_real_subprocess_returns_definitions(self, kedro_project_exec_filebacked_base, monkeypatch):
+    def test_real_subprocess_returns_definitions(self, kedro_project_exec_filebacked_base, monkeypatch, tmp_path):
         """Integration: list defs returns expected definitions from a scenario."""
         project_path = kedro_project_exec_filebacked_base.project_path
         monkeypatch.chdir(project_path)
@@ -554,12 +554,37 @@ class TestCliListDefs:
         assert init_result.exit_code == 0
         env = kedro_project_exec_filebacked_base.env
 
+        # Create a temporary DAGSTER_HOME with telemetry disabled so the
+        # first-run greeting does not interfere with the subprocess output.
+        dagster_home = tmp_path / "dagster_home"
+        dagster_home.mkdir()
+        (dagster_home / "dagster.yaml").write_text("telemetry:\n  enabled: false\n")
+
+        # Ensure the project's src/ is on PYTHONPATH so that ``dg list defs``
+        # can import the project module.  bootstrap_project() (called by
+        # ``kedro dagster init``) sets this in os.environ as a side effect, but
+        # we set it explicitly to avoid depending on that global mutation.
+        src_dir = str(project_path / "src")
+        python_path = os.environ.get("PYTHONPATH", "")
+        if src_dir not in python_path:
+            python_path = f"{src_dir}{os.pathsep}{python_path}" if python_path else src_dir
+
         result = subprocess.run(
             ["dg", "list", "defs", "--json"],
             cwd=str(project_path),
             capture_output=True,
             text=True,
-            env={**os.environ, "KEDRO_ENV": env},
+            env={
+                **os.environ,
+                "KEDRO_ENV": env,
+                "DAGSTER_HOME": str(dagster_home),
+                "PYTHONPATH": python_path,
+                # Recent MLflow versions block the local filesystem backend
+                # unless this flag is set.  The test projects do not declare
+                # kedro-mlflow as a plugin, but when it is installed in the
+                # venv Kedro auto-discovers it and triggers a FileStore init.
+                "MLFLOW_ALLOW_FILE_STORE": "true",
+            },
             check=False,
         )
 
@@ -574,7 +599,7 @@ class TestCliListDefs:
         assert len(asset_keys) >= 1, f"Expected at least 1 asset in {asset_keys}"
 
     @pytest.mark.skipif(utils.DAGSTER_VERSION < (1, 11, 0), reason="dg list defs commands require dagster>=1.11.0")
-    def test_real_subprocess_with_local_env(self, kedro_project_exec_filebacked_local, monkeypatch):
+    def test_real_subprocess_with_local_env(self, kedro_project_exec_filebacked_local, monkeypatch, tmp_path):
         """Integration: list defs works with 'local' environment."""
         project_path = kedro_project_exec_filebacked_local.project_path
         monkeypatch.chdir(project_path)
@@ -583,12 +608,31 @@ class TestCliListDefs:
         assert init_result.exit_code == 0
         env = kedro_project_exec_filebacked_local.env
 
+        # Create a temporary DAGSTER_HOME with telemetry disabled so the
+        # first-run greeting does not interfere with the subprocess output.
+        dagster_home = tmp_path / "dagster_home"
+        dagster_home.mkdir()
+        (dagster_home / "dagster.yaml").write_text("telemetry:\n  enabled: false\n")
+
+        # Ensure the project's src/ is on PYTHONPATH so that ``dg list defs``
+        # can import the project module.
+        src_dir = str(project_path / "src")
+        python_path = os.environ.get("PYTHONPATH", "")
+        if src_dir not in python_path:
+            python_path = f"{src_dir}{os.pathsep}{python_path}" if python_path else src_dir
+
         result = subprocess.run(
             ["dg", "list", "defs", "--json"],
             cwd=str(project_path),
             capture_output=True,
             text=True,
-            env={**os.environ, "KEDRO_ENV": env},
+            env={
+                **os.environ,
+                "KEDRO_ENV": env,
+                "DAGSTER_HOME": str(dagster_home),
+                "PYTHONPATH": python_path,
+                "MLFLOW_ALLOW_FILE_STORE": "true",
+            },
             check=False,
         )
 
