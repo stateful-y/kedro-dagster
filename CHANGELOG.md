@@ -6,6 +6,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.7.0] - 2026-06-02
+
+This **minor release** includes 6 commits.
+
+### Miscellaneous Tasks
+- Add Python 3.14 support  ([#111](https://github.com/stateful-y/kedro-dagster/pull/111)) by @gtauzin
+
+### Bug Fixes
+- Dagster 1.13 compatibility and flaky serdes under xdist  ([#110](https://github.com/stateful-y/kedro-dagster/pull/110)) by @gtauzin
+- Fix dg subprocess tests for CI compatibility  ([#113](https://github.com/stateful-y/kedro-dagster/pull/113)) by @gtauzin
+
+### Documentation
+- Update license and acknowledgements in index page  ([#105](https://github.com/stateful-y/kedro-dagster/pull/105)) by @gtauzin
+
+### Contributors
+
+Thanks to all contributors for this release:
+- @dependabot[bot]
+- @gtauzin
+
 ## [0.6.0] - 2026-04-04
 
 This **minor release** includes 5 commits.
