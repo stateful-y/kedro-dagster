@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 This **minor release** includes 6 commits.
 
+### Miscellaneous Tasks
+- Add Python 3.14 support  ([#111](https://github.com/stateful-y/kedro-dagster/pull/111)) by @gtauzin
 
 ### Bug Fixes
 - Dagster 1.13 compatibility and flaky serdes under xdist  ([#110](https://github.com/stateful-y/kedro-dagster/pull/110)) by @gtauzin
@@ -17,13 +19,6 @@ This **minor release** includes 6 commits.
 
 ### Documentation
 - Update license and acknowledgements in index page  ([#105](https://github.com/stateful-y/kedro-dagster/pull/105)) by @gtauzin
-
-### Miscellaneous Tasks
-- Add Python 3.14 support  ([#111](https://github.com/stateful-y/kedro-dagster/pull/111)) by @gtauzin
-
-### Build
-- Bump actions/github-script from 8 to 9  ([#104](https://github.com/stateful-y/kedro-dagster/pull/104)) by @dependabot[bot]
-- Bump dawidd6/action-download-artifact from 20 to 21  ([#106](https://github.com/stateful-y/kedro-dagster/pull/106)) by @dependabot[bot]
 
 ### Contributors
 
