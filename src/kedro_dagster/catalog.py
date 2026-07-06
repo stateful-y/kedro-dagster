@@ -12,6 +12,7 @@ See Also
     Translates Kedro pipelines into Dagster jobs.
 """
 
+import json
 from logging import getLogger
 from os import PathLike
 from pathlib import PurePosixPath
@@ -37,6 +38,35 @@ if TYPE_CHECKING:
     from pluggy import PluginManager
 
 LOGGER = getLogger(__name__)
+
+
+def _metadata_value_from_preview(preview: Any) -> dg.MetadataValue:
+    """Convert a Kedro dataset preview into a Dagster metadata value."""
+    if hasattr(preview, "to_string"):
+        return dg.MetadataValue.md(f"```text\n{preview.to_string()}\n```")
+
+    if isinstance(preview, str):
+        return dg.MetadataValue.md(preview)
+
+    try:
+        json.dumps(preview)
+    except TypeError:
+        return dg.MetadataValue.text(str(preview))
+
+    return dg.MetadataValue.json(preview)
+
+
+def _get_dataset_preview_metadata(dataset: "AbstractDataset") -> dict[str, dg.MetadataValue]:
+    """Return Dagster metadata containing a Kedro dataset preview when available."""
+    preview = getattr(dataset, "preview", None)
+    if not callable(preview):
+        return {}
+
+    preview_value = preview()
+    if preview_value is None:
+        return {}
+
+    return {"kedro_dataset_preview": _metadata_value_from_preview(preview_value)}
 
 
 class CatalogTranslator:
@@ -191,6 +221,14 @@ class CatalogTranslator:
                     )
 
                 dataset.save(obj)
+
+                try:
+                    preview_metadata = _get_dataset_preview_metadata(dataset)
+                except Exception as exc:
+                    context.log.warning(f"Could not attach dataset preview metadata for `{dataset_name}`: {exc}")
+                else:
+                    if preview_metadata and hasattr(context, "add_output_metadata"):
+                        context.add_output_metadata(preview_metadata)
 
                 if is_node_op:
                     context.log.info("Executing `after_dataset_saved` Kedro hook.")

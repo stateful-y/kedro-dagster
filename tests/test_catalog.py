@@ -12,9 +12,30 @@ import yaml
 from kedro.framework.project import pipelines
 from kedro.framework.session import KedroSession
 from kedro.framework.startup import bootstrap_project
+from kedro.io import AbstractDataset, DataCatalog
+from kedro.pipeline import Pipeline, node
 
 from kedro_dagster.catalog import CatalogTranslator
 from kedro_dagster.utils import format_dataset_name, get_dataset_from_catalog
+
+
+class PreviewDataset(AbstractDataset):
+    """Dataset test double exposing Kedro's preview interface."""
+
+    def __init__(self):
+        self._data = None
+
+    def _load(self):
+        return self._data
+
+    def _save(self, data):
+        self._data = data
+
+    def _describe(self):
+        return {}
+
+    def preview(self):
+        return self._data.head(2)
 
 
 class TestCatalogTranslatorScenarios:
@@ -131,6 +152,38 @@ class TestCatalogTranslatorIOManagers:
                 assert io_fp.replace("\\", "/") in {rel_fp.replace("\\", "/"), abs_fp.replace("\\", "/")}
 
             assert ds_name in (getattr(io_manager.__class__, "__doc__", "") or "")
+
+    def test_handle_output_attaches_dataset_preview_metadata(self, mocker):
+        """Datasets exposing preview() should add preview metadata to Dagster outputs."""
+
+        def make_output():
+            return pd.DataFrame({"value": [1, 2, 3]})
+
+        dataset = PreviewDataset()
+        catalog = DataCatalog(datasets={"preview_data": dataset})
+        pipeline = Pipeline([node(make_output, None, "preview_data", name="make_output")])
+        translator = CatalogTranslator(
+            catalog=catalog,
+            pipelines=[pipeline],
+            hook_manager=mocker.Mock(),
+            env="base",
+        )
+
+        named_io_managers, _ = translator.to_dagster()
+        io_manager = named_io_managers["base__preview_data_io_manager"]
+
+        context = mocker.Mock()
+        context.op_def.name = "unmapped_op"
+        context.op_def.tags = {}
+        context.has_asset_partitions = False
+        context.has_partition_key = False
+
+        io_manager.handle_output(context, make_output())
+
+        context.add_output_metadata.assert_called_once()
+        metadata = context.add_output_metadata.call_args.args[0]
+        assert set(metadata) == {"kedro_dataset_preview"}
+        assert isinstance(metadata["kedro_dataset_preview"], dg.MetadataValue)
 
     @pytest.mark.parametrize(
         "kedro_project_scenario_env",
