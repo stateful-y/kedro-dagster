@@ -16,7 +16,7 @@ import json
 from logging import getLogger
 from os import PathLike
 from pathlib import PurePosixPath
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import dagster as dg
 from kedro.io import MemoryDataset
@@ -293,7 +293,7 @@ class CatalogTranslator:
         # Instantiate without args; defaults are embedded in the DatasetConfig
         io_manager_instance = ConfigurableDatasetIOManagerClass()
 
-        return io_manager_instance, partitions_def, partition_mappings
+        return cast(dg.IOManagerDefinition, io_manager_instance), partitions_def, partition_mappings
 
     def to_dagster(self) -> tuple[dict[str, dg.IOManagerDefinition], dict[str, dict[str, Any]]]:
         """Generate IO managers and partitions for all Kedro datasets referenced by pipelines.
