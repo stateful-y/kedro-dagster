@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import datetime
 import importlib
 from pathlib import Path
+from typing import NewType
 
 import dagster as dg
 import pandas as pd
@@ -15,8 +17,14 @@ from kedro.framework.startup import bootstrap_project
 from kedro.io import AbstractDataset, DataCatalog
 from kedro.pipeline import Pipeline, node
 
-from kedro_dagster.catalog import CatalogTranslator
+from kedro_dagster.catalog import CatalogTranslator, _get_dataset_preview_metadata
 from kedro_dagster.utils import format_dataset_name, get_dataset_from_catalog
+
+# Local mirrors of Kedro's preview NewType aliases (kedro_datasets._typing). Only
+# the annotation name matters for dispatch, so we avoid importing a private module.
+TablePreview = NewType("TablePreview", dict)
+ImagePreview = NewType("ImagePreview", str)
+JSONPreview = NewType("JSONPreview", str)
 
 
 class PreviewDataset(AbstractDataset):
@@ -34,8 +42,88 @@ class PreviewDataset(AbstractDataset):
     def _describe(self):
         return {}
 
-    def preview(self):
-        return self._data.head(2)
+    def preview(self) -> TablePreview:
+        return self._data.head(2).to_dict(orient="split")
+
+
+class _TypedPreviewDataset(AbstractDataset):
+    """Preview test double with a configurable value, type annotation and metadata."""
+
+    _return_type = None
+
+    def __init__(self, value, metadata=None, raise_on_preview=False):
+        self._value = value
+        self.metadata = metadata
+        self._raise_on_preview = raise_on_preview
+
+    def _load(self):
+        return self._value
+
+    def _save(self, data):
+        self._value = data
+
+    def _describe(self):
+        return {}
+
+    def preview(self, **kwargs):
+        if self._raise_on_preview:
+            raise AssertionError("preview() should not be called when disabled")
+        return self._value
+
+
+class _ImagePreviewDataset(_TypedPreviewDataset):
+    def preview(self, **kwargs) -> ImagePreview:
+        return super().preview(**kwargs)
+
+
+class _JSONPreviewDataset(_TypedPreviewDataset):
+    def preview(self, **kwargs) -> JSONPreview:
+        return super().preview(**kwargs)
+
+
+class _TablePreviewDataset(_TypedPreviewDataset):
+    def preview(self, **kwargs) -> TablePreview:
+        return super().preview(**kwargs)
+
+
+class TestDatasetPreviewMetadata:
+    """Unit tests for preview-type dispatch and the large-dataset opt-out."""
+
+    def test_image_preview_renders_as_data_uri(self):
+        value = "aGVsbG8="  # base64 payload
+        metadata = _get_dataset_preview_metadata(_ImagePreviewDataset(value))
+        md = metadata["kedro_dataset_preview"]
+        assert isinstance(md, dg.MarkdownMetadataValue)
+        assert f"data:image/png;base64,{value}" in md.md_str
+
+    def test_json_preview_is_parsed_into_structured_metadata(self):
+        metadata = _get_dataset_preview_metadata(_JSONPreviewDataset('{"a": 1, "b": [2, 3]}'))
+        md = metadata["kedro_dataset_preview"]
+        assert isinstance(md, dg.JsonMetadataValue)
+        assert md.data == {"a": 1, "b": [2, 3]}
+
+    def test_table_preview_coerces_non_serialisable_values(self):
+        table = {"columns": ["d"], "data": [[datetime.date(2026, 7, 12)]]}
+        metadata = _get_dataset_preview_metadata(_TablePreviewDataset(table))
+        md = metadata["kedro_dataset_preview"]
+        assert isinstance(md, dg.JsonMetadataValue)
+        assert md.data["data"] == [["2026-07-12"]]
+
+    def test_preview_can_be_disabled_via_metadata(self):
+        dataset = _ImagePreviewDataset("x", metadata={"kedro-viz": {"preview": False}}, raise_on_preview=True)
+        assert _get_dataset_preview_metadata(dataset) == {}
+
+    def test_preview_args_are_forwarded(self):
+        captured = {}
+
+        class _Dataset(_TypedPreviewDataset):
+            def preview(self, **kwargs) -> TablePreview:
+                captured.update(kwargs)
+                return {"columns": ["a"], "data": [[1]]}
+
+        dataset = _Dataset({}, metadata={"kedro-viz": {"preview_args": {"nrows": 3}}})
+        _get_dataset_preview_metadata(dataset)
+        assert captured == {"nrows": 3}
 
 
 class TestCatalogTranslatorScenarios:

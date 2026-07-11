@@ -16,7 +16,7 @@ import json
 from logging import getLogger
 from os import PathLike
 from pathlib import PurePosixPath
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 import dagster as dg
 from kedro.io import MemoryDataset
@@ -40,33 +40,99 @@ if TYPE_CHECKING:
 LOGGER = getLogger(__name__)
 
 
-def _metadata_value_from_preview(preview: Any) -> dg.MetadataValue:
-    """Convert a Kedro dataset preview into a Dagster metadata value."""
-    if hasattr(preview, "to_string"):
-        return dg.MetadataValue.md(f"```text\n{preview.to_string()}\n```")
+def _json_safe(value: Any) -> Any:
+    """Best-effort conversion of ``value`` into a JSON-serialisable structure.
 
-    if isinstance(preview, str):
-        return dg.MetadataValue.md(preview)
+    Kedro table previews are ``dict`` payloads that may hold non-serialisable
+    objects (e.g. ``datetime``/``Timestamp`` values), so we coerce those to
+    strings rather than letting Dagster fail when it stores the metadata.
+    """
+    return json.loads(json.dumps(value, default=str))
 
+
+def _resolve_preview_type(preview_method: Any) -> "str | None":
+    """Return the Kedro preview type name declared by a ``preview()`` method.
+
+    Kedro's preview types are ``NewType`` aliases, so the concrete value is only
+    ever a ``str`` or ``dict`` at runtime and cannot be told apart by type. The
+    intended rendering is carried by the ``preview()`` return annotation instead
+    (``TablePreview``, ``ImagePreview``, ``JSONPreview``, ``PlotlyPreview``,
+    ``HTMLPreview``), matching how Kedro-Viz dispatches previews.
+    """
+    annotation = getattr(preview_method, "__annotations__", {}).get("return")
+    if annotation is None:
+        return None
+    name = getattr(annotation, "__name__", None) or str(annotation)
+    return name.rsplit(".", 1)[-1]
+
+
+def _json_metadata(preview: Any) -> dg.MetadataValue:
+    """Render a structured preview as JSON metadata, coercing awkward values."""
     try:
-        json.dumps(preview)
-    except TypeError:
+        return dg.MetadataValue.json(_json_safe(preview))
+    except (TypeError, ValueError):
         return dg.MetadataValue.text(str(preview))
 
-    return dg.MetadataValue.json(preview)
+
+def _metadata_value_from_preview(preview: Any, preview_type: "str | None") -> dg.MetadataValue:
+    """Convert a Kedro dataset preview into a Dagster metadata value.
+
+    Dispatches on the declared ``preview_type`` (see :func:`_resolve_preview_type`)
+    so images, raw JSON and tables each render correctly in Dagit, falling back to
+    a structural check when no annotation is available.
+    """
+    if preview_type == "ImagePreview" and isinstance(preview, str):
+        # Base64-encoded PNG; embed as a data URI so Dagit renders the image.
+        return dg.MetadataValue.md(f"![preview](data:image/png;base64,{preview})")
+
+    if preview_type == "HTMLPreview" and isinstance(preview, str):
+        return dg.MetadataValue.md(preview)
+
+    if preview_type == "JSONPreview" and isinstance(preview, str):
+        # Raw JSON text; parse it so Dagit shows a structured, collapsible view.
+        try:
+            return dg.MetadataValue.json(json.loads(preview))
+        except (TypeError, ValueError):
+            return dg.MetadataValue.md(f"```json\n{preview}\n```")
+
+    if isinstance(preview, str) and preview_type not in ("TablePreview", "PlotlyPreview"):
+        return dg.MetadataValue.md(preview)
+
+    return _json_metadata(preview)
 
 
 def _get_dataset_preview_metadata(dataset: "AbstractDataset") -> dict[str, dg.MetadataValue]:
-    """Return Dagster metadata containing a Kedro dataset preview when available."""
+    """Return Dagster metadata containing a Kedro dataset preview when available.
+
+    ``preview()`` re-reads the dataset from storage, which runs on every save, so
+    previewing large datasets can be expensive. This honours the same per-dataset
+    ``kedro-viz`` metadata convention used by Kedro-Viz to let users opt out or
+    tune previews without touching pipeline code::
+
+        my_dataset:
+          type: pandas.CSVDataset
+          filepath: ...
+          metadata:
+            kedro-viz:
+              preview: false          # skip preview entirely (e.g. large data)
+              preview_args:
+                nrows: 5              # forwarded to preview()
+    """
     preview = getattr(dataset, "preview", None)
     if not callable(preview):
         return {}
 
-    preview_value = preview()
+    viz_metadata = (getattr(dataset, "metadata", None) or {}).get("kedro-viz", {}) or {}
+    if viz_metadata.get("preview") is False:
+        return {}
+    preview_args = viz_metadata.get("preview_args") or {}
+
+    preview_value = preview(**preview_args)
     if preview_value is None:
         return {}
 
-    return {"kedro_dataset_preview": _metadata_value_from_preview(preview_value)}
+    preview_type = _resolve_preview_type(preview)
+    return {"kedro_dataset_preview": _metadata_value_from_preview(preview_value, preview_type)}
 
 
 class CatalogTranslator:
@@ -293,7 +359,7 @@ class CatalogTranslator:
         # Instantiate without args; defaults are embedded in the DatasetConfig
         io_manager_instance = ConfigurableDatasetIOManagerClass()
 
-        return cast(dg.IOManagerDefinition, io_manager_instance), partitions_def, partition_mappings
+        return io_manager_instance, partitions_def, partition_mappings
 
     def to_dagster(self) -> tuple[dict[str, dg.IOManagerDefinition], dict[str, dict[str, Any]]]:
         """Generate IO managers and partitions for all Kedro datasets referenced by pipelines.
