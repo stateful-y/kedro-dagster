@@ -44,7 +44,6 @@ dev = [
     {include-group = "lint"},
     {include-group = "docs"},
     {include-group = "fix"},
-    "interrogate>=1.7.0",
 ]
 tests = [
     "pytest>=8.3",
@@ -58,7 +57,9 @@ tests = [
     "pandas>=2.3",
 ]
 lint = [
+    "interrogate>=1.7.0",
     "ruff>=0.8.0",
+    "rumdl>=0.1.33",
     "ty>=0.0.12",
 ]
 docs = [
@@ -127,7 +128,7 @@ ignore = [
     "E203",   # space before : (needed for how black formats slicing)
     "E501",   # line too long (handled by formatter)
     "B008",   # do not perform function calls in argument defaults
-    "PLC0415", # import not at top-level (lazy imports are intentional)
+    "PLC0415", # import not at top-level (lazy imports are intentional, e.g. docs hooks)
     "SIM102",  # collapsible if (clarity over brevity)
     "SIM105",  # contextlib.suppress (comments on except clauses preferred)
     "PLR0913", # too many args in func def
@@ -258,7 +259,7 @@ disable = [
     "MD046",  # Code block style (indented blocks required inside MkDocs tabs)
     "MD051",  # Link fragments (cross-doc references resolved at MkDocs build time)
 ]
-exclude = ["CHANGELOG.md", "site", "htmlcov", ".nox", ".venv"]
+exclude = ["CHANGELOG.md", "site", "htmlcov", ".nox", ".venv", "openspec"]
 
 [tool.rumdl.per-file-ignores]
 ".github/PULL_REQUEST_TEMPLATE.md" = ["MD041"]  # PR template starts with checklist

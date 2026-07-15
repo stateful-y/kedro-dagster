@@ -80,8 +80,10 @@ examples/__marimo__/
 # Ruff
 .ruff_cache/
 
+# OpenSpec (local working artifacts, not tracked)
+openspec/
+
 # build
-uv.lock
 src/kedro_dagster/_version.py
 
 # Auto-generated API submodule pages (created by docs/hooks.py)

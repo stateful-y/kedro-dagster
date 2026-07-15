@@ -6,6 +6,8 @@ repos:
       - id: end-of-file-fixer
       - id: check-yaml
       - id: check-added-large-files
+        # uv.lock is an intentionally-tracked generated lockfile that exceeds the 500 KB default.
+        exclude: ^uv\.lock$
       - id: check-json
       - id: check-toml
       - id: check-merge-conflict
@@ -21,37 +23,63 @@ repos:
         stages: [commit-msg]
 
 
-  - repo: https://github.com/econchick/interrogate
-    rev: 1.7.0
+  # Version-sensitive linters run from the project environment so their single
+  # source of truth is uv.lock. --locked makes a stale uv.lock fail loudly
+  # instead of silently diverging from CI. (Dependabot's "uv" ecosystem then
+  # keeps them updated in lockstep; nothing floats on a frozen pre-commit rev.)
+  - repo: local
     hooks:
-    -   id: interrogate
+      # Docstring coverage
+      - id: interrogate
+        name: interrogate
+        entry: uv run --locked interrogate
+        language: system
         types: [python]
         files: ^src/
         exclude: .*_version\.py$
+        require_serial: true
 
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.9.9
-    hooks:
-      # Run the linter
+      # Ruff linter (autofix)
       - id: ruff
-        args: [--fix]
-      # Run the formatter
+        name: ruff
+        entry: uv run --locked ruff check --force-exclude --fix
+        language: system
+        types_or: [python, pyi, jupyter]
+        require_serial: true
+
+      # Ruff formatter
       - id: ruff-format
+        name: ruff-format
+        entry: uv run --locked ruff format --force-exclude
+        language: system
+        types_or: [python, pyi, jupyter]
+        require_serial: true
 
-  # Markdown linting and formatting with rumdl
-  - repo: https://github.com/rvben/rumdl-pre-commit
-    rev: v0.1.57
-    hooks:
+      # Markdown linter
       - id: rumdl
-      - id: rumdl-fmt
+        name: rumdl check
+        entry: uv run --locked rumdl check .
+        language: system
+        types: [markdown]
+        pass_filenames: false
+        require_serial: true
 
-  # Type checking with ty
-  - repo: local
-    hooks:
+      # Markdown formatter (fixes fixable violations, fails on the rest)
+      - id: rumdl-fmt
+        name: rumdl format
+        entry: uv run --locked rumdl check --fix .
+        language: system
+        types: [markdown]
+        pass_filenames: false
+        require_serial: true
+
+      # Type checking with ty. --extra mlflow so ty resolves the optional
+      # mlflow code paths (utils.py, nodes.py) instead of emitting warnings.
       - id: ty
         name: ty
-        entry: uv run ty check src
+        entry: uv run --extra mlflow --locked ty check --exit-zero-on-warning src
         language: system
         types: [python]
         files: ^src/
         pass_filenames: false
+        require_serial: true
