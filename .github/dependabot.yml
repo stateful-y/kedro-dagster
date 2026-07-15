@@ -11,8 +11,10 @@ updates:
     commit-message:
       prefix: "build(deps)"
 
-  # Maintain dependencies for pip
-  - package-ecosystem: "pip"
+  # Maintain Python dependencies (pyproject.toml + uv.lock).
+  # The "uv" ecosystem (not "pip") is required so Dependabot reads uv.lock and the
+  # PEP 735 [dependency-groups] (dev/lint/tests/docs) where tools like ty/ruff/rumdl live.
+  - package-ecosystem: "uv"
     directory: "/"
     schedule:
       interval: "weekly"
@@ -21,3 +23,17 @@ updates:
       - "python"
     commit-message:
       prefix: "build(deps)"
+    groups:
+      # Batch the version-sensitive linters into one lockstep PR so local == CI
+      # stays true after upgrades. uv.lock is their single source of truth.
+      lint-tools:
+        patterns:
+          - "ruff"
+          - "rumdl"
+          - "ty"
+          - "interrogate"
+          - "pre-commit*"
+      # Batch everything else (runtime, tests, docs) into a second PR to keep noise low.
+      python-dependencies:
+        patterns:
+          - "*"
