@@ -63,7 +63,7 @@ jobs:
 
 ## Bind deeper namespaces
 
-The binding axis is split on `.`, so a template can bind several placeholders across a nested namespace. A pipeline with nodes in `da_energy.hub.champion`, `rt_energy.hub.challenger`, … can be captured with:
+The binding axis is split on `.`, so a template can bind several placeholders across a nested namespace. A pipeline with nodes in `alpha.hub.champion`, `beta.hub.challenger`, … can be captured with:
 
 ```yaml
 jobs:
@@ -73,7 +73,7 @@ jobs:
       node_namespaces: ["{product}.{group}.{variant}"]
 ```
 
-A literal segment in the axis restricts which namespaces match — `node_namespaces: ["rt_energy.{group}.{variant}"]` only binds namespaces beginning with `rt_energy`.
+A literal segment in the axis restricts which namespaces match — `node_namespaces: ["beta.{group}.{variant}"]` only binds namespaces beginning with `beta`.
 
 ## Interpolate the whole job body
 
