@@ -672,6 +672,7 @@ class TestPatternCommands:
                     "pipeline": {"pipeline_name": "reporting"},
                     "schedule": {"cron_schedule": "0 0 * * *"},
                 },
+                "adhoc": {"pipeline": {"pipeline_name": "adhoc"}},  # no schedule, no namespaces
             }
         })
 
@@ -692,6 +693,7 @@ class TestPatternCommands:
         assert "schedule=daily" in result.output  # string schedule reference
         assert "nightly" in result.output  # literal job included
         assert "schedule=0 0 * * *" in result.output  # inline ScheduleOptions
+        assert "adhoc" in result.output  # literal job with no schedule / no namespaces
 
     def test_list_patterns_lists_factory_keys_only(self, monkeypatch):
         """list-patterns prints factory keys and omits literal jobs."""
