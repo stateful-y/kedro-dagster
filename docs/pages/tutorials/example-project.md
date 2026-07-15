@@ -131,7 +131,7 @@ The example defines four environments under `conf/<ENV>/`, each with its own `ca
 - **`dev`**: Multiprocessing, scheduling, and the `model_tuning` pipeline. Requires a Postgres database (see below).
 - **`staging`** and **`prod`**: Production-style configuration with multiprocessing and cron schedules.
 
-Here is a trimmed `conf/prod/dagster.yml` showing how loggers, executors, schedules, and jobs fit together:
+Here is a trimmed `conf/staging/dagster.yml` showing how loggers, executors, schedules, and jobs fit together. The `jobs` block uses **job factories** — keys with a `{product}` placeholder that expand into one job per pipeline namespace:
 
 ```yaml
 loggers:
@@ -173,30 +173,32 @@ schedules:
     cron_schedule: "30 2 * * *"
 
 jobs:
-  reviews_predictor_data_processing_base:
+  # Job factories: '{product}' binds to each namespace of the pipeline
+  # (reviews_predictor, price_predictor), so each key renders one job per product.
+  "{product}__data_processing_candidate1":
     pipeline:
       pipeline_name: data_processing
       node_namespaces:
-      - reviews_predictor
+      - "{product}"
       tags:
-      - base
-    loggers: ["console_logger", "file_logger"]
+      - candidate1
+    loggers: ["file_logger", "console_logger"]
     executor: multiprocessing
     schedule: daily
 
-  reviews_predictor_data_science_base:
+  "{product}__data_science_candidate1":
     pipeline:
       pipeline_name: data_science
       node_namespaces:
-      - reviews_predictor
+      - "{product}"
       tags:
-      - base
-    loggers: ["console_logger", "file_logger"]
-    executor: multiprocessing
+      - candidate1
+    loggers: ["file_logger", "console_logger"]
+    executor: sequential
     schedule: daily
 ```
 
-Notice that each Dagster job is generated from a filtered Kedro pipeline (selected by `pipeline_name` and narrowed by `node_namespaces` or `tags`). See [`PipelineOptions`](../api/generated/kedro_dagster.config.models.PipelineOptions.md) for all filtering parameters.
+Each Dagster job is generated from a filtered Kedro pipeline (selected by `pipeline_name` and narrowed by `node_namespaces` or `tags`; see [`PipelineOptions`](../api/generated/kedro_dagster.config.models.PipelineOptions.md)). Here the two `{product}` **job factories** render one job per namespace — `reviews_predictor__data_processing_candidate1`, `price_predictor__data_processing_candidate1`, and the `data_science` pair. Preview what a factory expands to with `kedro dagster resolve-patterns -e staging`, and see [How to Use Job Factories](../how-to/use-job-factories.md). The `prod` environment goes further, interpolating `{product}` into a per-product `executor` reference.
 
 ## Partitions in practice
 

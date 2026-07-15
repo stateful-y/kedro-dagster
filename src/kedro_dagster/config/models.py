@@ -1031,7 +1031,9 @@ class KedroDagsterConfig(BaseModel):
     schedules : dict[str, ScheduleOptions] or None
         Mapping of schedule names to schedule options.
     jobs : dict[str, JobOptions] or None
-        Mapping of job names to job options.
+        Mapping of job names to job options. A key containing ``{placeholder}``
+        markers is a job factory whose concrete jobs are derived from the Kedro
+        pipeline namespaces (see `kedro_dagster.factory`).
 
     Examples
     --------
@@ -1065,7 +1067,14 @@ class KedroDagsterConfig(BaseModel):
     loggers: dict[str, LoggerOptions] | None = None
     executors: dict[str, ExecutorOptions] | None = None
     schedules: dict[str, ScheduleOptions] | None = None
-    jobs: dict[str, JobOptions] | None = None
+    jobs: dict[str, JobOptions] | None = Field(
+        default=None,
+        description=(
+            "Named job definitions. A key containing '{placeholder}' markers is a job "
+            "factory whose concrete jobs are derived from the Kedro pipeline namespaces "
+            "(see `kedro_dagster.factory`); a key without markers is a literal job."
+        ),
+    )
 
     @model_validator(mode="before")
     @classmethod

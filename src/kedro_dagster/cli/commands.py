@@ -9,7 +9,7 @@ from typing import Any, Literal
 import click
 from dagster_dg_cli.cli import create_dg_cli
 
-from kedro_dagster.cli.functions import scaffold_dagster_files
+from kedro_dagster.cli.functions import list_job_patterns, resolve_job_patterns, scaffold_dagster_files
 from kedro_dagster.utils import DAGSTER_VERSION, find_kedro_project
 
 LOGGER = getLogger(__name__)
@@ -84,6 +84,58 @@ def init(env: str, force: bool, silent: bool) -> None:
     >>> kedro dagster init -e base --silent
     """
     scaffold_dagster_files(env=env, force=force, silent=silent)
+
+
+@dagster_commands.command(name="resolve-patterns")
+@click.option(
+    "--env",
+    "-e",
+    default="local",
+    help="The Kedro environment to load.",
+)
+def resolve_patterns(env: str) -> None:
+    """Print the concrete jobs derived from the job factories and pipelines.
+
+    The analogue of ``kedro catalog resolve-patterns``: renders every job factory
+    (``jobs`` keys containing ``{placeholder}`` markers) against the active pipeline
+    namespaces, plus any literal jobs, and lists the resulting job names with their
+    pipeline, node namespaces, and schedule. No Dagster code location is built.
+
+    Parameters
+    ----------
+    env : str
+        Kedro configuration environment to load. Defaults to ``"local"``.
+
+    Examples
+    --------
+    >>> kedro dagster resolve-patterns -e local
+    """
+    resolve_job_patterns(env=env)
+
+
+@dagster_commands.command(name="list-patterns")
+@click.option(
+    "--env",
+    "-e",
+    default="local",
+    help="The Kedro environment to load.",
+)
+def list_patterns(env: str) -> None:
+    """List the job-factory keys (``jobs`` keys containing ``{placeholder}`` markers).
+
+    The analogue of ``kedro catalog list-patterns``. Literal (non-factory) job keys
+    are not listed.
+
+    Parameters
+    ----------
+    env : str
+        Kedro configuration environment to load. Defaults to ``"local"``.
+
+    Examples
+    --------
+    >>> kedro dagster list-patterns -e local
+    """
+    list_job_patterns(env=env)
 
 
 if DAGSTER_VERSION >= (1, 10, 6):

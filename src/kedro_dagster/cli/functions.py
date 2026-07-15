@@ -2,10 +2,14 @@
 
 from logging import getLogger
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 import click
 
 from kedro_dagster.utils import DAGSTER_VERSION, find_kedro_project, write_jinja_template
+
+if TYPE_CHECKING:
+    from kedro_dagster.config import KedroDagsterConfig, ScheduleOptions
 
 LOGGER = getLogger(__name__)
 TEMPLATE_FOLDER_PATH = Path(__file__).parent.parent / "templates"
@@ -121,3 +125,100 @@ def scaffold_dagster_files(env: str, force: bool, silent: bool) -> None:
                         fg="green",
                     )
                 )
+
+
+def _load_config_and_pipelines(env: str) -> tuple["KedroDagsterConfig", dict[str, Any]]:
+    """Load the Dagster config and the registered pipelines for *env*.
+
+    Bootstraps the Kedro project, opens a session, and reads the Dagster
+    configuration plus the project's registered pipelines — the same inputs the
+    translator feeds to the job factory — without building a Dagster code location.
+
+    Parameters
+    ----------
+    env : str
+        Kedro configuration environment to load.
+
+    Returns
+    -------
+    tuple[KedroDagsterConfig, dict[str, Any]]
+        The parsed Dagster configuration and the registered pipelines by name.
+    """
+    # Lazy imports to avoid circular dependency and keep CLI import light
+    from kedro.framework.project import pipelines
+    from kedro.framework.session import KedroSession
+    from kedro.framework.startup import bootstrap_project
+
+    from kedro_dagster.config import get_dagster_config
+
+    project_path = find_kedro_project(Path.cwd()) or Path.cwd()
+    bootstrap_project(project_path)
+    # Mirror `KedroProjectTranslator.initialize_kedro`: assign the created session
+    # (typed `KedroSession`) rather than binding the `with ... as` target, whose
+    # `AbstractSession` type lacks `load_context`.
+    session = KedroSession.create(project_path=project_path, env=env)
+    context = session.load_context()
+    dagster_config = get_dagster_config(context)
+    # Materialize the lazy pipeline registry into a plain dict.
+    registered_pipelines = dict(pipelines)
+    return dagster_config, registered_pipelines
+
+
+def _format_schedule(schedule: "ScheduleOptions | str") -> str:
+    """Render a job's schedule (named reference or inline options) for display."""
+    if isinstance(schedule, str):
+        return schedule
+    return getattr(schedule, "cron_schedule", None) or "<inline>"
+
+
+def resolve_job_patterns(env: str) -> None:
+    """Print the concrete jobs derived from the job factories and pipelines.
+
+    The analogue of ``kedro catalog resolve-patterns``: renders every job factory
+    against the active pipeline namespaces (plus any literal jobs) and lists the
+    resulting job names with their pipeline, node namespaces, and schedule. No
+    Dagster code location is constructed.
+
+    Parameters
+    ----------
+    env : str
+        Kedro configuration environment to load.
+    """
+    from kedro_dagster.factory import enumerate_jobs
+
+    dagster_config, registered_pipelines = _load_config_and_pipelines(env)
+    jobs = enumerate_jobs(dagster_config, registered_pipelines)
+    if not jobs:
+        click.echo("No jobs resolved (no job factories or literal jobs in dagster.yml).")
+        return
+    for name in sorted(jobs):
+        job = jobs[name]
+        detail = [f"pipeline={job.pipeline.pipeline_name}"]
+        namespaces = ", ".join(job.pipeline.node_namespaces or [])
+        if namespaces:
+            detail.append(f"namespaces=[{namespaces}]")
+        if job.schedule:
+            detail.append(f"schedule={_format_schedule(job.schedule)}")
+        click.echo(f"{name}  ({'; '.join(detail)})")
+
+
+def list_job_patterns(env: str) -> None:
+    """List the job-factory keys (``jobs`` keys containing ``{placeholder}`` markers).
+
+    The analogue of ``kedro catalog list-patterns``. Literal (non-factory) job
+    keys are not listed.
+
+    Parameters
+    ----------
+    env : str
+        Kedro configuration environment to load.
+    """
+    from kedro_dagster.factory import is_factory
+
+    dagster_config, _ = _load_config_and_pipelines(env)
+    patterns = sorted(key for key in (dagster_config.jobs or {}) if is_factory(key))
+    if not patterns:
+        click.echo("No job factory patterns defined in dagster.yml.")
+        return
+    for pattern in patterns:
+        click.echo(pattern)

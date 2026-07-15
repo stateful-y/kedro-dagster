@@ -5,6 +5,7 @@ import os
 import re
 import subprocess
 import sys
+from types import SimpleNamespace
 
 import click
 import pytest
@@ -645,3 +646,85 @@ class TestCliListDefs:
         assets = output.get("assets", [])
         asset_keys = [asset.get("asset_key") or asset["key"] for asset in assets]
         assert len(asset_keys) >= 1, f"Expected at least 1 asset, got {asset_keys}"
+
+
+class TestPatternCommands:
+    """Tests for `kedro dagster resolve-patterns` and `list-patterns`."""
+
+    @staticmethod
+    def _patch_loader(monkeypatch, cfg, pipes):
+        """Patch the session-loading helper so no real Kedro project is needed."""
+        from kedro_dagster.cli import functions as fns
+
+        monkeypatch.setattr(fns, "_load_config_and_pipelines", lambda env: (cfg, pipes))
+
+    @staticmethod
+    def _factory_config():
+        from kedro_dagster.config.models import KedroDagsterConfig
+
+        return KedroDagsterConfig.model_validate({
+            "jobs": {
+                "{product}__training": {
+                    "pipeline": {"pipeline_name": "training", "node_namespaces": ["{product}"]},
+                    "schedule": "daily",
+                },
+                "nightly": {
+                    "pipeline": {"pipeline_name": "reporting"},
+                    "schedule": {"cron_schedule": "0 0 * * *"},
+                },
+                "adhoc": {"pipeline": {"pipeline_name": "adhoc"}},  # no schedule, no namespaces
+            }
+        })
+
+    @staticmethod
+    def _pipes():
+        return {
+            "training": SimpleNamespace(nodes=[SimpleNamespace(namespace="alpha"), SimpleNamespace(namespace="beta")])
+        }
+
+    def test_resolve_patterns_renders_jobs(self, monkeypatch):
+        """resolve-patterns prints rendered factory jobs and literal jobs with details."""
+        self._patch_loader(monkeypatch, self._factory_config(), self._pipes())
+        result = CliRunner().invoke(cli_dagster, ["resolve-patterns", "-e", "base"])
+        assert result.exit_code == 0, result.output
+        assert "alpha__training" in result.output
+        assert "beta__training" in result.output
+        assert "namespaces=[alpha]" in result.output
+        assert "schedule=daily" in result.output  # string schedule reference
+        assert "nightly" in result.output  # literal job included
+        assert "schedule=0 0 * * *" in result.output  # inline ScheduleOptions
+        assert "adhoc" in result.output  # literal job with no schedule / no namespaces
+
+    def test_list_patterns_lists_factory_keys_only(self, monkeypatch):
+        """list-patterns prints factory keys and omits literal jobs."""
+        self._patch_loader(monkeypatch, self._factory_config(), self._pipes())
+        result = CliRunner().invoke(cli_dagster, ["list-patterns", "-e", "base"])
+        assert result.exit_code == 0, result.output
+        assert "{product}__training" in result.output
+        assert "nightly" not in result.output
+
+    def test_resolve_patterns_empty(self, monkeypatch):
+        """resolve-patterns reports an empty state when there are no jobs."""
+        from kedro_dagster.config.models import KedroDagsterConfig
+
+        self._patch_loader(monkeypatch, KedroDagsterConfig(), {})
+        result = CliRunner().invoke(cli_dagster, ["resolve-patterns", "-e", "base"])
+        assert result.exit_code == 0, result.output
+        assert "No jobs resolved" in result.output
+
+    def test_list_patterns_empty(self, monkeypatch):
+        """list-patterns reports an empty state when there are no factory keys."""
+        from kedro_dagster.config.models import KedroDagsterConfig
+
+        self._patch_loader(monkeypatch, KedroDagsterConfig(), {})
+        result = CliRunner().invoke(cli_dagster, ["list-patterns", "-e", "base"])
+        assert result.exit_code == 0, result.output
+        assert "No job factory patterns" in result.output
+
+    def test_load_config_and_pipelines_real_project(self, monkeypatch, kedro_project_no_dagster_config_base):
+        """Exercise _load_config_and_pipelines end-to-end against a real project."""
+        options = kedro_project_no_dagster_config_base
+        monkeypatch.chdir(options.project_path)
+        result = CliRunner().invoke(cli_dagster, ["list-patterns", "-e", "base"])
+        assert result.exit_code == 0, result.output
+        assert "No job factory patterns" in result.output
