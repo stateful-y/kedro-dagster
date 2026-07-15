@@ -37,7 +37,7 @@ Kedro datasets become three kinds of Dagster objects:
 - **Assets**: Output datasets are defined as Dagster assets.
 - **IO Managers**: Each dataset gets a dedicated IO manager wrapping its `save` and `load` methods.
 
-A Kedro dataset's `metadata` parameter is propagated to the Dagster asset. For example, `description` appears in the Dagster UI, and `group_name` overrides the default group inferred from the node's pipeline.
+A Kedro dataset's `metadata` parameter is propagated to the Dagster asset. For example, `description` appears in the Dagster UI, and `group_name` overrides the default group derived from the node's namespace (see [Asset groups](#asset-groups)).
 
 See [`CatalogTranslator`](../api/generated/kedro_dagster.catalog.CatalogTranslator.md).
 
@@ -82,6 +82,21 @@ Dagster enforces that asset, op, and job names match `^[A-Za-z0-9_]+$`. Kedro-Da
 - **Nodes**: Dots are replaced with double underscores. If the result still contains disallowed characters, the name is replaced with a stable hash placeholder (`unnamed_node_<md5>`).
 
 These rules are implemented in `src/kedro_dagster/utils.py` by `format_dataset_name`, `format_node_name`, and `unformat_asset_name`.
+
+## Asset groups
+
+Each asset is assigned to a Dagster **group** derived from its Kedro **namespace**:
+
+- **Namespaced nodes** group by their namespace. A node named `marketing.ads.train_model` produces assets in the group `marketing/ads`.
+- **Un-namespaced nodes** group by the name of the pipeline they belong to.
+- A dataset can override its group with `group_name` in its catalog `metadata`.
+
+Because Kedro pipelines already map to Dagster **jobs**, the pipeline name is *not* folded into the group — the namespace alone defines the group, which keeps groups aligned with your modular-pipeline structure and avoids redundant names like `data_science__data_science`.
+
+Namespaces are hierarchical: on Dagster ≥ 1.13.9 the namespace separator renders as `/`, so `marketing.ads` becomes the nested group `marketing/ads`. These nested groups render as a tree in the asset graph and can be selected with wildcards, e.g. `group:"marketing/*"`. On older Dagster, the namespace falls back to a flat `__`-joined group (`marketing__ads`). A `group_name` override may also use `/`; it degrades to `__` (with a warning) on older Dagster rather than failing. The capability is detected once via `SUPPORTS_HIERARCHICAL_GROUPS` and applied by `_get_node_group_name` / `_normalize_group_name` in `src/kedro_dagster/utils.py`.
+
+!!! warning "Group names changed in this release"
+    Namespaced assets previously used a flat `namespace__pipeline` group (e.g. `marketing__ads__data_science`). They now group by namespace alone, rendered hierarchically on Dagster ≥ 1.13.9 (e.g. `marketing/ads`). If you reference a group by its literal string in an asset selection, schedule, or sensor, update it to the new name.
 
 ## See also
 

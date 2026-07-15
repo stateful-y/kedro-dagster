@@ -79,7 +79,7 @@ class TestMlflowConfig:
 
     def test_creates_op_with_config(self, simple_pipeline, simple_catalog, mocker):
         """Test that ops can be created when mlflow_config is provided."""
-        mocker.patch("kedro_dagster.nodes._get_node_pipeline_name", return_value="test_pipeline")
+        mocker.patch("kedro_dagster.nodes._get_node_group_name", return_value="test_pipeline")
 
         mock_config = SimpleNamespace(ui=SimpleNamespace(host="localhost", port=5000))
 
@@ -106,7 +106,7 @@ class TestMlflowExecution:
 
     def test_without_mlflow_resource(self, simple_pipeline, simple_catalog, mocker):
         """Test that op executes correctly when MLflow resource is not available."""
-        mocker.patch("kedro_dagster.nodes._get_node_pipeline_name", return_value="test_pipeline")
+        mocker.patch("kedro_dagster.nodes._get_node_group_name", return_value="test_pipeline")
 
         node_translator = NodeTranslator(
             pipelines=[simple_pipeline],
@@ -131,7 +131,7 @@ class TestMlflowExecution:
 
     def test_with_no_active_run(self, simple_pipeline, simple_catalog, mocker):
         """Test that op executes correctly when MLflow resource exists but no active run."""
-        mocker.patch("kedro_dagster.nodes._get_node_pipeline_name", return_value="test_pipeline")
+        mocker.patch("kedro_dagster.nodes._get_node_group_name", return_value="test_pipeline")
 
         mlflow_resource = mocker.Mock()
         named_resources = {"mlflow": dg.ResourceDefinition.hardcoded_resource(mlflow_resource)}
@@ -164,7 +164,7 @@ class TestMlflowExecution:
 
     def test_with_active_run(self, simple_pipeline, simple_catalog, mocker):
         """Test that op captures MLflow metadata when an active run exists."""
-        mocker.patch("kedro_dagster.nodes._get_node_pipeline_name", return_value="test_pipeline")
+        mocker.patch("kedro_dagster.nodes._get_node_group_name", return_value="test_pipeline")
 
         mlflow_resource = mocker.Mock()
         named_resources = {"mlflow": dg.ResourceDefinition.hardcoded_resource(mlflow_resource)}
@@ -221,7 +221,7 @@ class TestMlflowMetadata:
 
     def test_url_metadata_value(self, simple_pipeline, simple_catalog, mocker):
         """Test that MLflow URL is wrapped in MetadataValue.url for asset materialization."""
-        mocker.patch("kedro_dagster.nodes._get_node_pipeline_name", return_value="test_pipeline")
+        mocker.patch("kedro_dagster.nodes._get_node_group_name", return_value="test_pipeline")
 
         mlflow_resource = mocker.Mock()
         named_resources = {"mlflow": dg.ResourceDefinition.hardcoded_resource(mlflow_resource)}
