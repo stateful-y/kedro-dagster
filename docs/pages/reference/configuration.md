@@ -43,6 +43,38 @@ Each job maps a [Kedro pipeline](https://docs.kedro.org/en/stable/build/pipeline
 
 Accepted pipeline parameters: [`PipelineOptions`](../api/generated/kedro_dagster.config.models.PipelineOptions.md).
 
+### Job factories
+
+A `jobs:` key that contains `{placeholder}` markers is a **job factory** — the job-level analogue of a [Kedro dataset factory](https://docs.kedro.org/en/stable/catalog-data/kedro_dataset_factories/). Instead of writing one job per namespace by hand, a factory renders one concrete job per **pipeline node namespace**.
+
+The first `node_namespaces` entry is the *binding axis*: it is split on `.`, and each segment is either a `{placeholder}` (bound to that part of a node's namespace) or a literal (which must match). The distinct namespaces of the factory's `pipeline_name` pipeline, at the axis depth, become the jobs:
+
+```yaml
+jobs:
+  "{product}__data_processing_candidate1":
+    pipeline:
+      pipeline_name: data_processing
+      node_namespaces: ["{product}"] # binding axis: {product} = each namespace
+      tags: [candidate1]
+    executor: multiprocessing
+    schedule: daily
+```
+
+If the `data_processing` pipeline has nodes in the namespaces `reviews_predictor` and `price_predictor`, this single key renders two jobs: `reviews_predictor__data_processing_candidate1` and `price_predictor__data_processing_candidate1`, each with the interpolated body.
+
+Key points:
+
+- **Names render forward only.** A concrete name is produced by substituting the binding into the factory key; names are never reverse-parsed. The fixed job-type tail is separated from the placeholder-derived part by `__`, so `{product}__data_processing_candidate1` becomes `reviews_predictor__data_processing_candidate1` (single `_` inside the namespace value, `__` before the tail). Rendered names are valid Dagster names (`[A-Za-z0-9_]`).
+- **The whole body is interpolated.** Placeholders are substituted into every string in the job body — including references such as `executor: "{product}_executor"` — not just the key.
+- **Literal jobs win.** A `jobs:` key without markers is a literal job; on a name collision it takes precedence over a rendered one. When several factories render the same name, the most-specific (most literal characters) supplies the body.
+
+Preview the expansion without launching Dagster:
+
+```bash
+kedro dagster list-patterns -e <env>     # the factory ({placeholder}) keys
+kedro dagster resolve-patterns -e <env>  # the concrete jobs they render
+```
+
 ### Executors
 
 Define how jobs are executed: in-process, multiprocess, Docker, Celery, Kubernetes, etc. Each entry corresponds to a [Dagster executor](https://docs.dagster.io/guides/operate/run-executors#example-executors).

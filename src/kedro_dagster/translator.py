@@ -19,6 +19,7 @@ from kedro_dagster.dagster import (
     LoggerCreator,
     ScheduleCreator,
 )
+from kedro_dagster.factory import expand_job_factories
 from kedro_dagster.kedro import KedroRunTranslator
 from kedro_dagster.nodes import NodeTranslator
 from kedro_dagster.pipelines import PipelineTranslator
@@ -220,6 +221,12 @@ class KedroProjectTranslator:
         LOGGER.info("Translating Kedro project into Dagster...")
 
         dagster_config = get_dagster_config(self._context)
+        # Expand any job-factory keys ('{placeholder}' markers) into concrete jobs
+        # once, before any consumer reads dagster_config.jobs. Downstream creators
+        # (pipeline/executor/schedule/sensor) then see only concrete jobs.
+        from kedro.framework.project import pipelines
+
+        dagster_config = expand_job_factories(dagster_config, pipelines)
 
         kedro_run_translator = KedroRunTranslator(
             context=self._context,
