@@ -75,6 +75,8 @@ kedro dagster list-patterns -e <env>     # the factory ({placeholder}) keys
 kedro dagster resolve-patterns -e <env>  # the concrete jobs they render
 ```
 
+For a step-by-step walkthrough, see [How to Use Job Factories](../how-to/use-job-factories.md).
+
 ### Executors
 
 Define how jobs are executed: in-process, multiprocess, Docker, Celery, Kubernetes, etc. Each entry corresponds to a [Dagster executor](https://docs.dagster.io/guides/operate/run-executors#example-executors).
