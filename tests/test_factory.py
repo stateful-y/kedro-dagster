@@ -337,3 +337,10 @@ def test_resolve_jobs_literal_fast_path():
 def test_resolve_jobs_miss_lists_available():
     with pytest.raises(ValueError, match="Job\\(s\\) not found"):
         resolve_jobs(_config(_base_jobs()), ["nope__x__y__inference"], pipelines=_PIPES)
+
+
+def test_resolve_jobs_miss_without_factories():
+    # only literal jobs exist -> the requested name can never be rendered
+    cfg = _config({"snapshot": {"pipeline": {"pipeline_name": "snapshot"}}})
+    with pytest.raises(ValueError, match="Job\\(s\\) not found"):
+        resolve_jobs(cfg, ["ghost"])
