@@ -118,6 +118,52 @@ kedro dagster list-defs -e production
 
 ---
 
+## `kedro dagster resolve-patterns`
+
+Print the concrete jobs a [job factory](configuration.md#job-factories) expands to, derived from the active pipeline namespaces, plus any literal jobs. Each line shows the job name with its pipeline, node namespaces, and schedule. No Dagster code location is built, so this is a fast preview while authoring factory keys. Mirrors `kedro catalog resolve-patterns`.
+
+```text
+kedro dagster resolve-patterns [OPTIONS]
+```
+
+### Options
+
+| Option | Short | Description | Default |
+|--------|-------|-------------|---------|
+| `--env` | `-e` | Kedro configuration environment to load | `local` |
+
+### Examples
+
+```bash
+# Preview the jobs the factories render for an environment
+kedro dagster resolve-patterns -e staging
+```
+
+---
+
+## `kedro dagster list-patterns`
+
+List the job-factory keys (`jobs:` keys containing `{placeholder}` markers) defined in `dagster.yml`. Literal (non-factory) jobs are not listed. Mirrors `kedro catalog list-patterns`.
+
+```text
+kedro dagster list-patterns [OPTIONS]
+```
+
+### Options
+
+| Option | Short | Description | Default |
+|--------|-------|-------------|---------|
+| `--env` | `-e` | Kedro configuration environment to load | `local` |
+
+### Examples
+
+```bash
+# List the factory keys defined for an environment
+kedro dagster list-patterns -e staging
+```
+
+---
+
 ## Proxied `dg` Commands
 
 With Dagster >= 1.10.6, all commands from the `dg` CLI are available under `kedro dagster`. Each proxied command receives an additional `--env/-e` option to specify the Kedro environment. All other arguments are forwarded to the underlying `dg` command.

@@ -12,7 +12,7 @@ import dagster as dg
 from jinja2 import Environment, FileSystemLoader
 from pydantic import create_model
 
-from kedro_dagster.constants import DAGSTER_ALLOWED_PATTERN, KEDRO_DAGSTER_SEPARATOR
+from kedro_dagster.constants import DAGSTER_ALLOWED_PATTERN, DAGSTER_GROUP_SEPARATOR, KEDRO_DAGSTER_SEPARATOR
 from kedro_dagster.datasets import DagsterNothingDataset
 
 try:
@@ -55,6 +55,14 @@ def _get_version(package: str) -> tuple[int, int, int]:
 # Compute and expose module-level constants for importers.
 KEDRO_VERSION = _get_version("kedro")
 DAGSTER_VERSION = _get_version("dagster")
+
+SUPPORTS_HIERARCHICAL_GROUPS = DAGSTER_VERSION >= (1, 13, 9)
+"""Whether the installed Dagster renders ``/``-separated hierarchical asset groups (>= 1.13.9).
+
+When ``True``, namespace segments are joined with :data:`~kedro_dagster.constants.DAGSTER_GROUP_SEPARATOR`
+(``/``) to form nested groups; otherwise they fall back to
+:data:`~kedro_dagster.constants.KEDRO_DAGSTER_SEPARATOR` (``__``).
+"""
 
 
 @dataclass
@@ -595,8 +603,84 @@ def _is_param_name(dataset_name: str) -> bool:
     return dataset_name.startswith("params:") or dataset_name == "parameters"
 
 
-def _get_node_pipeline_name(node: "Node") -> str:
-    """Return the name of the pipeline that a node belongs to.
+def _sanitize_group_segment(segment: str) -> str:
+    """Make a single asset-group path segment valid under Dagster's naming rules.
+
+    Each segment of a group name must match ``[A-Za-z0-9_]+``; any other
+    character (including a stray ``.``) is replaced with
+    :data:`~kedro_dagster.constants.KEDRO_DAGSTER_SEPARATOR` (``__``), mirroring
+    :func:`format_node_name`.
+
+    Parameters
+    ----------
+    segment : str
+        A single group path segment.
+
+    Returns
+    -------
+    str
+        Sanitized segment.
+    """
+    return re.sub(r"[^A-Za-z0-9_]", KEDRO_DAGSTER_SEPARATOR, segment)
+
+
+def _normalize_group_name(segments: list[str]) -> str:
+    """Join namespace segments into a Dagster asset group name.
+
+    Each segment is sanitized to ``[A-Za-z0-9_]`` and empty segments are
+    dropped. Segments are joined with ``/`` when the installed Dagster supports
+    hierarchical group names (>= 1.13.9, see :data:`SUPPORTS_HIERARCHICAL_GROUPS`)
+    and with ``__`` otherwise.
+
+    Parameters
+    ----------
+    segments : list[str]
+        Ordered group path segments (e.g. ``["marketing", "ads"]``).
+
+    Returns
+    -------
+    str
+        A valid Dagster group name (e.g. ``"marketing/ads"`` or ``"marketing__ads"``).
+    """
+    separator = DAGSTER_GROUP_SEPARATOR if SUPPORTS_HIERARCHICAL_GROUPS else KEDRO_DAGSTER_SEPARATOR
+    return separator.join(_sanitize_group_segment(segment) for segment in segments if segment)
+
+
+def _normalize_group_override(raw_group_name: str) -> str:
+    """Normalize a catalog ``metadata['group_name']`` override into a valid group name.
+
+    The override is split on ``/`` (the user's hierarchy marker) and re-joined
+    with the version-appropriate separator. If it uses ``/`` on a Dagster that
+    does not support hierarchical groups, it degrades to ``__`` with a warning
+    rather than raising ``DagsterInvalidDefinitionError``.
+
+    Parameters
+    ----------
+    raw_group_name : str
+        Raw override string from the catalog metadata.
+
+    Returns
+    -------
+    str
+        Normalized group name.
+    """
+    segments = raw_group_name.split(DAGSTER_GROUP_SEPARATOR)
+    if len(segments) > 1 and not SUPPORTS_HIERARCHICAL_GROUPS:
+        LOGGER.warning(
+            f"Asset group override `{raw_group_name}` uses hierarchical `/` separators, which require "
+            f"Dagster >= 1.13.9. Falling back to a `{KEDRO_DAGSTER_SEPARATOR}`-separated group name."
+        )
+    return _normalize_group_name(segments)
+
+
+def _get_node_group_name(node: "Node") -> str:
+    """Return the Dagster asset group name for a Kedro node.
+
+    The group is derived from the node's Kedro **namespace** (the dotted prefix
+    of its name), rendered hierarchically (``marketing.ads`` -> ``marketing/ads``)
+    when Dagster supports it. A node without a namespace falls back to the name of
+    the pipeline it belongs to. Pipeline membership itself is expressed by the
+    Dagster job, so the pipeline name is not folded into a namespaced node's group.
 
     Parameters
     ----------
@@ -606,14 +690,14 @@ def _get_node_pipeline_name(node: "Node") -> str:
     Returns
     -------
     str
-        Name of the pipeline the node belongs to.
+        Asset group name for the node's outputs.
 
     See Also
     --------
-    `kedro_dagster.utils.format_node_name` :
-        Formats node names for Dagster compatibility.
+    `kedro_dagster.utils._normalize_group_name` :
+        Joins namespace segments with the version-appropriate separator.
     `kedro_dagster.nodes.NodeTranslator` :
-        Uses pipeline names when building Dagster assets.
+        Uses group names when building Dagster assets.
     """
     from kedro.framework.project import find_pipelines
 
@@ -621,8 +705,7 @@ def _get_node_pipeline_name(node: "Node") -> str:
         pipelines: dict[str, Pipeline] = find_pipelines()
     except Exception:
         LOGGER.warning(
-            f"Node `{node.name}` could not be matched to a pipeline. "
-            "Assigning '__none__' as its corresponding pipeline name."
+            f"Node `{node.name}` could not be matched to a pipeline. Assigning '__none__' as its asset group name."
         )
         return "__none__"
 
@@ -631,13 +714,11 @@ def _get_node_pipeline_name(node: "Node") -> str:
             for pipeline_node in pipeline.nodes:
                 if node.name == pipeline_node.name:
                     if "." in node.name:
-                        namespace = format_node_name(".".join(node.name.split(".")[:-1]))
-                        return f"{namespace}__{pipeline_name}"
+                        # Namespaced node: group by the namespace hierarchy, not the pipeline.
+                        return _normalize_group_name(node.name.split(".")[:-1])
                     return pipeline_name
 
-    LOGGER.warning(
-        f"Node `{node.name}` is not part of any pipelines. Assigning '__none__' as its corresponding pipeline name."
-    )
+    LOGGER.warning(f"Node `{node.name}` is not part of any pipelines. Assigning '__none__' as its asset group name.")
 
     return "__none__"
 

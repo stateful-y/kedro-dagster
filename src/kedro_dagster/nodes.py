@@ -23,8 +23,9 @@ from pydantic import BaseModel, ConfigDict
 from kedro_dagster.constants import NOTHING_OUTPUT
 from kedro_dagster.utils import (
     _create_pydantic_model_from_dict,
-    _get_node_pipeline_name,
+    _get_node_group_name,
     _is_param_name,
+    _normalize_group_override,
     format_dataset_name,
     format_node_name,
     get_asset_key_from_dataset_name,
@@ -269,7 +270,7 @@ class NodeTranslator:
             Also calls this helper for op output definitions.
         """
         metadata, description = None, None
-        group_name = _get_node_pipeline_name(node)
+        group_name = _get_node_group_name(node)
         io_manager_key = "io_manager"
 
         if asset_name in self.asset_names:
@@ -277,7 +278,9 @@ class NodeTranslator:
             if dataset is not None:
                 metadata = getattr(dataset, "metadata", None) or {}
                 description = metadata.pop("description", "")
-                group_name = metadata.pop("group_name", group_name)
+                raw_group_name = metadata.pop("group_name", None)
+                if raw_group_name is not None:
+                    group_name = _normalize_group_override(raw_group_name)
                 if not isinstance(dataset, MemoryDataset):
                     candidate_key = f"{self._env}__{asset_name}_io_manager"
                     if candidate_key in self._named_resources:
@@ -734,11 +737,13 @@ class NodeTranslator:
                 if not isinstance(dataset, MemoryDataset):
                     io_manager_key = f"{self._env}__{external_asset_name}_io_manager"
 
-                group_name = metadata.pop("group_name", None)
-                if group_name is None:
+                raw_group_name = metadata.pop("group_name", None)
+                if raw_group_name is not None:
+                    group_name = _normalize_group_override(raw_group_name)
+                else:
                     # All pipeline inputs are not necessarily external. A partition that is an input of a node
                     # along with a DagsterNothingDataset is most likely part of the pipeline itself and its
-                    # group name should match that of the node's pipeline.
+                    # group name should match that of the node's group.
                     # Note that this is a best-effort attempt and may not cover all cases (e.g. same node part
                     # of multiple pipelines).
                     group_name = "external"
@@ -747,7 +752,7 @@ class NodeTranslator:
                             if external_dataset_name in pipeline_node.inputs and any(
                                 is_nothing_asset_name(self._catalog, ds) for ds in pipeline_node.inputs
                             ):
-                                group_name = _get_node_pipeline_name(pipeline_node)
+                                group_name = _get_node_group_name(pipeline_node)
                                 break
 
                 partitions_def = None

@@ -33,6 +33,10 @@ See the [Kedro documentation](https://docs.kedro.org/) and the [Kedro starters](
 
 Orchestration settings live in a `dagster.yml` file per Kedro environment rather than being scattered across Python code. This keeps infrastructure concerns (which executor to use, what schedule to run) separate from pipeline logic, and makes it possible to change deployment behavior without modifying a single line of Python. See the [configuration reference](../reference/configuration.md) for all available fields.
 
+### Job factories
+
+Just as [Kedro dataset factories](https://docs.kedro.org/en/stable/catalog-data/kedro_dataset_factories/) collapse repetitive catalog entries into one templated rule, a **job factory** collapses repetitive `jobs:` entries. A key with `{placeholder}` markers expands into one Dagster job per pipeline node namespace, so running the same pipeline across many products, regions, or model variants is a single templated definition instead of copy-paste. See [How to Use Job Factories](../how-to/use-job-factories.md).
+
 ### Customization
 
 The translation produces a standard Dagster `definitions.py` that serves as the project entry point. Because it is regular Python, you can extend or override any part of the generated definitions for specialized requirements such as custom resources or deployment patterns.

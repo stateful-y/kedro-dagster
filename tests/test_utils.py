@@ -11,9 +11,12 @@ from pydantic import BaseModel, ValidationError
 
 from kedro_dagster.datasets import DagsterNothingDataset
 from kedro_dagster.utils import (
+    SUPPORTS_HIERARCHICAL_GROUPS,
     _create_pydantic_model_from_dict,
-    _get_node_pipeline_name,
+    _get_node_group_name,
     _is_param_name,
+    _normalize_group_name,
+    _normalize_group_override,
     format_dataset_name,
     format_node_name,
     format_partition_key,
@@ -166,19 +169,38 @@ class TestIsParamName:
         assert _is_param_name("params:my_param")
 
 
-class TestGetNodePipelineName:
-    """Tests for _get_node_pipeline_name."""
+class TestGetNodeGroupName:
+    """Tests for _get_node_group_name."""
 
-    def test_infers_pipeline_name_from_registry(self, monkeypatch):
-        """Infer the pipeline name a node belongs to from the pipelines registry."""
+    def test_namespaced_node_groups_by_namespace(self, monkeypatch):
+        """A namespaced node groups by its namespace, not by the pipeline name."""
         mock_node = SimpleNamespace(name="test.node")
         mock_pipeline = SimpleNamespace(nodes=[mock_node])
 
         monkeypatch.setattr("kedro.framework.project.find_pipelines", lambda: {"pipeline": mock_pipeline})
 
-        pipeline_name = _get_node_pipeline_name(mock_node)
+        # Namespace "test" is a single segment: same on both Dagster capabilities,
+        # and the pipeline name ("pipeline") is no longer appended.
+        assert _get_node_group_name(mock_node) == "test"
 
-        assert pipeline_name == "test__pipeline"
+    def test_nested_namespace_uses_hierarchical_group(self, monkeypatch):
+        """A nested namespace maps to a hierarchical group using the active separator."""
+        mock_node = SimpleNamespace(name="marketing.ads.node")
+        mock_pipeline = SimpleNamespace(nodes=[mock_node])
+
+        monkeypatch.setattr("kedro.framework.project.find_pipelines", lambda: {"pipeline": mock_pipeline})
+
+        expected = "marketing/ads" if SUPPORTS_HIERARCHICAL_GROUPS else "marketing__ads"
+        assert _get_node_group_name(mock_node) == expected
+
+    def test_namespace_equal_to_pipeline_name_is_not_doubled(self, monkeypatch):
+        """namespace == pipeline name yields a single segment, not data_science__data_science."""
+        mock_node = SimpleNamespace(name="data_science.node")
+        mock_pipeline = SimpleNamespace(nodes=[mock_node])
+
+        monkeypatch.setattr("kedro.framework.project.find_pipelines", lambda: {"data_science": mock_pipeline})
+
+        assert _get_node_group_name(mock_node) == "data_science"
 
     def test_returns_none_and_warns_when_node_not_found(self, monkeypatch, caplog):
         """Return '__none__' and log a warning when the node is not in any pipeline."""
@@ -188,10 +210,115 @@ class TestGetNodePipelineName:
         )
 
         with caplog.at_level("WARNING"):
-            result = _get_node_pipeline_name(mock_node)
+            result = _get_node_group_name(mock_node)
 
             assert result == "__none__"
             assert "not part of any pipelines" in caplog.text
+
+
+class TestGroupNameNormalization:
+    """Tests for _normalize_group_name / _normalize_group_override across Dagster capabilities."""
+
+    def test_hierarchical_separator_when_supported(self, monkeypatch):
+        """Segments join with '/' when Dagster supports hierarchical groups."""
+        monkeypatch.setattr("kedro_dagster.utils.SUPPORTS_HIERARCHICAL_GROUPS", True)
+
+        assert _normalize_group_name(["marketing", "ads"]) == "marketing/ads"
+        assert _normalize_group_name(["marketing"]) == "marketing"
+
+    def test_flat_separator_when_unsupported(self, monkeypatch):
+        """Segments fall back to '__' on Dagster < 1.13.9; no '/' is emitted."""
+        monkeypatch.setattr("kedro_dagster.utils.SUPPORTS_HIERARCHICAL_GROUPS", False)
+
+        result = _normalize_group_name(["marketing", "ads"])
+        assert result == "marketing__ads"
+        assert "/" not in result
+
+    def test_segments_are_sanitized(self, monkeypatch):
+        """Non-alphanumeric characters within a segment are replaced, '/' only separates."""
+        monkeypatch.setattr("kedro_dagster.utils.SUPPORTS_HIERARCHICAL_GROUPS", True)
+
+        assert _normalize_group_name(["a.b", "c-d"]) == "a__b/c__d"
+
+    def test_empty_segments_are_dropped(self, monkeypatch):
+        """Empty segments (e.g. from a trailing '/') are dropped to keep the name valid."""
+        monkeypatch.setattr("kedro_dagster.utils.SUPPORTS_HIERARCHICAL_GROUPS", True)
+
+        assert _normalize_group_name(["marketing", ""]) == "marketing"
+
+    def test_override_with_hierarchy_when_supported(self, monkeypatch):
+        """A '/'-containing override nests on supported Dagster."""
+        monkeypatch.setattr("kedro_dagster.utils.SUPPORTS_HIERARCHICAL_GROUPS", True)
+
+        assert _normalize_group_override("marketing/ads") == "marketing/ads"
+
+    def test_override_without_hierarchy_is_unchanged(self, monkeypatch):
+        """A plain override (no '/') is preserved on both capabilities."""
+        monkeypatch.setattr("kedro_dagster.utils.SUPPORTS_HIERARCHICAL_GROUPS", True)
+        assert _normalize_group_override("custom_output_group") == "custom_output_group"
+
+        monkeypatch.setattr("kedro_dagster.utils.SUPPORTS_HIERARCHICAL_GROUPS", False)
+        assert _normalize_group_override("custom_output_group") == "custom_output_group"
+
+    def test_override_with_hierarchy_degrades_with_warning(self, monkeypatch, caplog):
+        """A '/'-containing override degrades to '__' with a warning on old Dagster, not an error."""
+        monkeypatch.setattr("kedro_dagster.utils.SUPPORTS_HIERARCHICAL_GROUPS", False)
+
+        with caplog.at_level("WARNING"):
+            result = _normalize_group_override("marketing/ads")
+
+        assert result == "marketing__ads"
+        assert "require Dagster >= 1.13.9" in caplog.text
+
+
+@pytest.mark.skipif(
+    not SUPPORTS_HIERARCHICAL_GROUPS,
+    reason="Hierarchical '/' asset groups require Dagster >= 1.13.9",
+)
+class TestHierarchicalGroupSelection:
+    """Smoke tests: Dagster accepts '/'-separated groups and they stay selectable."""
+
+    @staticmethod
+    def _asset_graph():
+        @dg.asset(group_name="marketing/ads")
+        def ads(): ...
+
+        @dg.asset(group_name="marketing/email")
+        def email(): ...
+
+        # The flat "external" group must keep working alongside hierarchical ones.
+        @dg.asset(group_name="external")
+        def upstream(): ...
+
+        return dg.Definitions(assets=[ads, email, upstream]).resolve_asset_graph()
+
+    def test_hierarchical_group_is_accepted_and_selectable(self):
+        """A '/'-separated group name is valid and resolvable via an exact group selection."""
+        asset_graph = self._asset_graph()
+
+        selected = dg.AssetSelection.groups("marketing/ads").resolve(asset_graph)
+
+        assert {str(k) for k in selected} == {"AssetKey(['ads'])"}
+
+    def test_subtree_is_addressable_by_hierarchical_groups(self):
+        """The `marketing` subtree is addressable through its hierarchical group names.
+
+        The Dagster UI exposes this as the `group:"marketing/*"` wildcard query; at the
+        Python API level the same subtree is the union of its leaf group selections.
+        """
+        asset_graph = self._asset_graph()
+
+        subtree = dg.AssetSelection.groups("marketing/ads") | dg.AssetSelection.groups("marketing/email")
+
+        assert {str(k) for k in subtree.resolve(asset_graph)} == {"AssetKey(['ads'])", "AssetKey(['email'])"}
+
+    def test_external_group_unchanged(self):
+        """The flat 'external' group is still valid and selectable."""
+        asset_graph = self._asset_graph()
+
+        selected = dg.AssetSelection.groups("external").resolve(asset_graph)
+
+        assert {str(k) for k in selected} == {"AssetKey(['upstream'])"}
 
 
 class TestGetFilterParamsDict:
@@ -554,8 +681,8 @@ class TestPydanticModelNoneValues:
         assert instance2.nullable_field == "hello"
 
 
-class TestGetNodePipelineNameNonNamespaced:
-    """Test _get_node_pipeline_name with non-namespaced node names."""
+class TestGetNodeGroupNameNonNamespaced:
+    """Test _get_node_group_name with non-namespaced node names."""
 
     def test_non_namespaced_node_returns_pipeline_name(self, monkeypatch):
         """Return plain pipeline name for non-namespaced node (no dots)."""
@@ -564,7 +691,7 @@ class TestGetNodePipelineNameNonNamespaced:
 
         monkeypatch.setattr("kedro.framework.project.find_pipelines", lambda: {"my_pipeline": mock_pipeline})
 
-        result = _get_node_pipeline_name(mock_node)
+        result = _get_node_group_name(mock_node)
         assert result == "my_pipeline"
 
     def test_skips_default_pipeline(self, monkeypatch):
@@ -578,7 +705,7 @@ class TestGetNodePipelineNameNonNamespaced:
             lambda: {"__default__": default_pipeline, "data_processing": named_pipeline},
         )
 
-        result = _get_node_pipeline_name(mock_node)
+        result = _get_node_group_name(mock_node)
         assert result == "data_processing"
 
     def test_iterates_past_non_matching_nodes(self, monkeypatch):
@@ -592,7 +719,7 @@ class TestGetNodePipelineNameNonNamespaced:
             lambda: {"pipeline_a": pipeline_with_both},
         )
 
-        result = _get_node_pipeline_name(target_node)
+        result = _get_node_group_name(target_node)
         assert result == "pipeline_a"
 
     def test_iterates_past_non_matching_pipelines(self, monkeypatch):
@@ -607,5 +734,5 @@ class TestGetNodePipelineNameNonNamespaced:
             lambda: {"pipeline_a": pipeline_a, "pipeline_b": pipeline_b},
         )
 
-        result = _get_node_pipeline_name(target_node)
+        result = _get_node_group_name(target_node)
         assert result == "pipeline_b"
