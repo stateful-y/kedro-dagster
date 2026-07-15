@@ -6,6 +6,7 @@ Practical directions for common tasks. Each guide addresses a specific goal and 
 
 - **[How to Configure Logging](configure-logging.md)**: Unify Kedro and Dagster logs and customize formatters.
 - **[How to Configure Custom Executors](configure-executors.md)**: Set up multiprocess, Docker, Kubernetes, Dask, or Celery executors.
+- **[How to Use Job Factories](use-job-factories.md)**: Replace repeated per-namespace jobs with a single templated factory.
 
 ## Integration
 
