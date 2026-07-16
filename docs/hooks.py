@@ -627,27 +627,28 @@ _H1_RE = re.compile(r"^#\s+(.+?)\s*$", re.MULTILINE)
 _DESCRIPTION_RE = re.compile(r"^description:\s*(.+?)\s*$", re.MULTILINE)
 
 
-def _nav_order(config):
-    """Map ``src_path`` -> position in the configured nav.
+def _nav_entries(config):
+    """Map ``src_path`` -> (position in the nav, title the nav gives it).
 
     The nav is the order the author chose and the order the reader sees in the
     sidebar; an index that lists its pages in a different order than the nav
-    beside it reads as a different set of pages.
+    beside it reads as a different set of pages. The title is a fallback for a
+    page that has no H1 of its own -- see _page_title_and_description.
     """
-    order = {}
+    entries = {}
 
-    def walk(node):
+    def walk(node, title=None):
         if isinstance(node, str):
-            order.setdefault(node, len(order))
+            entries.setdefault(node, (len(entries), title))
         elif isinstance(node, list):
             for child in node:
                 walk(child)
         elif isinstance(node, dict):
-            for value in node.values():
-                walk(value)
+            for key, value in node.items():
+                walk(value, key if isinstance(value, str) else None)
 
     walk(config.get("nav") or [])
-    return order
+    return entries
 
 
 def _page_title_and_description(abs_path):
@@ -715,21 +716,26 @@ def _build_subpages_list(config, page, files):
         log.warning("<!-- SUBPAGES --> on %s, which has no sibling pages to list.", src)
         return "<!-- no subpages -->\n"
 
-    order = _nav_order(config)
+    entries = _nav_entries(config)
     rows = []
     for sibling in siblings:
         title, description = _page_title_and_description(sibling.abs_src_path)
+        position, nav_title = entries.get(sibling.src_path, (len(entries) + 1, None))
         if title is None:
-            # No H1 means no name to show. Inventing one from the filename would
-            # paper over a page that is genuinely malformed.
-            log.warning("%s has no H1 heading; omitted from the %s index.", sibling.src_path, src)
+            # A page can legitimately have no H1 in its own source: a bare
+            # `--8<-- "CHANGELOG.md"` include grows one only once snippets
+            # expand, which is after this runs. The nav already names such a
+            # page, and that name is what the sidebar shows, so prefer it over
+            # dropping the page from its own index.
+            title = nav_title
+        if title is None:
+            log.warning(
+                "%s has no H1 heading and no nav title; omitted from the %s index.",
+                sibling.src_path,
+                src,
+            )
             continue
-        rows.append((
-            order.get(sibling.src_path, len(order) + 1),
-            title,
-            posixpath.basename(sibling.src_path),
-            description,
-        ))
+        rows.append((position, title, posixpath.basename(sibling.src_path), description))
 
     if not rows:
         return "<!-- no subpages -->\n"
