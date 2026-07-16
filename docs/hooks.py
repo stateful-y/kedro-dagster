@@ -461,7 +461,21 @@ def _generate_api_pages(project_root):
         print(f"[hooks] generated {member_count} API member pages in pages/api/generated/")
 
 
-def _build_api_table_html(project_root):
+def _site_root_prefix(page):
+    """Relative path from `page`'s rendered URL back to the site root.
+
+    Every link this file injects is relative, because the site may be served
+    under a subpath and `use_directory_urls` makes each page its own directory.
+    A hardcoded `../../` only works if the page never moves: a project is free
+    to put its API index at `pages/api/index.md` rather than the template's
+    `pages/reference/api.md`, and a fixed prefix silently 404s every link on it.
+    """
+    parts = page.file.src_path.split("/")
+    depth = len(parts) if parts[-1] != "index.md" else len(parts) - 1
+    return "../" * depth
+
+
+def _build_api_table_html(project_root, prefix):
     """Build an HTML <table> for the API index with DataTables init.
 
     Lists every public class and function across all submodules with
@@ -481,7 +495,7 @@ def _build_api_table_html(project_root):
 
         members = _get_public_members(mod_file, pkg_dir)
         module_label = f"kedro_dagster.{mod['module_name']}"
-        module_href = f"../../api/{mod['module_name']}/"
+        module_href = f"{prefix}pages/api/{mod['module_name']}/"
 
         for cls in members["classes"]:
             qualified = f"kedro_dagster.{mod['module_name']}.{cls['name']}"
@@ -500,7 +514,7 @@ def _build_api_table_html(project_root):
 
     tbody_lines = []
     for name, kind, module_label, module_href, desc, qualified in rows:
-        href = f"../../api/generated/{qualified}/"
+        href = f"{prefix}pages/api/generated/{qualified}/"
         badge_cls = _type_badge_cls.get(kind, "")
         tbody_lines.append(
             f"      <tr>"
@@ -1290,10 +1304,11 @@ def on_page_markdown(markdown, page, config, files):
     ``<!-- API_TABLE -->``         → submodule table for API index
     """
     project_root = Path(__file__).parent.parent
+    prefix = _site_root_prefix(page)
 
     # API_TABLE placeholder
     if "<!-- API_TABLE -->" in markdown:
-        table = _build_api_table_html(project_root)
+        table = _build_api_table_html(project_root, prefix)
         markdown = markdown.replace("<!-- API_TABLE -->", table)
 
     # Strip EXAMPLES_FOR placeholders when examples are disabled
