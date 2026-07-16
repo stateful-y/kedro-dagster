@@ -264,9 +264,16 @@ def build_docs(session: nox.Session) -> None:
     session.run("mkdocs", "build", "--clean", external=True)
 
 
-@nox.session(venv_backend="uv")
+@nox.session(python=PYTHON_VERSIONS[0], venv_backend="uv")
 def check_docs(session: nox.Session) -> None:
     """Build the docs with warnings fatal, without executing the notebooks.
+
+    Pinned to the lowest supported Python rather than whatever the caller happens
+    to have: an unpinned session takes the ambient interpreter, which can sit
+    outside requires-python and die in `uv sync` before mkdocs runs. CI only
+    passes today because the runner's default happens to be in range -- a runner
+    bumped past the ceiling would turn this red for a reason that has nothing to
+    do with the docs.
 
     docs/hooks.py warns when a marker resolves to nothing, because a placeholder
     that renders nothing looks exactly like a page that never had one -- the
