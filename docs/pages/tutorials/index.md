@@ -1,6 +1,6 @@
 # Tutorials
 
-Learn to use Kedro-Dagster through hands-on, step-by-step exercises. Start with Getting Started, then explore the Example Project for advanced patterns.
+Learn to use Kedro-Dagster through hands-on, step-by-step exercises. Start with Getting Started, then explore the Example Project for advanced patterns, or bring a project you already have across.
 
 <div class="grid cards" markdown>
 
@@ -11,5 +11,9 @@ Learn to use Kedro-Dagster through hands-on, step-by-step exercises. Start with 
 - **[Example Project](example-project.md)**
 
     Explore a complete project with dynamic pipelines, partitions, MLflow tracking, and multi-environment configuration.
+
+- **[Migrate an Existing Project](migrate-existing-project.md)**
+
+    Add Dagster orchestration to a Kedro project you already have, keeping its datasets, hooks, and configuration in place.
 
 </div>

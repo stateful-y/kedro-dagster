@@ -5,3 +5,5 @@ Technical descriptions of every configurable option, CLI command, and public API
 - **[Configuration Reference](configuration.md)**: Complete field tables for `dagster.yml`: jobs, executors, schedules, and loggers.
 - **[CLI Reference](cli.md)**: All `kedro dagster` commands with flags, defaults, and examples.
 - **[API Reference](api.md)**: Auto-generated documentation for all public classes and functions.
+- **[Dataset Reference](datasets.md)**: The custom datasets Kedro-Dagster provides: `DagsterNothingDataset` and `DagsterPartitionedDataset`.
+- **[Changelog](changelog.md)**: Release history for every published version.

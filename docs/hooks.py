@@ -3,12 +3,20 @@
 import ast
 import fnmatch
 import importlib.util
+import logging
 import posixpath
 import re
 import shutil
 import subprocess
 from html.parser import HTMLParser
 from pathlib import Path
+
+# Warnings logged under the "mkdocs" logger tree are counted by mkdocs and turn
+# a --strict build red. Every marker this file understands is silently inert
+# when it does not resolve -- a placeholder that renders nothing looks exactly
+# like a page that never had one. Warning here is what makes a dead marker a
+# build failure instead of a blank space nobody notices.
+log = logging.getLogger("mkdocs.hooks")
 
 # Module-level caches. MkDocs loads hooks as plugin instances and does not
 # reload the module between builds, so these live for the whole process --
@@ -567,6 +575,168 @@ def _build_api_table_html(project_root, prefix):
         "});\n"
         "</script>"
     )
+
+
+# ---------------------------------------------------------------------------
+# Marker substitution
+# ---------------------------------------------------------------------------
+
+
+def _replace_marker(markdown, marker, replacement):
+    """Replace ``marker`` with ``replacement``, re-indented to the marker's column.
+
+    A marker nested inside an indented block -- an admonition body, a list item
+    -- carries leading whitespace that its replacement has to inherit. A plain
+    ``str.replace`` indents only the first line, so every line after it lands at
+    column 0 and silently falls out of the enclosing block: the block keeps the
+    first line and the rest renders as a sibling. That failure is invisible in
+    the markdown and only shows up in the built HTML, which is why it survived
+    so long. Matching the indentation keeps the replacement inside whatever the
+    author nested it in.
+    """
+    if marker not in markdown:
+        return markdown
+
+    out = []
+    for line in markdown.split("\n"):
+        stripped = line.strip()
+        if stripped != marker:
+            # A marker sharing its line with prose is substituted in place; it
+            # was never nested, so there is no indentation to match.
+            out.append(line.replace(marker, replacement) if marker in line else line)
+            continue
+        indent = line[: len(line) - len(line.lstrip())]
+        if not replacement:
+            continue
+        if not indent:
+            out.append(replacement)
+            continue
+        # Blank lines stay blank: trailing whitespace on an "empty" line is a
+        # lint violation, and markdown does not need it to keep the block open.
+        out.extend(indent + rline if rline.strip() else "" for rline in replacement.split("\n"))
+    return "\n".join(out)
+
+
+# ---------------------------------------------------------------------------
+# Section index (<!-- SUBPAGES -->)
+# ---------------------------------------------------------------------------
+
+
+_FRONTMATTER_RE = re.compile(r"\A---\n(.*?)\n---\n", re.DOTALL)
+_H1_RE = re.compile(r"^#\s+(.+?)\s*$", re.MULTILINE)
+_DESCRIPTION_RE = re.compile(r"^description:\s*(.+?)\s*$", re.MULTILINE)
+
+
+def _nav_order(config):
+    """Map ``src_path`` -> position in the configured nav.
+
+    The nav is the order the author chose and the order the reader sees in the
+    sidebar; an index that lists its pages in a different order than the nav
+    beside it reads as a different set of pages.
+    """
+    order = {}
+
+    def walk(node):
+        if isinstance(node, str):
+            order.setdefault(node, len(order))
+        elif isinstance(node, list):
+            for child in node:
+                walk(child)
+        elif isinstance(node, dict):
+            for value in node.values():
+                walk(value)
+
+    walk(config.get("nav") or [])
+    return order
+
+
+def _page_title_and_description(abs_path):
+    """Pull a page's title and one-line summary from its own source.
+
+    Title is the H1; summary is the frontmatter ``description`` when present,
+    else the first prose paragraph. Deriving both from the page keeps the index
+    honest -- there is no second copy of the title to drift out of sync.
+    """
+    try:
+        text = Path(abs_path).read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return None, ""
+
+    description = ""
+    frontmatter = _FRONTMATTER_RE.match(text)
+    if frontmatter:
+        found = _DESCRIPTION_RE.search(frontmatter.group(1))
+        if found:
+            description = found.group(1).strip().strip("\"'")
+        text = text[frontmatter.end() :]
+
+    heading = _H1_RE.search(text)
+    if not heading:
+        return None, description
+    title = heading.group(1).strip()
+
+    if not description:
+        body = text[heading.end() :]
+        for raw_block in body.split("\n\n"):
+            block = raw_block.strip()
+            # Skip anything that is not prose: nested headings, markers,
+            # admonitions, code fences, tables, images, lists.
+            if not block or block[0] in "#<!|-*>`" or block.startswith("!!!"):
+                continue
+            description = " ".join(block.split())
+            break
+
+    return title, description
+
+
+def _build_subpages_list(config, page, files):
+    """List the pages this index page introduces, as ``- [Title](slug.md): summary``.
+
+    Generated rather than hand-written: an index is the one page guaranteed to
+    fall behind, because adding a page elsewhere is what makes it stale, and
+    nothing fails when it does.
+    """
+    src = page.file.src_path
+    directory = posixpath.dirname(src)
+
+    siblings = []
+    for candidate in files:
+        candidate_src = getattr(candidate, "src_path", "")
+        if not candidate_src.endswith(".md") or candidate_src == src:
+            continue
+        # Direct children only: a nested section owns its own index.
+        if posixpath.dirname(candidate_src) != directory:
+            continue
+        if posixpath.basename(candidate_src) == "index.md":
+            continue
+        siblings.append(candidate)
+
+    if not siblings:
+        log.warning("<!-- SUBPAGES --> on %s, which has no sibling pages to list.", src)
+        return "<!-- no subpages -->\n"
+
+    order = _nav_order(config)
+    rows = []
+    for sibling in siblings:
+        title, description = _page_title_and_description(sibling.abs_src_path)
+        if title is None:
+            # No H1 means no name to show. Inventing one from the filename would
+            # paper over a page that is genuinely malformed.
+            log.warning("%s has no H1 heading; omitted from the %s index.", sibling.src_path, src)
+            continue
+        rows.append((
+            order.get(sibling.src_path, len(order) + 1),
+            title,
+            posixpath.basename(sibling.src_path),
+            description,
+        ))
+
+    if not rows:
+        return "<!-- no subpages -->\n"
+
+    rows.sort(key=lambda row: (row[0], row[1]))
+    lines = [f"- [{title}]({slug})" + (f": {desc}" if desc else "") for _, title, slug, desc in rows]
+    return "\n".join(lines) + "\n"
 
 
 # ---------------------------------------------------------------------------
@@ -1294,7 +1464,8 @@ def on_page_markdown(markdown, page, config, files):
 
     Placeholder injection
     ---------------------
-    ``<!-- API_TABLE -->``         → submodule table for API index
+    ``<!-- API_TABLE -->``            → submodule table for API index
+    ``<!-- SUBPAGES -->``             → linked list of the pages an index introduces
     """
     project_root = Path(__file__).parent.parent
     prefix = _site_root_prefix(page)
@@ -1303,6 +1474,10 @@ def on_page_markdown(markdown, page, config, files):
     if "<!-- API_TABLE -->" in markdown:
         table = _build_api_table_html(project_root, prefix)
         markdown = markdown.replace("<!-- API_TABLE -->", table)
+
+    # SUBPAGES placeholder
+    if "<!-- SUBPAGES -->" in markdown:
+        markdown = _replace_marker(markdown, "<!-- SUBPAGES -->", _build_subpages_list(config, page, files))
 
     # Strip EXAMPLES_FOR placeholders when examples are disabled
     markdown = re.sub(r"<!-- EXAMPLES_FOR:[\w.]+ -->\n?", "", markdown)
