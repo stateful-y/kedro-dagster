@@ -893,6 +893,38 @@ _SEE_ALSO_BLOCK_RE = re.compile(r'<details\s+class="see-also"[^>]*>.*?</details>
 _SEE_ALSO_ENTRY_RE = re.compile(r"^(\s*)(<code>[^<]+</code>|[A-Za-z_][\w.]*)(\s*:)")
 
 
+# A See Also entry opens a line with a name and a colon. The name may already be
+# a link (mkdocstrings resolved it) or bare (the linkifier is about to). Anything
+# else on its own line is a continuation of the previous entry's description.
+_SEE_ALSO_ENTRY_START_RE = re.compile(
+    r"""^\s*(?:
+        <a\s[^>]*>.*?</a>          # already-linked name
+      | <autoref[^>]*>.*?</autoref>
+      | <code>[^<]+</code>
+      | [A-Za-z_][\w.]*
+    )\s*:""",
+    re.VERBOSE,
+)
+
+
+def _split_see_also_entries(inner):
+    """Split a numpydoc See Also paragraph into one string per entry.
+
+    numpydoc puts one entry per source line; a long description wraps onto
+    continuation lines that carry no name of their own, and those belong to the
+    entry above rather than becoming entries in their own right.
+    """
+    entries: list[list[str]] = []
+    for line in inner.split("\n"):
+        if not line.strip():
+            continue
+        if _SEE_ALSO_ENTRY_START_RE.match(line) or not entries:
+            entries.append([line.strip()])
+        else:
+            entries[-1].append(line.strip())
+    return [" ".join(parts) for parts in entries]
+
+
 def _resolve_see_also_url(name):
     """Resolve a See Also entry naming a project symbol to a URL, or None.
 
@@ -1153,13 +1185,31 @@ def _linkify_see_also(html):
             title = f"<code>{name}</code>" if code_match else name
             return lead + _link_entry(name, title, colon, token + colon) + rest
 
-        def _process_container(container_match):
-            tag, inner = container_match.group(1), container_match.group(2)
+        def _linkify_inner(inner):
             # Leave an author's explicit [Name][target] reference alone: they have
             # said what they mean, and autorefs resolves it later.
             if "<a " in inner or "<autoref" in inner:
-                return container_match.group(0)
-            return f"<{tag}>" + "\n".join(_linkify_line(line) for line in inner.split("\n")) + f"</{tag}>"
+                return inner
+            return "\n".join(_linkify_line(line) for line in inner.split("\n"))
+
+        def _process_container(container_match):
+            tag, inner = container_match.group(1), container_match.group(2)
+            if tag == "li":
+                # Already one entry per item; only the names need linking.
+                return f"<li>{_linkify_inner(inner)}</li>"
+            entries = _split_see_also_entries(_linkify_inner(inner))
+            if len(entries) < 2:
+                return f"<p>{_linkify_inner(inner)}</p>"
+            # numpydoc puts each entry on its own source line inside one
+            # paragraph, and HTML collapses those newlines to spaces -- so every
+            # entry runs together on a single line, and the more references a
+            # symbol has the worse it reads. An author can dodge it by hand-
+            # writing markdown bullets (yohou does, which is why its pages look
+            # right and nobody else's do), but plain numpydoc is what the other
+            # 145 blocks in the fleet are written in. One entry per line is what
+            # the section is for.
+            items = "".join(f"<li>{entry}</li>" for entry in entries)
+            return f"<ul>{items}</ul>"
 
         # numpydoc renders See Also entries as a paragraph, one per line; an author
         # may also write them as a markdown list, which renders as <li>. Both are
