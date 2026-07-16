@@ -131,9 +131,15 @@ assistant-instructions.md
 .ai/
 .llm/
 .copilot/
-.claude/
 ai-instructions/
 llm-instructions/
+
+# Claude Code: keep personal config (settings.local.json, etc.) private, but
+# track the skills shipped by the template. Must be ".claude/*" and not
+# ".claude/" -- git does not descend into an excluded directory, so a negation
+# under ".claude/" would never be reached.
+.claude/*
+!.claude/skills/
 
 # Project-specific AI context (that you want to keep private)
 .cursorrules

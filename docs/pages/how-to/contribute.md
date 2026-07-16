@@ -344,7 +344,25 @@ uvx interrogate src
 
 **`See Also` format:**
 
-Use standard numpydoc format with short backtick names. The `mkdocs-autorefs` plugin automatically links backtick references (e.g., `` `ClassName` ``) to the corresponding API pages in rendered documentation. This means plain backtick-wrapped names in docstrings become clickable links in the docs site without any special syntax.
+Use standard numpydoc format with short names:
+
+```python
+See Also
+--------
+OtherClass : One-line description of how it relates.
+other_function : Another related object.
+```
+
+Names are linked to their API pages automatically, whether or not you wrap them
+in backticks. Names that cannot be resolved — a private helper, or a concept
+rather than an API object — are left as plain text rather than failing the
+build, so you can reference anything that reads well.
+
+Fully qualified names work too (`kedro_dagster.module.OtherClass`), and
+resolve to the same page as the short form. A member reference
+(`OtherClass.method`) links to that member on its class page. A name from
+another project (for example `sklearn.linear_model.Ridge`) links to that
+project's documentation when its inventory is configured in `mkdocs.yml`.
 
 For hyperlinks, always use Markdown syntax: `[text](url)`.
 

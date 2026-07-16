@@ -2,13 +2,22 @@
 
 import ast
 import fnmatch
+import importlib.util
 import re
 import shutil
 import subprocess
 from html.parser import HTMLParser
 from pathlib import Path
 
+# Module-level caches. MkDocs loads hooks as plugin instances and does not
+# reload the module between builds, so these live for the whole process --
+# under `mkdocs serve` an unreset cache serves stale content for the rest of the
+# session. Every cache is cleared per build by on_config() below.
+#
+# Naming is load-bearing: the reset and its test discover caches by the
+# `_CACHE` suffix, so a cache named otherwise escapes both, silently.
 _SUBMODULE_CACHE = None
+_API_NAME_LOOKUP_CACHE = None
 
 
 def _get_submodules(project_root):
@@ -88,57 +97,241 @@ def _get_module_members(py_file):
     return {"classes": classes, "functions": functions}
 
 
-def _get_package_members(pkg_dir, module_name):
-    """Discover members in a sub-package by scanning all child ``.py`` files.
+def _get_dunder_all(tree):
+    """Return the set of names listed in ``__all__``, or None if absent."""
+    for node in ast.iter_child_nodes(tree):
+        if not isinstance(node, ast.Assign):
+            continue
+        for target in node.targets:
+            if isinstance(target, ast.Name) and target.id == "__all__":
+                if not isinstance(node.value, ast.List | ast.Tuple):
+                    return None
+                return {e.value for e in node.value.elts if isinstance(e, ast.Constant) and isinstance(e.value, str)}
+    return None
 
-    For sub-packages like ``config/`` or ``datasets/``, scans each non-private
-    child module and aggregates class/function definitions.  Each member dict
-    gets a *qualified_prefix* key so callers can build fully qualified names
-    (e.g. ``kedro_dagster.config.execution.ExecutorOptions``).
+
+def _iter_reexport_nodes(tree):
+    """Yield ``ImportFrom`` nodes that re-export names from a package.
+
+    Covers top-level imports and imports guarded by a top-level ``try`` block,
+    which is the conventional way to expose an optional extra::
+
+        try:
+            from mypkg.neural._impl import Forecaster
+        except ImportError as err:
+            raise ImportError("install mypkg[neural]") from err
+
+    Only the ``try`` body is walked: names in an ``except`` handler are the
+    fallback path, not the package's advertised API.
     """
-    child_dir = pkg_dir / module_name
+    for node in ast.iter_child_nodes(tree):
+        if isinstance(node, ast.ImportFrom):
+            yield node
+        elif isinstance(node, ast.Try):
+            for inner in node.body:
+                if isinstance(inner, ast.ImportFrom):
+                    yield inner
+
+
+def _resolve_import_from(node, init_file, pkg_dir):
+    """Map an ``ImportFrom`` node to the file that declares its names.
+
+    Handles relative imports (``from .naive import X``) and absolute imports
+    rooted at this package (``from mypkg.stats._base import X``).  Returns
+    None for imports that leave the package, which is what keeps incidental
+    third-party imports (``from pathlib import Path``) out of the API.
+    """
+    if node.level:
+        base = init_file.parent
+        for _ in range(node.level - 1):
+            base = base.parent
+        parts = node.module.split(".") if node.module else []
+    else:
+        if not node.module:
+            return None
+        parts = node.module.split(".")
+        if parts[0] != pkg_dir.name:
+            return None
+        base = pkg_dir
+        parts = parts[1:]
+
+    target = base
+    for part in parts:
+        target = target / part
+    for candidate in (target.with_suffix(".py"), target / "__init__.py"):
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def _resolve_external_module(module_name):
+    """Locate a module that lives outside this package.
+
+    A package may deliberately re-export a dependency's symbol -- a convenience
+    shim such as ``from otherpkg.thing import Widget`` under its own ``__all__``.
+    That name is part of *this* package's public API, but no file under
+    ``pkg_dir`` declares it, so ``_resolve_import_from`` cannot reach it and the
+    symbol would silently vanish from the index and lose its page.
+
+    ``find_spec`` locates the module's source file so the kind and docstring can
+    be read from it like any other module, rather than guessed.  It imports the
+    *parent* package to do so, which is why this is only ever consulted for a
+    name the author listed in ``__all__``: an incidental ``from pathlib import
+    Path`` must never reach here.  Anything that does not resolve to readable
+    source is skipped, not invented.
+    """
+    try:
+        spec = importlib.util.find_spec(module_name)
+    except (ImportError, AttributeError, ValueError):
+        return None
+    if spec is None or not spec.origin or not spec.origin.endswith(".py"):
+        return None
+    return Path(spec.origin)
+
+
+def _reexports_a_dunder_all_name(node, exported):
+    """Whether this ImportFrom binds any name the package advertises in ``__all__``."""
+    return any((alias.asname or alias.name) in exported for alias in node.names if alias.name != "*")
+
+
+def _get_reexported_members(init_file, pkg_dir):
+    """Discover members a module exposes by re-export rather than by declaring them.
+
+    A re-exporting ``__init__.py`` declares no classes or functions of its own,
+    so an AST scan of that file alone finds nothing.  This resolves each
+    ``ImportFrom`` binding to its declaring module and lifts the name's kind
+    and docstring from there.
+
+    ``__all__`` acts as a *filter*, not an authority: a name is exposed only if
+    it is listed there (when present) *and* resolves to a class or function in
+    its declaring module.  Constants and other exports are excluded, because
+    only classes and functions get generated pages.
+
+    A plain module can be a re-export shim too, so this is not limited to
+    ``__init__.py`` -- but for one, an import is normally a private detail
+    (``from .base import Helper`` to use it), not an advertisement.  Only an
+    explicit ``__all__`` marks a plain module's imports as its public surface;
+    without one, nothing here is re-exported.  An ``__init__.py`` re-exports by
+    convention, so it needs no such marker.
+    """
+    try:
+        tree = ast.parse(init_file.read_text(encoding="utf-8"))
+    except (SyntaxError, UnicodeDecodeError, OSError):
+        return {"classes": [], "functions": []}
+
+    exported = _get_dunder_all(tree)
+    if exported is None and init_file.name != "__init__.py":
+        return {"classes": [], "functions": []}
     classes = []
     functions = []
     seen = set()
 
-    for py_file in sorted(child_dir.glob("*.py")):
-        if py_file.name.startswith("_"):
-            continue
-        child_name = py_file.stem
-        members = _get_module_members(py_file)
-        prefix = f"kedro_dagster.{module_name}.{child_name}"
-        for cls in members["classes"]:
-            if cls["name"] not in seen:
-                seen.add(cls["name"])
-                cls["qualified_prefix"] = prefix
-                classes.append(cls)
-        for func in members["functions"]:
-            if func["name"] not in seen:
-                seen.add(func["name"])
-                func["qualified_prefix"] = prefix
-                functions.append(func)
+    for node in _iter_reexport_nodes(tree):
+        decl_file = _resolve_import_from(node, init_file, pkg_dir)
+        if decl_file is None:
+            # The import leaves the package. That is normally an incidental
+            # third-party import and must stay out of the API -- unless the
+            # author advertised the name in __all__, which makes it this
+            # package's public API no matter where it was declared.
+            if exported is None or node.level or not node.module or not _reexports_a_dunder_all_name(node, exported):
+                continue
+            decl_file = _resolve_external_module(node.module)
+            if decl_file is None:
+                continue
+        decl_members = None
+        for alias in node.names:
+            if alias.name == "*":
+                continue
+            exposed = alias.asname or alias.name
+            if exposed.startswith("_") or exposed in seen:
+                continue
+            if exported is not None and exposed not in exported:
+                continue
+            if decl_members is None:
+                decl_members = _get_module_members(decl_file)
+            for bucket, entries in (("classes", decl_members["classes"]), ("functions", decl_members["functions"])):
+                match = next((e for e in entries if e["name"] == alias.name), None)
+                if match is None:
+                    continue
+                (classes if bucket == "classes" else functions).append({
+                    "name": exposed,
+                    "doc": match["doc"],
+                    "origin": str(decl_file),
+                    "reexported": True,
+                })
+                seen.add(exposed)
+                break
 
     return {"classes": classes, "functions": functions}
 
 
-def _resolve_members(pkg_dir, module_name):
-    """Return members for a module, scanning child files for sub-packages."""
-    mod_file = pkg_dir / f"{module_name}.py"
-    if mod_file.exists():
-        members = _get_module_members(mod_file)
-        prefix = f"kedro_dagster.{module_name}"
-        for cls in members["classes"]:
-            cls.setdefault("qualified_prefix", prefix)
-        for func in members["functions"]:
-            func.setdefault("qualified_prefix", prefix)
-        return members
+def _get_public_members(mod_file, pkg_dir):
+    """Public classes and functions of a module, including re-exported ones.
 
-    # Sub-package
-    init_file = pkg_dir / module_name / "__init__.py"
-    if init_file.exists():
-        return _get_package_members(pkg_dir, module_name)
+    Each entry carries *origin* (the file that declares the symbol) and
+    *reexported*, so the name lookup can tell one symbol reachable by two paths
+    from two different symbols that happen to share a short name.
+    """
+    if not mod_file.exists():
+        return {"classes": [], "functions": []}
+    members = _get_module_members(mod_file)
+    for key in ("classes", "functions"):
+        for entry in members[key]:
+            entry.setdefault("origin", str(mod_file))
+            entry.setdefault("reexported", False)
+    reexported = _get_reexported_members(mod_file, pkg_dir)
+    declared = {e["name"] for e in members["classes"] + members["functions"]}
+    for key in ("classes", "functions"):
+        members[key].extend(e for e in reexported[key] if e["name"] not in declared)
+    return members
 
-    return {"classes": [], "functions": []}
+
+def _get_api_name_lookup(project_root):
+    """Map a symbol's short name to the qualified name of its API page (cached).
+
+    Shared by See Also resolution and example-notebook cross-referencing so the
+    two cannot disagree about what a symbol is called.  Built by static
+    analysis only — the package is never imported.
+
+    When one symbol is reachable by two paths -- declared in a module and
+    re-exported by a package -- the published path wins: that is the name users
+    write, and the one whose page they expect.
+
+    When a short name identifies two genuinely different symbols, it is omitted
+    rather than resolved arbitrarily: consumers turn this straight into a URL,
+    and a wrong link is worse than no link.
+    """
+    global _API_NAME_LOOKUP_CACHE  # noqa: PLW0603
+    if _API_NAME_LOOKUP_CACHE is not None:
+        return _API_NAME_LOOKUP_CACHE
+
+    pkg_dir = project_root / "src" / "kedro_dagster"
+    candidates = {}
+    for mod in _get_submodules(project_root):
+        mod_file = pkg_dir / f"{mod['module_name']}.py"
+        if not mod_file.exists():
+            mod_file = pkg_dir / mod["module_name"] / "__init__.py"
+        members = _get_public_members(mod_file, pkg_dir)
+        for entry in members["classes"] + members["functions"]:
+            qualified = f"kedro_dagster.{mod['module_name']}.{entry['name']}"
+            candidates.setdefault(entry["name"], []).append({
+                "qualified": qualified,
+                "origin": entry.get("origin"),
+                "reexported": entry.get("reexported", False),
+            })
+
+    lookup = {}
+    for name, cands in candidates.items():
+        if len({c["origin"] for c in cands}) > 1:
+            continue  # genuinely different symbols share this short name
+        published = sorted(c["qualified"] for c in cands if c["reexported"])
+        if published:
+            lookup[name] = published[0]
+        elif len(cands) == 1:
+            lookup[name] = cands[0]["qualified"]
+
+    _API_NAME_LOOKUP_CACHE = lookup
+    return _API_NAME_LOOKUP_CACHE
 
 
 def _build_members_tables(package_name, module_name, members):
@@ -158,8 +351,7 @@ def _build_members_tables(package_name, module_name, members):
             "|------|-------------|",
         ]
         for cls in members["classes"]:
-            prefix = cls.get("qualified_prefix", f"{package_name}.{module_name}")
-            qualified = f"{prefix}.{cls['name']}"
+            qualified = f"{package_name}.{module_name}.{cls['name']}"
             link = f"[`{cls['name']}`](generated/{qualified}.md)"
             lines.append(f"| {link} | {cls['doc']} |")
         sections.append("\n".join(lines))
@@ -172,8 +364,7 @@ def _build_members_tables(package_name, module_name, members):
             "|------|-------------|",
         ]
         for func in members["functions"]:
-            prefix = func.get("qualified_prefix", f"{package_name}.{module_name}")
-            qualified = f"{prefix}.{func['name']}"
+            qualified = f"{package_name}.{module_name}.{func['name']}"
             link = f"[`{func['name']}`](generated/{qualified}.md)"
             lines.append(f"| {link} | {func['doc']} |")
         sections.append("\n".join(lines))
@@ -228,7 +419,11 @@ def _generate_api_pages(project_root):
     member_count = 0
     for mod in modules:
         # Determine the source file for member discovery
-        members = _resolve_members(pkg_dir, mod["module_name"])
+        mod_file = pkg_dir / f"{mod['module_name']}.py"
+        if not mod_file.exists():
+            mod_file = pkg_dir / mod["module_name"] / "__init__.py"
+
+        members = _get_public_members(mod_file, pkg_dir)
 
         # Generate submodule overview page with tables
         members_tables = _build_members_tables(
@@ -249,15 +444,13 @@ def _generate_api_pages(project_root):
 
         # Generate per-class/function detail pages
         for cls in members["classes"]:
-            prefix = cls.get("qualified_prefix", f"kedro_dagster.{mod['module_name']}")
-            qualified = f"{prefix}.{cls['name']}"
+            qualified = f"kedro_dagster.{mod['module_name']}.{cls['name']}"
             page = generated_dir / f"{qualified}.md"
             page.write_text(_page_template.format(name=cls["name"], qualified=qualified))
             member_count += 1
 
         for func in members["functions"]:
-            prefix = func.get("qualified_prefix", f"kedro_dagster.{mod['module_name']}")
-            qualified = f"{prefix}.{func['name']}"
+            qualified = f"kedro_dagster.{mod['module_name']}.{func['name']}"
             page = generated_dir / f"{qualified}.md"
             page.write_text(_page_template.format(name=func["name"], qualified=qualified))
             member_count += 1
@@ -278,18 +471,22 @@ def _build_api_table_html(project_root):
 
     rows = []
     for mod in modules:
-        members = _resolve_members(pkg_dir, mod["module_name"])
+        mod_file = pkg_dir / f"{mod['module_name']}.py"
+        if not mod_file.exists():
+            mod_file = pkg_dir / mod["module_name"] / "__init__.py"
+        if not mod_file.exists():
+            continue
+
+        members = _get_public_members(mod_file, pkg_dir)
         module_label = f"kedro_dagster.{mod['module_name']}"
         module_href = f"../../api/{mod['module_name']}/"
 
         for cls in members["classes"]:
-            prefix = cls.get("qualified_prefix", module_label)
-            qualified = f"{prefix}.{cls['name']}"
+            qualified = f"kedro_dagster.{mod['module_name']}.{cls['name']}"
             rows.append((cls["name"], "Class", module_label, module_href, cls["doc"], qualified))
 
         for func in members["functions"]:
-            prefix = func.get("qualified_prefix", module_label)
-            qualified = f"{prefix}.{func['name']}"
+            qualified = f"kedro_dagster.{mod['module_name']}.{func['name']}"
             rows.append((func["name"], "Function", module_label, module_href, func["doc"], qualified))
 
     rows.sort(key=lambda r: r[0].lower())
@@ -356,6 +553,11 @@ def _build_api_table_html(project_root):
     )
 
 
+# ---------------------------------------------------------------------------
+# API sidebar module TOC
+# ---------------------------------------------------------------------------
+
+
 def _build_module_toc(config, current_src_path=None):
     """Build the module TOC list used by the api-submodule sidebar template.
 
@@ -417,6 +619,10 @@ def _build_module_toc(config, current_src_path=None):
     return module_toc
 
 
+# ---------------------------------------------------------------------------
+# API page content post-processing
+# ---------------------------------------------------------------------------
+
 _GIT_REF_CACHE = None
 
 
@@ -453,6 +659,134 @@ _DETAIL_SECTION_SLUGS = {
     "see-also": ("see-also", "See Also"),
     "references": ("references", "References"),
 }
+
+
+_SEE_ALSO_BLOCK_RE = re.compile(r'<details\s+class="see-also"[^>]*>.*?</details>', re.DOTALL)
+# An entry's name sits at the START of its line -- mkdocstrings renders one entry
+# per line inside the paragraph. Anchoring here is what keeps a colon-terminated
+# word in an entry's DESCRIPTION ("Target : Note: see below") from being treated
+# as another entry and linked.
+_SEE_ALSO_ENTRY_RE = re.compile(r"^(\s*)(<code>[^<]+</code>|[A-Za-z_][\w.]*)(\s*:)")
+
+
+def _resolve_see_also_url(name):
+    """Resolve a See Also entry naming a project symbol to a URL, or None.
+
+    A dotted name whose leading segment is not this package is external and is
+    not resolved here -- see ``_external_autoref`` for why.
+
+    Classifying by leading segment is the only rule that works: the project
+    lookup is keyed by *short* name, so a dotted external name always misses it,
+    and stripping the qualifier first would let ``sklearn.linear_model.Ridge``
+    collide with a project symbol called ``Ridge``.
+    """
+    package = "kedro_dagster"
+    if "." in name and name.split(".", 1)[0] != package:
+        return None
+
+    short_name = name.rsplit(".", 1)[-1]
+    project_root = Path(__file__).parent.parent
+    qualified = _get_api_name_lookup(project_root).get(short_name)
+    return f"../{qualified}/" if qualified is not None else None
+
+
+def _external_autoref(name, title):
+    """Defer an external name to autorefs, which resolves it later.
+
+    External names cannot be resolved here: mkdocstrings registers downloaded
+    inventories into the autorefs URL map, but autorefs applies them in its
+    ``on_env`` hook -- after ``on_page_content`` runs.  Asking for the URL now
+    raises ``KeyError`` even when the inventory is configured.
+
+    So emit autorefs' own markup and let it resolve at the right time.  The
+    ``optional`` attribute is what keeps an unresolvable name quiet: autorefs
+    logs it at debug level and renders the title as plain text, rather than
+    recording it as an unmapped reference and warning (which would fail a
+    ``--strict`` build for a docstring that names something undocumented).
+
+    Only dotted names get here.  A bare name is not offered to autorefs: it
+    could resolve to an unrelated symbol that happens to share the name in some
+    configured inventory, and a wrong link is worse than no link.
+    """
+    return f'<autoref optional identifier="{name}">{title}</autoref>'
+
+
+def _resolve_member_identifier(name):
+    """Qualify a dotted ``Class.member`` See Also entry to its autoref identifier.
+
+    A member -- a method or attribute -- has no page of its own; it is an anchor
+    on its class page, so it cannot be resolved to a URL the way a class or a
+    function can.  This qualifies the entry to a full identifier and hands it to
+    autorefs, which does know the anchor.
+
+    ``OtherClass.build`` becomes ``kedro_dagster.module.OtherClass.build``
+    via the short-name lookup; an entry already led by the package name is
+    returned unchanged (its trailing segment is a member, so
+    ``_resolve_see_also_url`` did not resolve it to a page).  Returns None when
+    the leading segment is neither this package nor a known project symbol, so a
+    genuinely external dotted name (``sklearn.linear_model.Ridge``) falls through
+    to external handling and keeps its own inventory link.
+    """
+    package = "kedro_dagster"
+    if "." not in name:
+        return None
+    head, rest = name.split(".", 1)
+    if head == package:
+        return name
+    qualified_head = _get_api_name_lookup(Path(__file__).parent.parent).get(head)
+    if qualified_head is None:
+        return None
+    return f"{qualified_head}.{rest}"
+
+
+def _link_entry(name, title, colon, entry):
+    """Render one See Also entry: project link, deferred external ref, or as-is."""
+    url = _resolve_see_also_url(name)
+    if url:
+        return f'<a href="{url}">{title}</a>{colon}'
+    member_identifier = _resolve_member_identifier(name)
+    if member_identifier is not None:
+        return _external_autoref(member_identifier, title) + colon
+    if "." in name and name.split(".", 1)[0] != "kedro_dagster":
+        return _external_autoref(name, title) + colon
+    return entry
+
+
+def _linkify_see_also(html):
+    """Turn the names in a rendered See Also section into links.
+
+    Must run while the ``<details class="see-also">`` container still exists --
+    see the ordering comment in ``on_page_content``.  Unresolvable names are
+    left untouched: a docstring may reference a private helper or a concept,
+    and none of those are build errors.
+    """
+
+    def _process_block(block_match):
+        def _linkify_line(line):
+            entry_match = _SEE_ALSO_ENTRY_RE.match(line)
+            if not entry_match:
+                return line
+            lead, token, colon = entry_match.groups()
+            rest = line[entry_match.end() :]
+            code_match = re.fullmatch(r"<code>([^<]+)</code>", token)
+            name = code_match.group(1) if code_match else token
+            title = f"<code>{name}</code>" if code_match else name
+            return lead + _link_entry(name, title, colon, token + colon) + rest
+
+        def _process_container(container_match):
+            tag, inner = container_match.group(1), container_match.group(2)
+            # Leave an author's explicit [Name][target] reference alone: they have
+            # said what they mean, and autorefs resolves it later.
+            if "<a " in inner or "<autoref" in inner:
+                return container_match.group(0)
+            return f"<{tag}>" + "\n".join(_linkify_line(line) for line in inner.split("\n")) + f"</{tag}>"
+
+        # numpydoc renders See Also entries as a paragraph, one per line; an author
+        # may also write them as a markdown list, which renders as <li>. Both are
+        # ordinary numpydoc, so both get linked.
+        return re.sub(r"<(p|li)>(.*?)</\1>", _process_container, block_match.group(0), flags=re.DOTALL)
+
+    return _SEE_ALSO_BLOCK_RE.sub(_process_block, html)
 
 
 def _make_section_heading(slug, title, level=3):
@@ -740,12 +1074,35 @@ def _process_api_page_content(html, page, config):
     return html
 
 
+def on_config(config):
+    """Clear per-build caches.
+
+    `on_config` is the first event on every build, including each rebuild in a
+    `mkdocs serve` session -- which is the lifetime these caches need.
+
+    Deliberately not `on_startup`: that runs once per `mkdocs` invocation, so a
+    reset there fires when the caches are already empty and never again, and
+    `mkdocs serve` keeps serving the first build's content.
+    """
+    global _SUBMODULE_CACHE, _API_NAME_LOOKUP_CACHE, _GIT_REF_CACHE  # noqa: PLW0603
+    _SUBMODULE_CACHE = None
+    _API_NAME_LOOKUP_CACHE = None
+    _GIT_REF_CACHE = None
+    return config
+
+
 def on_page_content(html, page, config, files):
     """Post-process HTML: API page TOC and content restructuring."""
     src = page.file.src_path
 
     # Process generated API member pages (per-class/function detail pages)
     if src.startswith("pages/api/generated/"):
+        # ORDER IS LOAD-BEARING: mkdocstrings emits See Also as a
+        # <details class="see-also"> block, and _process_api_page_content
+        # dissolves that block for class-level docstrings.  Linkifying after it
+        # silently does nothing for class-level See Also sections -- the
+        # majority of them -- while appearing to work for method-level ones.
+        html = _linkify_see_also(html)
         html = _process_api_page_content(html, page, config)
 
     if src == "pages/reference/api.md":
@@ -775,8 +1132,10 @@ def on_page_markdown(markdown, page, config, files):
     if "<!-- API_TABLE -->" in markdown:
         table = _build_api_table_html(project_root)
         markdown = markdown.replace("<!-- API_TABLE -->", table)
+
     # Strip EXAMPLES_FOR placeholders when examples are disabled
     markdown = re.sub(r"<!-- EXAMPLES_FOR:[\w.]+ -->\n?", "", markdown)
+
     return markdown
 
 

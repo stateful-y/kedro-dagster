@@ -236,14 +236,6 @@ include_namespace_packages = true
 
 [tool.coverage.html]
 
-[tool.commitizen]
-name = "cz_conventional_commits"
-version_scheme = "semver"
-version_provider = "scm"
-update_changelog_on_bump = false
-major_version_zero = true
-tag_format = "v$version"
-
 [tool.rumdl]
 flavor = "mkdocs"
 line-length = 120
@@ -262,12 +254,27 @@ disable = [
 exclude = ["CHANGELOG.md", "site", "htmlcov", ".nox", ".venv", "openspec"]
 
 [tool.rumdl.per-file-ignores]
+".claude/skills/**" = ["MD007"]  # Nested lists in skill files use variable indent
 ".github/PULL_REQUEST_TEMPLATE.md" = ["MD041"]  # PR template starts with checklist
 ".github/skills/**" = ["MD007"]  # Nested lists in skill files use variable indent
 "README.md" = ["MD041"]  # README starts with logo, not heading
+# The page is a bare `--8<--` include; the included CHANGELOG.md supplies the
+# H1. Adding one here would render two H1s and, because Material's ToC takes
+# first.children when the first heading is level 1, an empty ToC on the one
+# page that most needs one.
+"docs/pages/reference/changelog.md" = ["MD041"]
 "docs/index.md" = ["MD041"]  # Landing page starts with logo, not heading
 "CONTRIBUTING.md" = ["MD057"]  # Relative link to docs/ is valid at project level
 "docs/pages/tutorials/*.md" = ["MD057"]  # Links to auto-generated API docs (docs/pages/api/ is gitignored)
 "docs/pages/how-to/*.md" = ["MD057"]  # Links to auto-generated API docs (docs/pages/api/ is gitignored)
 "docs/pages/explanation/*.md" = ["MD057"]  # Links to auto-generated API docs (docs/pages/api/ is gitignored)
 "docs/pages/reference/*.md" = ["MD057"]  # Links to auto-generated API docs (docs/pages/api/ is gitignored)
+
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+version_scheme = "semver"
+version_provider = "scm"
+update_changelog_on_bump = false
+major_version_zero = true
+tag_format = "v$version"

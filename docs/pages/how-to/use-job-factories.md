@@ -132,4 +132,4 @@ jobs:
 - [Configuration Reference — Job factories](../reference/configuration.md#job-factories): field-level detail and precedence rules
 - [CLI Reference](../reference/cli.md#kedro-dagster-resolve-patterns): `resolve-patterns` / `list-patterns`
 - [Example Project](../tutorials/example-project.md): job factories in the `staging` and `prod` environments
-- [`PipelineOptions`](../api/generated/kedro_dagster.config.models.PipelineOptions.md): all pipeline filter parameters
+- [`PipelineOptions`](../api/generated/kedro_dagster.config.PipelineOptions.md): all pipeline filter parameters

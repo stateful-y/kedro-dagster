@@ -198,7 +198,7 @@ jobs:
     schedule: daily
 ```
 
-Each Dagster job is generated from a filtered Kedro pipeline (selected by `pipeline_name` and narrowed by `node_namespaces` or `tags`; see [`PipelineOptions`](../api/generated/kedro_dagster.config.models.PipelineOptions.md)). Here the two `{product}` **job factories** render one job per namespace — `reviews_predictor__data_processing_candidate1`, `price_predictor__data_processing_candidate1`, and the `data_science` pair. Preview what a factory expands to with `kedro dagster resolve-patterns -e staging`, and see [How to Use Job Factories](../how-to/use-job-factories.md). The `prod` environment goes further, interpolating `{product}` into a per-product `executor` reference.
+Each Dagster job is generated from a filtered Kedro pipeline (selected by `pipeline_name` and narrowed by `node_namespaces` or `tags`; see [`PipelineOptions`](../api/generated/kedro_dagster.config.PipelineOptions.md)). Here the two `{product}` **job factories** render one job per namespace — `reviews_predictor__data_processing_candidate1`, `price_predictor__data_processing_candidate1`, and the `data_science` pair. Preview what a factory expands to with `kedro dagster resolve-patterns -e staging`, and see [How to Use Job Factories](../how-to/use-job-factories.md). The `prod` environment goes further, interpolating `{product}` into a per-product `executor` reference.
 
 ## Partitions in practice
 
