@@ -141,6 +141,16 @@ llm-instructions/
 .claude/*
 !.claude/skills/
 
+# openspec installs its own skills. They are tool state that openspec rewrites,
+# not project content, so they are never tracked -- even though the rule above
+# tracks .claude/skills.
+.claude/skills/openspec-*/
+
+# The Copilot-side skills mirror .claude/skills byte for byte. Tracking both
+# doubles every skill edit and its review. .claude/skills is the source of
+# truth; this copy is generated alongside it and stays out of git.
+.github/skills/
+
 # Project-specific AI context (that you want to keep private)
 .cursorrules
 .cursor/

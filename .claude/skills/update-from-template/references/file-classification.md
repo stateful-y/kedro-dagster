@@ -56,7 +56,10 @@ docs/stylesheets/theme.css
 .github/ISSUE_TEMPLATE/config.yml
 .github/ISSUE_TEMPLATE/feature_request.yml
 .github/PULL_REQUEST_TEMPLATE.md
-.github/skills/**                   # Skill files managed by template
+.claude/skills/**                   # Skill files managed by template (the tracked copy)
+.github/skills/**                   # Byte-identical Copilot mirror; gitignored, so an
+                                    # update never delivers it -- copier works through
+                                    # git and skips ignored paths. Edit .claude/skills.
 ```
 
 ---
