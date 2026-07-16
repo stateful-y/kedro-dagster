@@ -3,6 +3,7 @@
 import ast
 import fnmatch
 import importlib.util
+import posixpath
 import re
 import shutil
 import subprocess
@@ -18,6 +19,7 @@ from pathlib import Path
 # `_CACHE` suffix, so a cache named otherwise escapes both, silently.
 _SUBMODULE_CACHE = None
 _API_NAME_LOOKUP_CACHE = None
+_GLOSSARY_TERMS_CACHE = None
 
 
 def _get_submodules(project_root):
@@ -752,6 +754,162 @@ def _link_entry(name, title, colon, entry):
     return entry
 
 
+# The glossary lives in the explanation quadrant by Diataxis convention. A
+# project without this page simply gets no glossary linking.
+_GLOSSARY_SRC_PATH = "pages/explanation/glossary.md"
+
+# Text inside these never becomes a glossary link: code is not prose, a heading
+# linking mid-title looks broken, and nesting an <a> inside an <a> is invalid.
+_GLOSSARY_SKIP_TAGS = frozenset({"code", "pre", "a", "h1", "h2", "h3", "h4", "h5", "h6", "script", "style"})
+
+# A definition-list term carrying attributes, e.g. ``Memory buffer { #memory-buffer .autolink }``.
+_GLOSSARY_TERM_RE = re.compile(r"^(?!\s)(.+?)\s*\{:?\s*([^}]*)\}\s*$")
+
+
+def _get_glossary_terms(project_root):
+    """Map each auto-linkable glossary term to its anchor (cached).
+
+    The glossary page is the single source of truth: terms are read from it, so
+    a term and its definition cannot drift apart the way a second list in this
+    file would.
+
+    A term opts in with ``.autolink``::
+
+        Memory buffer { #memory-buffer .autolink }
+        :   The internal store of recent rows...
+
+    Opting in is deliberate rather than automatic. A glossary defines whatever
+    its authors find worth defining, including short common words -- "step",
+    "pipeline", "ensemble" -- and auto-linking those wherever they appear in
+    prose produces noise, not navigation. Defining a term and advertising it
+    everywhere are separate editorial decisions, so they get separate syntax.
+    """
+    global _GLOSSARY_TERMS_CACHE  # noqa: PLW0603
+    if _GLOSSARY_TERMS_CACHE is not None:
+        return _GLOSSARY_TERMS_CACHE
+
+    terms = {}
+    page = project_root / "docs" / _GLOSSARY_SRC_PATH
+    try:
+        lines = page.read_text(encoding="utf-8").split("\n")
+    except (OSError, UnicodeDecodeError):
+        _GLOSSARY_TERMS_CACHE = terms
+        return terms
+
+    for i, line in enumerate(lines[:-1]):
+        match = _GLOSSARY_TERM_RE.match(line)
+        # The next line starting with ':' is what makes this a definition-list
+        # term rather than ordinary prose that happens to end in braces.
+        if not match or not lines[i + 1].lstrip().startswith(":"):
+            continue
+        attrs = match.group(2).split()
+        if ".autolink" not in attrs:
+            continue
+        anchor = next((a[1:] for a in attrs if a.startswith("#")), None)
+        if anchor:
+            terms[match.group(1).strip().lower()] = anchor
+
+    _GLOSSARY_TERMS_CACHE = terms
+    return terms
+
+
+def _glossary_link_replacer(terms, rel_glossary, linked):
+    """Build the text-node rewriter that links a term's first occurrence."""
+    # Longest first, so "seasonal naive forecaster" wins over "forecaster"
+    # rather than being shadowed by the shorter term inside it.
+    pattern = re.compile(
+        r"\b(" + "|".join(re.escape(t) for t in sorted(terms, key=len, reverse=True)) + r")\b",
+        re.IGNORECASE,
+    )
+
+    def _replace(text):
+        def _sub(match):
+            term = match.group(1).lower()
+            if term in linked:
+                return match.group(0)
+            linked.add(term)
+            return f'<a href="{rel_glossary}/#{terms[term]}">{match.group(0)}</a>'
+
+        return pattern.sub(_sub, text)
+
+    return _replace
+
+
+class _GlossaryLinker(HTMLParser):
+    """Rewrites text nodes into glossary links, leaving markup untouched.
+
+    Parsed rather than regexed over the whole page: a bare regex would match
+    inside tag attributes and code blocks, producing broken markup from a
+    document that was fine.
+    """
+
+    def __init__(self, replace):
+        super().__init__(convert_charrefs=False)
+        self._replace = replace
+        self.result = []
+        self._skip_depth = 0
+
+    def handle_starttag(self, tag, attrs):
+        if tag.lower() in _GLOSSARY_SKIP_TAGS:
+            self._skip_depth += 1
+        self.result.append(self.get_starttag_text())
+
+    def handle_startendtag(self, tag, attrs):
+        self.result.append(self.get_starttag_text())
+
+    def handle_endtag(self, tag):
+        if tag.lower() in _GLOSSARY_SKIP_TAGS:
+            self._skip_depth = max(0, self._skip_depth - 1)
+        self.result.append(f"</{tag}>")
+
+    def handle_data(self, data):
+        self.result.append(data if self._skip_depth else self._replace(data))
+
+    def handle_entityref(self, name):
+        self.result.append(f"&{name};")
+
+    def handle_charref(self, name):
+        self.result.append(f"&#{name};")
+
+    def handle_comment(self, data):
+        self.result.append(f"<!--{data}-->")
+
+    def handle_decl(self, decl):
+        self.result.append(f"<!{decl}>")
+
+    def get_html(self):
+        """Return the rewritten HTML."""
+        return "".join(self.result)
+
+
+def _linkify_glossary_terms(html, page, project_root):
+    """Link the first occurrence of each glossary term on a page.
+
+    First occurrence only: linking every "memory buffer" in a paragraph is
+    noise, and the reader only needs the definition once.
+
+    The glossary page itself is skipped -- it would link its own terms to
+    themselves.
+    """
+    src = page.file.src_path
+    if src == _GLOSSARY_SRC_PATH or not src.startswith("pages/"):
+        return html
+
+    terms = _get_glossary_terms(project_root)
+    if not terms:
+        return html
+
+    # Relative, not absolute: the site may be served under a subpath, and
+    # use_directory_urls means a page's own URL is a directory.
+    dest_dir = posixpath.dirname(page.file.dest_path)
+    rel_glossary = posixpath.relpath(posixpath.splitext(_GLOSSARY_SRC_PATH)[0], dest_dir)
+
+    linker = _GlossaryLinker(_glossary_link_replacer(terms, rel_glossary, set()))
+    linker.feed(html)
+    linker.close()
+    return linker.get_html()
+
+
 def _linkify_see_also(html):
     """Turn the names in a rendered See Also section into links.
 
@@ -1084,10 +1242,11 @@ def on_config(config):
     reset there fires when the caches are already empty and never again, and
     `mkdocs serve` keeps serving the first build's content.
     """
-    global _SUBMODULE_CACHE, _API_NAME_LOOKUP_CACHE, _GIT_REF_CACHE  # noqa: PLW0603
+    global _SUBMODULE_CACHE, _API_NAME_LOOKUP_CACHE, _GIT_REF_CACHE, _GLOSSARY_TERMS_CACHE  # noqa: PLW0603
     _SUBMODULE_CACHE = None
     _API_NAME_LOOKUP_CACHE = None
     _GIT_REF_CACHE = None
+    _GLOSSARY_TERMS_CACHE = None
     return config
 
 
@@ -1115,6 +1274,10 @@ def on_page_content(html, page, config, files):
     ):
         # Submodule page: module list with active/children expansion
         page.meta["module_toc"] = _build_module_toc(config, current_src_path=src)
+
+    # Last: the API restructuring above rewrites whole regions, so linking
+    # before it would have its links discarded with the markup they sat in.
+    html = _linkify_glossary_terms(html, page, Path(__file__).parent.parent)
 
     return html
 

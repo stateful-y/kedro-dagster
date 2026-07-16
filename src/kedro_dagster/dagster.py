@@ -45,8 +45,16 @@ class ExecutorCreator:
         Creates schedule definitions from configuration.
     `kedro_dagster.dagster.LoggerCreator` :
         Creates logger definitions from configuration.
-    `kedro_dagster.config.execution.ExecutorOptions` :
-        Union of supported executor option models.
+
+    Notes
+    -----
+    Executor entries are validated against ``ExecutorOptions``, the union of the
+    supported executor option models: ``InProcessExecutorOptions``,
+    ``MultiprocessExecutorOptions``, ``DaskExecutorOptions``,
+    ``K8sJobExecutorOptions``, ``DockerExecutorOptions``,
+    ``CeleryExecutorOptions``, ``CeleryDockerExecutorOptions`` and
+    ``CeleryK8sJobExecutorOptions``. The union is a type alias rather than a
+    class, so it has no API page of its own; see the individual models above.
     """
 
     _OPTION_EXECUTOR_MAP = {
@@ -423,10 +431,13 @@ class LoggerCreator:
 
         See Also
         --------
-        `kedro_dagster.dagster.LoggerCreator._get_logger_definition` :
-            Creates a single logger definition.
         `kedro_dagster.config.logging.LoggerOptions` :
             Logger option model used as input.
+
+        Notes
+        -----
+        Each individual logger definition is created by the private
+        ``_get_logger_definition`` method.
         """
         LOGGER.info("Creating Dagster loggers...")
         named_loggers = {}

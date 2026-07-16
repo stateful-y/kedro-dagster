@@ -154,6 +154,14 @@ plugins:
             - https://docs.python.org/3/objects.inv
           options:
             docstring_style: numpy
+            docstring_options:
+              # The pydantic models in config/models.py document their fields in
+              # the class docstring's Parameters section, which is accurate --
+              # the fields really are constructor keyword arguments. But pydantic
+              # generates `__init__(self, **data)` at runtime, so griffe has no
+              # signature to match those names against and reports every one as
+              # unknown. Only this check is off; griffe's other checks stay on.
+              warn_unknown_params: false
             show_source: true
             show_root_heading: true
             show_symbol_type_heading: true

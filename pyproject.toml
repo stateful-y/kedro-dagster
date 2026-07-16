@@ -139,7 +139,10 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*" = ["ARG", "S101", "T201", "PLR2004"]  # Allow assert statements, prints, and magic values in tests
-"docs/**/*" = ["T201", "ARG001", "PLW0603", "SIM105", "SIM108"]  # Allow prints, unused args, globals, and simplifiable patterns in documentation hooks
+# The hooks implement signatures they do not choose -- mkdocs' event hooks and
+# HTMLParser's handle_* methods -- so an unused parameter is the interface, not
+# an oversight. ARG002 is the method-level twin of ARG001.
+"docs/**/*" = ["T201", "ARG001", "ARG002", "PLW0603", "SIM105", "SIM108"]  # Allow prints, unused args, globals, and simplifiable patterns in documentation hooks
 
 [tool.ruff.lint.isort]
 known-first-party = ["kedro_dagster"]

@@ -265,10 +265,10 @@ class CatalogTranslator:
         tuple[dict[str, IOManagerDefinition], dict[str, dict[str, Any]]]
             2-tuple of (named IO managers, asset partition definitions).
 
-        See Also
-        --------
-        `kedro_dagster.catalog.CatalogTranslator._translate_dataset` :
-            Creates a single IO manager per dataset.
+        Notes
+        -----
+        One IO manager is created per dataset by the private
+        ``_translate_dataset`` method.
         """
         LOGGER.info("Translating Kedro catalog to Dagster IO managers...")
         named_io_managers: dict[str, dg.IOManagerDefinition] = {}
