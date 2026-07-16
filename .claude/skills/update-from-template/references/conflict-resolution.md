@@ -156,7 +156,7 @@ nav:
   - Home: index.md
   - Tutorials:
     - Getting Started: pages/tutorials/getting-started.md
-    - Examples: pages/tutorials/examples.md  # conditional
+    - Examples: pages/examples/index.md  # conditional
   - How-to Guides:
     - Configure: pages/how-to/configure.md
     - Troubleshooting: pages/how-to/troubleshooting.md

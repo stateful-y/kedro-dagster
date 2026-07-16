@@ -116,7 +116,7 @@ docs/pages/tutorials/index.md          # Diataxis quadrant landing pages: the
 docs/pages/how-to/index.md             # template ships a skeleton, but a
 docs/pages/reference/index.md          # project's own landing page is better
 docs/pages/explanation/index.md        # and must never be overwritten
-docs/pages/tutorials/examples.md    # conditional: include_examples
+docs/pages/examples/index.md        # conditional: include_examples
 docs/examples/**                   # conditional: include_examples
 ```
 
