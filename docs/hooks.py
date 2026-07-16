@@ -574,7 +574,7 @@ def _build_api_table_html(project_root, prefix):
 # ---------------------------------------------------------------------------
 
 
-def _build_module_toc(config, current_src_path=None):
+def _build_module_toc(config, current_src_path=None, prefix=None):
     """Build the module TOC list used by the api-submodule sidebar template.
 
     Parameters
@@ -595,8 +595,6 @@ def _build_module_toc(config, current_src_path=None):
     api_dir = docs_dir / "pages" / "api"
     project_root = docs_dir.parent
 
-    is_index = current_src_path is None or current_src_path == "pages/reference/api.md"
-
     modules = _get_submodules(project_root)
     module_toc = []
 
@@ -606,12 +604,11 @@ def _build_module_toc(config, current_src_path=None):
         if not md_path.exists():
             continue
 
-        # Compute relative URL
-        if is_index:
-            # reference/api.md is at pages/reference/api/, submodule pages at pages/api/
-            page_url = f"../../api/{md_filename.replace('.md', '/')}"
-        else:
-            page_url = f"../{md_filename.replace('.md', '/')}".replace("//", "/")
+        # Site-root relative, so the TOC is correct on any page that renders it.
+        # The old form branched on whether the current page was the API index and
+        # hardcoded that index's depth -- which silently 404s for a project that
+        # keeps its index somewhere else.
+        page_url = f"{prefix}pages/api/{md_filename.replace('.md', '/')}"
 
         active = current_src_path == f"pages/api/{md_filename}" if current_src_path else False
 
@@ -1278,16 +1275,12 @@ def on_page_content(html, page, config, files):
         html = _linkify_see_also(html)
         html = _process_api_page_content(html, page, config)
 
-    if src == "pages/reference/api.md":
-        # API index: flat module list (api-index.html template)
-        page.meta["module_toc"] = _build_module_toc(config, current_src_path=src)
-    elif (
-        src.startswith("pages/api/")
-        and not src.startswith("pages/api/generated/")
-        and page.meta.get("template") == "api-submodule.html"
-    ):
-        # Submodule page: module list with active/children expansion
-        page.meta["module_toc"] = _build_module_toc(config, current_src_path=src)
+    # Keyed on the template a page declares, not on where the page happens to
+    # live: the index is wherever a project put it. Matching a hardcoded
+    # `pages/reference/api.md` leaves a relocated index with no module_toc at
+    # all -- its sidebar renders empty, and nothing errors.
+    if page.meta.get("template") in ("api-index.html", "api-submodule.html"):
+        page.meta["module_toc"] = _build_module_toc(config, current_src_path=src, prefix=_site_root_prefix(page))
 
     # Last: the API restructuring above rewrites whole regions, so linking
     # before it would have its links discarded with the markup they sat in.
