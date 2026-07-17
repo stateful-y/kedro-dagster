@@ -23,11 +23,17 @@ How to resolve conflicts produced by `copier update --conflict rej` for each fil
 | Mode | Behavior | AI suitability |
 |------|----------|----------------|
 | `--conflict inline` | Inserts `<<<<<<<`/`=======`/`>>>>>>>` markers into files | Harder to parse — markers interleave with file content |
-| `--conflict rej` | Keeps local file intact, writes rejected template hunks to `<file>.rej` | Easier — local file is clean, `.rej` shows what template wanted |
+| `--conflict rej` | Applies the hunks that apply, writes the rest to `<file>.rej` | Easier to parse — the `.rej` is a plain diff, not markers interleaved with content |
 
 Use `--conflict rej`. This produces:
-- The **local file** unchanged (what the project currently has)
-- A **`.rej` file** containing the diff hunks that copier couldn't apply (what the template wanted to change)
+- The **local file** with every hunk that applied cleanly already written to it — *not* the
+  untouched original. `git apply --reject` is all-or-nothing per hunk, not per file.
+- A **`.rej` file** containing only the hunks that could not be applied.
+
+That distinction is load-bearing. For a Tier 3 file, deleting the `.rej` does not restore
+the project's version: the hunks that applied are still there. Use
+`git checkout HEAD -- <file>` to undo them. Check with `git diff HEAD -- <file>` whenever a
+`.rej` exists — a non-empty diff means the file was partially updated.
 
 ---
 
@@ -150,10 +156,9 @@ nav:
   - Home: index.md
   - Tutorials:
     - Getting Started: pages/tutorials/getting-started.md
-    - Examples: pages/tutorials/examples.md  # conditional
+    - Examples: pages/examples/index.md  # conditional
   - How-to Guides:
     - Configure: pages/how-to/configure.md
-    - Troubleshooting: pages/how-to/troubleshooting.md
     - Contributing: pages/how-to/contribute.md
   - Reference:
     - API Reference: pages/reference/api.md

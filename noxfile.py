@@ -264,6 +264,47 @@ def build_docs(session: nox.Session) -> None:
     session.run("mkdocs", "build", "--clean", external=True)
 
 
+@nox.session(python=PYTHON_VERSIONS[0], venv_backend="uv")
+def check_docs(session: nox.Session) -> None:
+    """Build the docs with warnings fatal, without executing the notebooks.
+
+    Pinned to the lowest supported Python rather than whatever the caller happens
+    to have: an unpinned session takes the ambient interpreter, which can sit
+    outside requires-python and die in `uv sync` before mkdocs runs. CI only
+    passes today because the runner's default happens to be in range -- a runner
+    bumped past the ceiling would turn this red for a reason that has nothing to
+    do with the docs.
+
+    docs/hooks.py warns when a marker resolves to nothing, because a placeholder
+    that renders nothing looks exactly like a page that never had one -- the
+    warning is the only signal that a page silently lost its content. That signal
+    is worthless unless something fails on it, which is what this session is for.
+
+    A full build is too slow to run on every PR: exporting the notebooks executes
+    every one of them and dominates the time. MKDOCS_SKIP_NOTEBOOKS skips only the
+    export -- the gallery still parses every notebook's source, so sections,
+    companions and cards resolve exactly as they do in a real build, which is what
+    the markers depend on. build_docs remains the real, notebook-executing build.
+    """
+    session.run_install(
+        "uv",
+        "sync",
+        "--no-default-groups",
+        "--group",
+        "docs",
+        env={"UV_PROJECT_ENVIRONMENT": session.virtualenv.location},
+    )
+
+    session.run(
+        "mkdocs",
+        "build",
+        "--clean",
+        "--strict",
+        external=True,
+        env={"MKDOCS_SKIP_NOTEBOOKS": "1"},
+    )
+
+
 @nox.session(venv_backend="uv")
 def serve_docs(session: nox.Session) -> None:
     """Run a development server for working on documentation."""

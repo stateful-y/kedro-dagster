@@ -59,7 +59,7 @@ jobs:
     executor: sequential
 ```
 
-`{product}` binds to `reviews_predictor` and `price_predictor`, so these two keys render the same four jobs — `reviews_predictor__data_processing`, `price_predictor__data_processing`, and the `data_science` pair.
+`{product}` binds to `reviews_predictor` and `price_predictor`, so these two keys render the same four jobs: `reviews_predictor__data_processing`, `price_predictor__data_processing`, and the `data_science` pair.
 
 ## Bind deeper namespaces
 
@@ -73,7 +73,7 @@ jobs:
       node_namespaces: ["{product}.{group}.{variant}"]
 ```
 
-A literal segment in the axis restricts which namespaces match — `node_namespaces: ["beta.{group}.{variant}"]` only binds namespaces beginning with `beta`.
+A literal segment in the axis restricts which namespaces match. For example, `node_namespaces: ["beta.{group}.{variant}"]` only binds namespaces beginning with `beta`.
 
 ## Interpolate the whole job body
 
@@ -125,11 +125,11 @@ jobs:
 ```
 
 !!! note "A factory only renders namespaces that exist"
-    Jobs are derived from the **pipeline's** namespaces in the active environment. If a namespace is absent (or lacks the `tags` your factory filters on), no job is rendered for it — keep single-namespace or specially-filtered cases as literal jobs.
+    Jobs are derived from the **pipeline's** namespaces in the active environment. If a namespace is absent (or lacks the `tags` your factory filters on), no job is rendered for it. Keep single-namespace or specially-filtered cases as literal jobs.
 
 ## See also
 
-- [Configuration Reference — Job factories](../reference/configuration.md#job-factories): field-level detail and precedence rules
+- [Configuration Reference: Job factories](../reference/configuration.md#job-factories): field-level detail and precedence rules
 - [CLI Reference](../reference/cli.md#kedro-dagster-resolve-patterns): `resolve-patterns` / `list-patterns`
 - [Example Project](../tutorials/example-project.md): job factories in the `staging` and `prod` environments
-- [`PipelineOptions`](../api/generated/kedro_dagster.config.models.PipelineOptions.md): all pipeline filter parameters
+- [`PipelineOptions`](../api/generated/kedro_dagster.config.PipelineOptions.md): all pipeline filter parameters

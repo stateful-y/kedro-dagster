@@ -91,7 +91,7 @@ Each asset is assigned to a Dagster **group** derived from its Kedro **namespace
 - **Un-namespaced nodes** group by the name of the pipeline they belong to.
 - A dataset can override its group with `group_name` in its catalog `metadata`.
 
-Because Kedro pipelines already map to Dagster **jobs**, the pipeline name is *not* folded into the group — the namespace alone defines the group, which keeps groups aligned with your modular-pipeline structure and avoids redundant names like `data_science__data_science`.
+Because Kedro pipelines already map to Dagster **jobs**, the pipeline name is *not* folded into the group. The namespace alone defines the group, which keeps groups aligned with your modular-pipeline structure and avoids redundant names like `data_science__data_science`.
 
 Namespaces are hierarchical: on Dagster ≥ 1.13.9 the namespace separator renders as `/`, so `marketing.ads` becomes the nested group `marketing/ads`. These nested groups render as a tree in the asset graph and can be selected with wildcards, e.g. `group:"marketing/*"`. On older Dagster, the namespace falls back to a flat `__`-joined group (`marketing__ads`). A `group_name` override may also use `/`; it degrades to `__` (with a warning) on older Dagster rather than failing. The capability is detected once via `SUPPORTS_HIERARCHICAL_GROUPS` and applied by `_get_node_group_name` / `_normalize_group_name` in `src/kedro_dagster/utils.py`.
 

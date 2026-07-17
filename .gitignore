@@ -80,6 +80,9 @@ examples/__marimo__/
 # Ruff
 .ruff_cache/
 
+# Markdown linter cache
+.rumdl_cache/
+
 # OpenSpec (local working artifacts, not tracked)
 openspec/
 
@@ -131,9 +134,25 @@ assistant-instructions.md
 .ai/
 .llm/
 .copilot/
-.claude/
 ai-instructions/
 llm-instructions/
+
+# Claude Code: keep personal config (settings.local.json, etc.) private, but
+# track the skills shipped by the template. Must be ".claude/*" and not
+# ".claude/" -- git does not descend into an excluded directory, so a negation
+# under ".claude/" would never be reached.
+.claude/*
+!.claude/skills/
+
+# openspec installs its own skills. They are tool state that openspec rewrites,
+# not project content, so they are never tracked -- even though the rule above
+# tracks .claude/skills.
+.claude/skills/openspec-*/
+
+# The Copilot-side skills mirror .claude/skills byte for byte. Tracking both
+# doubles every skill edit and its review. .claude/skills is the source of
+# truth; this copy is generated alongside it and stays out of git.
+.github/skills/
 
 # Project-specific AI context (that you want to keep private)
 .cursorrules

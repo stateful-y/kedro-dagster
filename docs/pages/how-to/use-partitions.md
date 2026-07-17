@@ -78,7 +78,7 @@ my_upstream_dataset:
       type: dagster.IdentityPartitionMapping
 ```
 
-See [`DagsterPartitionedDataset`](../api/generated/kedro_dagster.datasets.partitioned_dataset.DagsterPartitionedDataset.md) for all parameters.
+See [`DagsterPartitionedDataset`](../api/generated/kedro_dagster.datasets.DagsterPartitionedDataset.md) for all parameters.
 
 ## Supported partition types
 
@@ -107,7 +107,7 @@ my_nothing_dataset:
 
 These appear as `Nothing` assets in Dagster and only enforce execution dependencies.
 
-See [`DagsterNothingDataset`](../api/generated/kedro_dagster.datasets.nothing_dataset.DagsterNothingDataset.md) for details, and the [Example Project](../tutorials/example-project.md#enforcing-order-with-nothing-assets) for a practical usage.
+See [`DagsterNothingDataset`](../api/generated/kedro_dagster.datasets.DagsterNothingDataset.md) for details, and the [Example Project](../tutorials/example-project.md#enforcing-order-with-nothing-assets) for a practical usage.
 
 ## See also
 
