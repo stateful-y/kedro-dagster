@@ -105,8 +105,8 @@ docs/assets/logo_light.png         # update overwrites them with no conflict and
                                    # stays Tier 1.)
 docs/pages/explanation/concepts.md
 docs/pages/tutorials/getting-started.md
-docs/pages/how-to/configure.md         # The template seeds these two pages and
-docs/pages/how-to/troubleshooting.md   # the project then owns them. That means
+docs/pages/how-to/configure.md         # The template seeds this page and the
+                                       # project then owns it. That means
                                        # the template's own additions to them do
                                        # not reach projects automatically -- the
                                        # right trade: a template that can append

@@ -159,7 +159,6 @@ nav:
     - Examples: pages/examples/index.md  # conditional
   - How-to Guides:
     - Configure: pages/how-to/configure.md
-    - Troubleshooting: pages/how-to/troubleshooting.md
     - Contributing: pages/how-to/contribute.md
   - Reference:
     - API Reference: pages/reference/api.md
