@@ -83,6 +83,7 @@ docs/pages/how-to/contribute.md
 .github/workflows/publish-release.yml  # conditional: include_actions
 .github/workflows/nightly.yml      # conditional: include_actions
 .github/workflows/changelog.yml    # conditional: include_actions
+.github/workflows/commit-message.yml   # conditional: include_actions
 ```
 
 ---

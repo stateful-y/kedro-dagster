@@ -1,0 +1,51 @@
+name: Validate Commit Message
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+    branches: [main]
+
+jobs:
+  validate-commit-message:
+    name: Validate Commit Message
+    runs-on: ubuntu-latest
+
+    # Only single-commit PRs. GitHub's `squash_merge_commit_title` defaults to
+    # COMMIT_OR_PR_TITLE, which takes the squash title from the commit when a PR has
+    # exactly one commit and from the PR title otherwise. So this is precisely the case
+    # where the commit message -- not the PR title -- is what git-cliff reads into the
+    # changelog, and the case pr-title.yml structurally cannot cover. Multi-commit PRs
+    # ship their title, so their intermediate commits stay free-form on purpose:
+    # requiring conventional WIP messages that get squashed away is pure friction.
+    #
+    # `commits` is the PR's commit count, which is the same input GitHub uses to make
+    # that choice. Counting changed files or diff hunks instead would gate the wrong PRs.
+    if: ${{ github.event.pull_request.commits == 1 }}
+
+    steps:
+      - name: Checkout the commit that will ship
+        uses: actions/checkout@v7
+        with:
+          # The PR head itself, not the merge commit checkout/@v7 defaults to -- the
+          # merge commit's message is GitHub's, not the contributor's.
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Validate the commit message that becomes the squash title
+        run: |
+          git log -1 --format=%B HEAD > "$RUNNER_TEMP/commit-msg"
+          echo "Validating the message that will become the squash commit title:"
+          cat "$RUNNER_TEMP/commit-msg"
+          # Runs the same commitizen hook, at the same pinned rev, that the local
+          # commit-msg hook runs. Deliberately not a second copy of the grammar: a
+          # CI check that disagrees with the local hook is worse than no check.
+          uv run --locked prek run \
+            --stage commit-msg \
+            --commit-msg-filename "$RUNNER_TEMP/commit-msg" \
+            commitizen
