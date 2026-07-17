@@ -77,10 +77,10 @@ class KedroRunTranslator:
         ConfigurableResource
             Dagster resource for Kedro pipeline hooks.
 
-        See Also
-        --------
-        `kedro_dagster.kedro.KedroRunTranslator._translate_on_pipeline_error_hook` :
-            Creates error sensors from the resulting jobs.
+        Notes
+        -----
+        The private ``_translate_on_pipeline_error_hook`` method creates error
+        sensors from the jobs this resource is attached to.
         """
         LOGGER.info(f"Creating Kedro run resource for pipeline '{pipeline_name}'")
 

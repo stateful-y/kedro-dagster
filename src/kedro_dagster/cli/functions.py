@@ -131,8 +131,9 @@ def _load_config_and_pipelines(env: str) -> tuple["KedroDagsterConfig", dict[str
     """Load the Dagster config and the registered pipelines for *env*.
 
     Bootstraps the Kedro project, opens a session, and reads the Dagster
-    configuration plus the project's registered pipelines — the same inputs the
-    translator feeds to the job factory — without building a Dagster code location.
+    configuration plus the project's registered pipelines. These are the same
+    inputs the translator feeds to the job factory, obtained without building a
+    Dagster code location.
 
     Parameters
     ----------
