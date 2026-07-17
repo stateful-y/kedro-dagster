@@ -563,8 +563,12 @@ def _build_api_table_html(project_root, prefix):
 
     for module_name, members in scans:
         module_label = _qualified_name(module_name, "").rstrip(".") or "kedro_dagster"
-        # A root export has no module page to point at; the API index is its home.
-        module_href = f"{prefix}pages/api/{module_name}/" if module_name else f"{prefix}pages/api/"
+        # A root export has no module page, and there is nothing to link it to: this
+        # pointed at pages/api/, which is only a directory of generated module pages
+        # and has no index of its own, so every root export's Module cell was a 404.
+        # Nothing catches that -- the cell is raw HTML from this hook, which --strict
+        # never validates, and only a project with a root-only export renders one.
+        module_href = f"{prefix}pages/api/{module_name}/" if module_name else None
 
         for cls in members["classes"]:
             qualified = _qualified_name(module_name, cls["name"])
@@ -585,11 +589,12 @@ def _build_api_table_html(project_root, prefix):
     for name, kind, module_label, module_href, desc, qualified in rows:
         href = f"{prefix}pages/api/generated/{qualified}/"
         badge_cls = _type_badge_cls.get(kind, "")
+        module_cell = f'<a href="{module_href}">{module_label}</a>' if module_href else module_label
         tbody_lines.append(
             f"      <tr>"
             f'<td><a href="{href}"><code>{name}</code></a></td>'
             f'<td><span class="api-badge {badge_cls}">{kind}</span></td>'
-            f'<td><a href="{module_href}">{module_label}</a></td>'
+            f"<td>{module_cell}</td>"
             f"<td>{desc}</td>"
             f"</tr>"
         )
@@ -1004,7 +1009,7 @@ def _split_see_also_entries(inner):
     return [" ".join(parts) for parts in entries]
 
 
-def _resolve_see_also_url(name):
+def _resolve_see_also_url(name, prefix):
     """Resolve a See Also entry naming a project symbol to a URL, or None.
 
     A dotted name whose leading segment is not this package is external and is
@@ -1014,6 +1019,12 @@ def _resolve_see_also_url(name):
     lookup is keyed by *short* name, so a dotted external name always misses it,
     and stripping the qualifier first would let ``sklearn.linear_model.Ridge``
     collide with a project symbol called ``Ridge``.
+
+    The URL is built from *prefix* rather than a bare ``../``. A See Also block
+    renders on any page carrying a docstring, not only under
+    ``pages/api/generated/``, and ``../`` is the right answer from exactly one
+    depth. Same reasoning as ``_site_root_prefix``, which says it plainly: a
+    hardcoded prefix silently 404s every link once the page moves.
     """
     package = "kedro_dagster"
     if "." in name and name.split(".", 1)[0] != package:
@@ -1022,7 +1033,7 @@ def _resolve_see_also_url(name):
     short_name = name.rsplit(".", 1)[-1]
     project_root = Path(__file__).parent.parent
     qualified = _get_api_name_lookup(project_root).get(short_name)
-    return f"../{qualified}/" if qualified is not None else None
+    return f"{prefix}pages/api/generated/{qualified}/" if qualified is not None else None
 
 
 def _external_autoref(name, title):
@@ -1074,9 +1085,9 @@ def _resolve_member_identifier(name):
     return f"{qualified_head}.{rest}"
 
 
-def _link_entry(name, title, colon, entry):
+def _link_entry(name, title, colon, entry, prefix):
     """Render one See Also entry: project link, deferred external ref, or as-is."""
-    url = _resolve_see_also_url(name)
+    url = _resolve_see_also_url(name, prefix)
     if url:
         return f'<a href="{url}">{title}</a>{colon}'
     member_identifier = _resolve_member_identifier(name)
@@ -1243,7 +1254,7 @@ def _linkify_glossary_terms(html, page, project_root):
     return linker.get_html()
 
 
-def _linkify_see_also(html):
+def _linkify_see_also(html, prefix):
     """Turn the names in a rendered See Also section into links.
 
     Must run while the ``<details class="see-also">`` container still exists --
@@ -1262,7 +1273,7 @@ def _linkify_see_also(html):
             code_match = re.fullmatch(r"<code>([^<]+)</code>", token)
             name = code_match.group(1) if code_match else token
             title = f"<code>{name}</code>" if code_match else name
-            return lead + _link_entry(name, title, colon, token + colon) + rest
+            return lead + _link_entry(name, title, colon, token + colon, prefix) + rest
 
         def _linkify_inner(inner):
             # Leave an author's explicit [Name][target] reference alone: they have
@@ -1605,6 +1616,16 @@ def on_page_content(html, page, config, files):
     """Post-process HTML: API page TOC and content restructuring."""
     src = page.file.src_path
 
+    # Keyed on the markup, not on where the page lives: mkdocstrings emits a See
+    # Also block wherever a docstring is rendered, and a project is free to put
+    # ::: directives on a curated reference page. Gating this on
+    # `pages/api/generated/` left those blocks raw -- kedro-dagster's datasets
+    # page rendered three entries as plain text while the same names linked fine
+    # on the generated pages, which is exactly the shape of "it works where we
+    # looked". --strict never sees it: this is our own HTML.
+
+    html = _linkify_see_also(html, _site_root_prefix(page))
+
     # Process generated API member pages (per-class/function detail pages)
     if src.startswith("pages/api/generated/"):
         # ORDER IS LOAD-BEARING: mkdocstrings emits See Also as a
@@ -1612,7 +1633,6 @@ def on_page_content(html, page, config, files):
         # dissolves that block for class-level docstrings.  Linkifying after it
         # silently does nothing for class-level See Also sections -- the
         # majority of them -- while appearing to work for method-level ones.
-        html = _linkify_see_also(html)
         html = _process_api_page_content(html, page, config)
 
     # Keyed on the template a page declares, not on where the page happens to
