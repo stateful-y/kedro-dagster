@@ -1,3 +1,7 @@
+---
+description: "Complete field tables for `dagster.yml`: jobs, executors, schedules, and loggers."
+---
+
 # Configuration Reference
 
 Kedro-Dagster expects a standard [Kedro project structure](https://docs.kedro.org/en/stable/get_started/kedro_concepts.html#kedro-project-directory-structure). The main configuration file is `dagster.yml`, located in `conf/<ENV_NAME>/`.
