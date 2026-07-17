@@ -80,7 +80,7 @@ def _qualified_name(module_name, member_name):
 
 
 def _module_source(pkg_dir, module_name):
-    """The file backing a submodule: ``name.py``, else ``name/__init__.py``."""
+    """Return the file backing a submodule: ``name.py``, else ``name/__init__.py``."""
     mod_file = pkg_dir / f"{module_name}.py"
     if not mod_file.exists():
         mod_file = pkg_dir / module_name / "__init__.py"
