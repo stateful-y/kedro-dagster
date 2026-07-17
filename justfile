@@ -4,10 +4,10 @@
 default:
     @just --list
 
-# Install dependencies and pre-commit
+# Install dependencies and git hooks
 install:
     uv sync --group dev
-    uv run pre-commit install
+    uv run prek install
 
 # Run tests and doctests with parallel execution
 test:
@@ -39,9 +39,9 @@ lint:
     uv run --locked rumdl check .
     uv run --extra mlflow --locked ty check --exit-zero-on-warning src
 
-# Format and fix code (via pre-commit)
+# Format and fix code (via prek)
 fix:
-    uv run pre-commit run --all-files --show-diff-on-failure
+    uv run prek run --all-files --show-diff-on-failure
 
 # Build documentation
 build:

@@ -160,7 +160,7 @@ jobs:
       - name: Set up Python
         run: uv python install
 
-      - name: Run pre-commit with nox
+      - name: Run hooks with nox
         run: |
           uvx nox -s fix
 

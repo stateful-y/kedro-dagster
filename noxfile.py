@@ -229,22 +229,26 @@ def lint(session: nox.Session) -> None:
     session.run("ty", "check", "--exit-zero-on-warning", "src", external=True)
 
 
-@nox.session(venv_backend="uv")
+# Unlike every other session, this one owns no environment. `uv run --locked` resolves
+# prek from uv.lock, and each local hook resolves its own tool from that same project
+# environment. A nox venv here would be a second environment that only ever holds the
+# runner -- which is the redundant install this session used to pay for on every run.
+@nox.session(venv_backend="none")
 def fix(session: nox.Session) -> None:
     """Format the code base to adhere to our styles, and complain about what we cannot do automatically."""
-    # Install dependencies. --locked pins the exact uv.lock versions so a stale lock
-    # fails loudly here and local matches CI.
-    session.run_install(
+    # --locked pins the exact uv.lock versions, so a stale lock fails loudly here and
+    # local matches CI. It is also what keeps prek itself pinned -- never use `uvx prek`.
+    session.run(
         "uv",
-        "sync",
+        "run",
         "--locked",
-        "--no-default-groups",
-        "--group",
-        "dev",
-        env={"UV_PROJECT_ENVIRONMENT": session.virtualenv.location},
+        "prek",
+        "run",
+        "--all-files",
+        "--show-diff-on-failure",
+        *session.posargs,
+        external=True,
     )
-    # Run pre-commit
-    session.run("pre-commit", "run", "--all-files", "--show-diff-on-failure", *session.posargs, external=True)
 
 
 @nox.session(venv_backend="uv")

@@ -1,6 +1,15 @@
+# `install` creates only the pre-commit hook unless told otherwise, so commitizen's
+# `stages: [commit-msg]` hook was declared but never installed -- the gate existed on
+# paper and never once ran. Naming both types here is what makes `prek install` wire up
+# the commit-msg hook that validates the message a single-commit PR ships.
+default_install_hook_types: [pre-commit, commit-msg]
+
 repos:
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+  # prek's built-in Rust implementations, declared explicitly. Pointing these at
+  # pre-commit/pre-commit-hooks would be a lie: prek swaps its builtins in for that
+  # repo's hooks and ignores `rev` while doing it, so the pin would govern nothing.
+  # What actually pins these is prek's own version in uv.lock.
+  - repo: builtin
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
@@ -11,7 +20,6 @@ repos:
       - id: check-json
       - id: check-toml
       - id: check-merge-conflict
-      - id: debug-statements
       - id: mixed-line-ending
 
 
@@ -27,6 +35,12 @@ repos:
   # source of truth is uv.lock. --locked makes a stale uv.lock fail loudly
   # instead of silently diverging from CI. (Dependabot's "uv" ecosystem then
   # keeps them updated in lockstep; nothing floats on a frozen pre-commit rev.)
+  #
+  # That last clause is now literally true: every hook above resolves from uv.lock,
+  # via prek's version for the builtins and via `uv run --locked` for these. The one
+  # exception is commitizen, which has no builtin and no reason to live in the dev
+  # environment -- it runs at commit-msg only, so prek builds its env lazily rather
+  # than every contributor paying 16 packages for it.
   - repo: local
     hooks:
       # Docstring coverage

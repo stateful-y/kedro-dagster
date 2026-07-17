@@ -71,7 +71,10 @@ docs = [
     "mkdocs-glightbox>=0.5",
 ]
 fix = [
-    "pre-commit-uv>=4.1",
+  # prek runs the hooks. Pinned here, never invoked via `uvx`: prek substitutes its
+  # own Rust implementations for the `repo: builtin` hooks, so an unpinned prek would
+  # mean unpinned hook code -- exactly what the config comment below rules out.
+  "prek>=0.4.10",
 ]
 
 # [ADDITION] Kedro CLI plugin registration
@@ -122,6 +125,7 @@ select = [
     "ARG", # flake8-unused-arguments
     "SIM", # flake8-simplify
     "PL",  # Pylint
+    "T10", # flake8-debugger
     "T201", # Print statement
 ]
 ignore = [

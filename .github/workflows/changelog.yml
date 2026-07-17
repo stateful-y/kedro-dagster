@@ -47,10 +47,20 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v7
 
-      - name: Run pre-commit on generated CHANGELOG
+      - name: Run hooks on generated CHANGELOG
         run: |
-          # Run pre-commit to ensure the generated file is properly formatted
-          uvx pre-commit run --files CHANGELOG.md || true
+          # Format the generated file. `uv run --locked` keeps prek at the version in
+          # uv.lock -- `uvx prek` would float, and the builtins' implementations come
+          # from prek itself, so an unpinned runner means unpinned formatting.
+          uv run --locked prek run --files CHANGELOG.md && rc=0 || rc=$?
+          # Exit 1 means a hook rewrote CHANGELOG.md, which is exactly what this step is
+          # for -- the next step commits the result. Exit 2+ means prek could not run at
+          # all (an unparseable config, say). The `|| true` this replaces swallowed both,
+          # so a runner that never executed looked identical to a clean format.
+          if [ "$rc" -gt 1 ]; then
+            echo "::error::prek failed to run (exit $rc) -- CHANGELOG.md was not formatted"
+            exit "$rc"
+          fi
 
       - name: Create Pull Request for CHANGELOG
         uses: peter-evans/create-pull-request@v8
