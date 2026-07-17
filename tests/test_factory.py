@@ -3,7 +3,7 @@
 Ported from the sibling ``kedro-azureml-pipeline`` plugin, adapted to the
 Kedro-Dagster models and the ``__`` job-type boundary (Dagster names forbid the
 ``-`` used there). Stub pipelines are plain objects exposing ``.nodes`` whose
-items expose ``.namespace`` — the only pipeline attributes the factory reads.
+items expose ``.namespace``, the only pipeline attributes the factory reads.
 """
 
 from types import SimpleNamespace

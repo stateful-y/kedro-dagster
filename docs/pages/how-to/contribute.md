@@ -354,8 +354,8 @@ other_function : Another related object.
 ```
 
 Names are linked to their API pages automatically, whether or not you wrap them
-in backticks. Names that cannot be resolved — a private helper, or a concept
-rather than an API object — are left as plain text rather than failing the
+in backticks. Names that cannot be resolved (a private helper, or a concept
+rather than an API object) are left as plain text rather than failing the
 build, so you can reference anything that reads well.
 
 Fully qualified names work too (`kedro_dagster.module.OtherClass`), and
@@ -384,9 +384,9 @@ turned into a link to its definition. The glossary page is the only place terms
 are listed, so a definition and its links cannot drift apart.
 
 Opting in is per term because defining a word and advertising it everywhere are
-different decisions: a glossary is free to define short, common words — `step`
-above — and auto-linking those wherever prose happens to use them is noise. Text
-inside code, headings and existing links is never touched.
+different decisions. A glossary is free to define short, common words such as
+`step` above, and auto-linking those wherever prose happens to use them is
+noise. Text inside code, headings and existing links is never touched.
 
 ### Documentation
 
