@@ -143,10 +143,17 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*" = ["ARG", "S101", "T201", "PLR2004"]  # Allow assert statements, prints, and magic values in tests
-# The hooks implement signatures they do not choose -- mkdocs' event hooks and
-# HTMLParser's handle_* methods -- so an unused parameter is the interface, not
-# an oversight. ARG002 is the method-level twin of ARG001.
-"docs/**/*" = ["T201", "ARG001", "ARG002", "PLW0603", "SIM105", "SIM108"]  # Allow prints, unused args, globals, and simplifiable patterns in documentation hooks
+# The hooks implement signatures they do not choose -- mkdocs' event hooks --
+# so an unused parameter is the interface, not an oversight. ARG002 is the
+# method-level twin of ARG001. SIM108 was dropped when the build steps moved out:
+# nothing in this file trips it any more, and an ignore for a rule that no longer
+# fires reads as "this file needs an exemption" long after it stopped being true.
+"docs/hooks.py" = ["T201", "ARG001", "ARG002", "PLW0603", "SIM105"]  # Allow prints, unused args, globals, and simplifiable patterns in documentation hooks
+# The extracted build steps are ordinary modules -- they implement no signature
+# anyone imposed on them, so they get no ARG exemption and an unused parameter
+# there really is an oversight. What they do need is prints (build progress) and
+# module-level per-build caches.
+"docs/_*.py" = ["T201", "PLW0603"]  # Allow prints and per-build cache globals in the extracted build steps
 
 [tool.ruff.lint.isort]
 known-first-party = ["kedro_dagster"]

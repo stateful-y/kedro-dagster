@@ -106,6 +106,14 @@ extra_css:
 
 exclude_docs: |
   api-submodule.html
+  # The build steps live in docs/ so mkdocs can load hooks.py by path and the
+  # hooks can import their siblings. mkdocs treats every non-page file under
+  # docs_dir as a static asset, so without this it publishes the build tooling's
+  # source -- and its bytecode -- to the documentation site. That was already
+  # true of hooks.py before the steps were split out; splitting them made it
+  # four modules instead of one, which is what made it visible.
+  *.py
+  __pycache__/
 
 not_in_nav: |
   assets/README.md
