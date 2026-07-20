@@ -143,17 +143,20 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*" = ["ARG", "S101", "T201", "PLR2004"]  # Allow assert statements, prints, and magic values in tests
-# The hooks implement signatures they do not choose -- mkdocs' event hooks --
-# so an unused parameter is the interface, not an oversight. ARG002 is the
-# method-level twin of ARG001. SIM108 was dropped when the build steps moved out:
-# nothing in this file trips it any more, and an ignore for a rule that no longer
-# fires reads as "this file needs an exemption" long after it stopped being true.
-"docs/hooks.py" = ["T201", "ARG001", "ARG002", "PLW0603", "SIM105"]  # Allow prints, unused args, globals, and simplifiable patterns in documentation hooks
-# The extracted build steps are ordinary modules -- they implement no signature
-# anyone imposed on them, so they get no ARG exemption and an unused parameter
-# there really is an oversight. What they do need is prints (build progress) and
-# module-level per-build caches.
-"docs/_*.py" = ["T201", "PLW0603"]  # Allow prints and per-build cache globals in the extracted build steps
+# Every script under docs/ prints build progress and may hold per-build caches.
+#
+# Deliberately `docs/*.py`, NOT `docs/_*.py`. A project is free to keep its own
+# script here -- yohou has `docs/precache_datasets.py` -- and the narrower glob
+# silently dropped its exemption, removing lint coverage without removing the
+# lint. That is the failure shape this fleet specialises in, so the pattern
+# matches what the directory is for rather than what the template happens to ship.
+"docs/*.py" = ["T201", "PLW0603"]  # Allow prints and per-build cache globals in every docs script
+# The hooks ADDITIONALLY implement signatures they do not choose -- mkdocs' event
+# hooks -- so an unused parameter there is the interface, not an oversight. ARG002
+# is the method-level twin of ARG001. ruff merges per-file-ignores across every
+# matching pattern, so hooks.py gets these on top of the line above; the extracted
+# build steps impose no signature on anyone and correctly do not get them.
+"docs/hooks.py" = ["ARG001", "ARG002", "SIM105"]  # Plus unused args and simplifiable patterns, for mkdocs' imposed hook signatures
 
 [tool.ruff.lint.isort]
 known-first-party = ["kedro_dagster"]

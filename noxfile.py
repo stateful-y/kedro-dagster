@@ -251,9 +251,16 @@ def fix(session: nox.Session) -> None:
     )
 
 
-@nox.session(venv_backend="uv")
+@nox.session(python=PYTHON_VERSIONS[0], venv_backend="uv")
 def build_steps(session: nox.Session) -> None:
     """Run the documentation build steps without building the site.
+
+    Pinned to the lowest supported Python for the same reason ``check_docs`` is:
+    an unpinned session takes whatever interpreter the caller happens to have,
+    which can sit outside ``requires-python`` and die in ``uv sync`` before any
+    step runs. Two projects in this fleet cap at 3.13, so on a machine defaulting
+    to 3.14 an unpinned session fails for a reason that has nothing to do with
+    the docs.
 
     ``docs/hooks.py`` calls these from ``on_pre_build``/``on_post_build`` so that
     ``mkdocs serve`` regenerates on a source edit, but none of them needs a theme,
