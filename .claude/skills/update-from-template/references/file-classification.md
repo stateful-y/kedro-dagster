@@ -42,6 +42,9 @@ docs/assets/.gitkeep
 docs/assets/made_by_stateful-y.png   # the "made by stateful-y" mark is template branding
 docs/assets/README.md
 docs/hooks.py
+docs/_api_pages.py                   # build step split out of hooks.py; same tier as its caller
+docs/_markdown_export.py             # build step split out of hooks.py; same tier as its caller
+docs/_notebooks.py                   # build step split out of hooks.py; examples-only
 docs/pages/reference/changelog.md   # one-line include of the root CHANGELOG.md
 docs/javascripts/mathjax.js
 docs/javascripts/readthedocs.js
