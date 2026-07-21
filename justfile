@@ -7,7 +7,11 @@ default:
 # Install dependencies and git hooks
 install:
     uv sync --group dev
-    uv run prek install
+    # -f matters: without it prek finds a pre-v0.27.0 shim, moves it to
+    # `.git/hooks/pre-commit.legacy` and CHAINS it -- both hooks then run on
+    # every commit. `-f` overwrites instead. Measured; the migration notice
+    # prek prints names this flag, and this is the command people actually run.
+    uv run prek install -f
 
 # Run tests and doctests with parallel execution
 test:

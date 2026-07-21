@@ -35,7 +35,7 @@ uv sync --group dev
 4. Install the git hooks (required):
 
 ```bash
-uv run prek install
+uv run prek install -f
 ```
 
 ## Development Workflow

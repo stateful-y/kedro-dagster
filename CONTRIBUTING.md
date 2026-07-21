@@ -10,7 +10,7 @@ Please review our [Code of Conduct](CODE_OF_CONDUCT.md) before participating.
 git clone <repo-url>
 cd <project-dir>
 uv sync --group dev
-uv run prek install
+uv run prek install -f
 just test-fast
 ```
 
