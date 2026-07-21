@@ -32,7 +32,6 @@ from _api_pages import (  # noqa: E402
     _get_public_members,
     _get_root_members,
     _get_submodules,
-    _module_source,
     _qualified_name,
 )
 
@@ -81,15 +80,13 @@ def _build_api_table_html(project_root, prefix):
     with jQuery DataTables for client-side filtering and sorting.
     """
     modules = _get_submodules(project_root)
-    pkg_dir = project_root / "src" / "kedro_dagster"
 
     rows = []
     scans = []
     for mod in modules:
-        mod_file = _module_source(pkg_dir, mod["module_name"])
-        if not mod_file.exists():
-            continue
-        scans.append((mod["module_name"], _get_public_members(mod_file, pkg_dir)))
+        # Keyed on the module NAME: discovery no longer takes a source path, so
+        # the single-file-or-package probe and its `.exists()` guard are gone.
+        scans.append((mod["module_name"], _get_public_members(project_root, mod["module_name"])))
     # Symbols exported only from the package root belong to no submodule, so a
     # loop over submodules alone leaves them out of the table entirely.
     scans.append(("", _get_root_members(project_root)))

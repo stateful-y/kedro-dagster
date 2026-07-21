@@ -63,12 +63,40 @@ lint = [
     "ty>=0.0.12",
 ]
 docs = [
+    # Griffe is imported directly by docs/_api_pages.py to discover the package's
+    # public surface -- the same analysis mkdocstrings renders the API pages from,
+    # so the two cannot disagree about what is public. Declaring it records a
+    # dependency that is real: relying on it arriving transitively is how a future
+    # mkdocstrings release breaks every generated project at once.
+    #
+    # It is NOT free, contrary to what this comment claimed until a fan-out
+    # measured it. Griffe 2.x is split across three distributions and
+    # mkdocstrings[python] pulls only `griffelib`, which is what actually provides
+    # the `griffe` module. Declaring `griffe` therefore adds two packages the docs
+    # build does not use -- the `griffe` metapackage and `griffecli` (~15 KB total).
+    # Kept anyway, and the reason is a file collision, not taste. `griffe` 1.x
+    # OWNS the `griffe/` module directory; `griffelib` 2.x provides that same
+    # path. Naming `griffelib` in a project whose mkdocstrings still resolves to
+    # the 1.x line would install two distributions owning one import path.
+    # Depending on `griffe` cannot do that: it resolves either to 1.x, which owns
+    # the module, or to the 2.x metapackage, which defers to griffelib. Exactly
+    # one distribution owns `griffe/` in both cases, and ~15 KB is a cheap price
+    # for that.
+    #
+    # Deliberately NOT pinned tighter than mkdocstrings pins it (`>=1.13`): two
+    # floors on one package is a resolver conflict waiting for a release.
+    "griffe>=1.0",
     "mkdocs>=1.6.0",
     "mkdocs-autorefs>=1.0",
     "mkdocs-material>=9.7",
     "mkdocstrings[python]>=0.26.0",
     "pymdown-extensions>=10.20.1",
     "mkdocs-glightbox>=0.5",
+    # Also a direct import of docs/_api_pages.py, which reads mkdocstrings'
+    # `preload_modules` out of mkdocs.yml so that list has one definition rather
+    # than two. Same argument as griffe above: it arrives via mkdocs anyway, but
+    # relying on a transitive dependency is how a future release breaks this.
+    "pyyaml>=6.0",
 ]
 fix = [
   # prek runs the hooks. Pinned here, never invoked via `uvx`: prek substitutes its
