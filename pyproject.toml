@@ -143,10 +143,20 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*" = ["ARG", "S101", "T201", "PLR2004"]  # Allow assert statements, prints, and magic values in tests
-# The hooks implement signatures they do not choose -- mkdocs' event hooks and
-# HTMLParser's handle_* methods -- so an unused parameter is the interface, not
-# an oversight. ARG002 is the method-level twin of ARG001.
-"docs/**/*" = ["T201", "ARG001", "ARG002", "PLW0603", "SIM105", "SIM108"]  # Allow prints, unused args, globals, and simplifiable patterns in documentation hooks
+# Every script under docs/ prints build progress and may hold per-build caches.
+#
+# Deliberately `docs/*.py`, NOT `docs/_*.py`. A project is free to keep its own
+# script here -- yohou has `docs/precache_datasets.py` -- and the narrower glob
+# silently dropped its exemption, removing lint coverage without removing the
+# lint. That is the failure shape this fleet specialises in, so the pattern
+# matches what the directory is for rather than what the template happens to ship.
+"docs/*.py" = ["T201", "PLW0603"]  # Allow prints and per-build cache globals in every docs script
+# The hooks ADDITIONALLY implement signatures they do not choose -- mkdocs' event
+# hooks -- so an unused parameter there is the interface, not an oversight. ARG002
+# is the method-level twin of ARG001. ruff merges per-file-ignores across every
+# matching pattern, so hooks.py gets these on top of the line above; the extracted
+# build steps impose no signature on anyone and correctly do not get them.
+"docs/hooks.py" = ["ARG001", "ARG002", "SIM105"]  # Plus unused args and simplifiable patterns, for mkdocs' imposed hook signatures
 
 [tool.ruff.lint.isort]
 known-first-party = ["kedro_dagster"]

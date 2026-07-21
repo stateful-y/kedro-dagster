@@ -56,6 +56,14 @@ markdown_extensions:
   - sane_lists
   - toc:
       permalink: true
+      # API member pages carry two levels of section heading: the class's own
+      # (h3) and each method's (h5). Only the first belongs in the table of
+      # contents -- listing every method's Parameters/Returns/Source Code turns a
+      # class page's ToC into a wall. The hooks used to get this by building
+      # `page.toc` by hand and simply not adding them; now that the headings are
+      # real, `toc_depth` is what draws the same line. The h5 anchors still
+      # exist and are still linkable -- this only controls what the sidebar lists.
+      toc_depth: 4
   - pymdownx.arithmatex:
       generic: true
   - pymdownx.betterem:
@@ -106,6 +114,22 @@ extra_css:
 
 exclude_docs: |
   api-submodule.html
+  # The build steps live in docs/ so mkdocs can load hooks.py by path and the
+  # hooks can import their siblings. mkdocs treats every non-page file under
+  # docs_dir as a static asset, so without this it publishes the build tooling's
+  # source -- and its bytecode -- to the documentation site. That was already
+  # true of hooks.py before the steps were split out; splitting them made it
+  # four modules instead of one, which is what made it visible.
+  *.py
+  __pycache__/
+  # Same reason, one directory over: `docs/material/templates/` holds
+  # mkdocstrings template overrides, which are build tooling, not pages. Without
+  # this they are published as static assets -- confirmed live, `class.html.jinja`
+  # served 200 from the docs site. `material/overrides/*.html` leaks the same way
+  # and is excluded here too; `api-submodule.html` above was the one instance of
+  # this that had been noticed before, handled one file at a time.
+  *.jinja
+  material/overrides/*.html
 
 not_in_nav: |
   assets/README.md
@@ -144,6 +168,15 @@ plugins:
       shadow: true
       manual: false
   - mkdocstrings:
+      custom_templates: docs/material/templates
+      # Overrides live in docs/material/templates/python/material/. Each one is a
+      # thin `{% extends %}` over the shipped `_base/` template, so upstream
+      # fixes keep arriving -- see the header comments in those files for why the
+      # dispatcher is overridden rather than the nine section templates.
+      #
+      # NOTE: this is a PLUGIN-level key, not a handler option. Putting it under
+      # `handlers.python.options` fails the build with
+      # `PythonOptions.__init__() got an unexpected keyword argument`.
       handlers:
         python:
           paths: [src]

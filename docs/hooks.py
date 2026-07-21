@@ -1,15 +1,40 @@
-"""MkDocs hooks for post-build processing."""
+"""MkDocs hooks for the Kedro-Dagster documentation build.
 
-import ast
-import fnmatch
-import importlib.util
+These hooks are adapters. The work they used to do inline now lives in sibling
+modules -- ``_api_pages`` and ``_markdown_export`` -- which import
+nothing from mkdocs and can therefore be run, tested and debugged without a docs
+build. What stays here is the part that genuinely needs the renderer: the page
+hooks, and the per-build cache reset they depend on.
+"""
+
 import logging
 import posixpath
 import re
-import shutil
 import subprocess
+import sys
 from html.parser import HTMLParser
 from pathlib import Path
+
+# MkDocs loads this file by path rather than importing it as a module inside a
+# package, so `docs/` has no parent package and `from ._api_pages import ...`
+# cannot resolve. Putting `docs/` on sys.path lets the build steps be imported as
+# plain modules.
+#
+# Rejected alternative: adding `docs/__init__.py`. That would make `docs/` a
+# package, which changes what docs_dir scanning sees and invites a name collision
+# with the project's own package. This wart is smaller and confined to one line.
+sys.path.insert(0, str(Path(__file__).parent))
+
+import _api_pages  # noqa: E402
+import _markdown_export  # noqa: E402
+from _api_pages import (  # noqa: E402
+    _get_api_name_lookup,
+    _get_public_members,
+    _get_root_members,
+    _get_submodules,
+    _module_source,
+    _qualified_name,
+)
 
 # Warnings logged under the "mkdocs" logger tree are counted by mkdocs and turn
 # a --strict build red. Every marker this file understands is silently inert
@@ -25,505 +50,13 @@ log = logging.getLogger("mkdocs.hooks")
 #
 # Naming is load-bearing: the reset and its test discover caches by the
 # `_CACHE` suffix, so a cache named otherwise escapes both, silently.
-_SUBMODULE_CACHE = None
-_API_NAME_LOOKUP_CACHE = None
+#
+# The API discovery caches (`_SUBMODULE_CACHE`, `_API_NAME_LOOKUP_CACHE`) moved
+# to `_api_pages` with the functions that own them. They are still reset every
+# build -- on_config calls `_api_pages.reset_caches()` -- but they are no longer
+# declared here, so a reset or a test that scans only this module would silently
+# stop covering them. The registration test scans every module the hooks load.
 _GLOSSARY_TERMS_CACHE = None
-
-
-def _get_submodules(project_root):
-    """Discover public submodules in the package (cached).
-
-    Scans ``src/kedro_dagster/`` for ``.py`` files (excluding ``__init__``)
-    and sub-packages with an ``__init__.py``.  Returns a sorted list of dicts
-    with *module_name* and *module_doc* keys.
-    """
-    global _SUBMODULE_CACHE  # noqa: PLW0603
-    if _SUBMODULE_CACHE is not None:
-        return _SUBMODULE_CACHE
-
-    pkg_dir = project_root / "src" / "kedro_dagster"
-    if not pkg_dir.exists():
-        _SUBMODULE_CACHE = []
-        return _SUBMODULE_CACHE
-
-    modules = []
-    # Single-file modules
-    for py_file in sorted(pkg_dir.glob("*.py")):
-        if py_file.name.startswith("_"):
-            continue
-        module_name = py_file.stem
-        module_doc = _extract_module_docstring(py_file)
-        modules.append({"module_name": module_name, "module_doc": module_doc})
-
-    # Sub-packages (directories with __init__.py)
-    for child in sorted(pkg_dir.iterdir()):
-        if not child.is_dir() or child.name.startswith("_"):
-            continue
-        init = child / "__init__.py"
-        if init.exists():
-            module_doc = _extract_module_docstring(init)
-            modules.append({"module_name": child.name, "module_doc": module_doc})
-
-    _SUBMODULE_CACHE = modules
-    return _SUBMODULE_CACHE
-
-
-def _qualified_name(module_name, member_name):
-    """Public dotted path of a member.
-
-    A symbol exported only from the package root has no module segment --
-    `pkg.Name`, not `pkg..Name` -- which is the whole reason code keyed on a
-    submodule silently drops it.
-    """
-    parts = ["kedro_dagster", module_name, member_name]
-    return ".".join(part for part in parts if part)
-
-
-def _module_source(pkg_dir, module_name):
-    """Return the file backing a submodule: ``name.py``, else ``name/__init__.py``."""
-    mod_file = pkg_dir / f"{module_name}.py"
-    if not mod_file.exists():
-        mod_file = pkg_dir / module_name / "__init__.py"
-    return mod_file
-
-
-def _get_root_members(project_root):
-    """Public symbols the package exports only from its own ``__init__.py``.
-
-    ``_get_submodules`` skips every ``_``-prefixed name, which is right for
-    private modules and also silently excludes ``__init__.py`` itself. A package
-    that keeps a base class in ``_base.py`` and re-exports it from the root --
-    an ordinary layout, and what sklearn does -- therefore has a public symbol
-    that belongs to no submodule, reaches no page, and never appears in the API
-    table. Nothing reports it: yohou-nixtla ships 18 names in ``__all__`` and the
-    table lists 17.
-
-    Their public path has no module segment (``pkg.Name``, not
-    ``pkg.module.Name``), which is exactly why they fall through code keyed on a
-    submodule. Names a real submodule already publishes keep their module path;
-    only the homeless ones are adopted here.
-    """
-    pkg_dir = project_root / "src" / "kedro_dagster"
-    init_file = pkg_dir / "__init__.py"
-    if not init_file.exists():
-        return {"classes": [], "functions": []}
-
-    covered = set()
-    for mod in _get_submodules(project_root):
-        members = _get_public_members(_module_source(pkg_dir, mod["module_name"]), pkg_dir)
-        covered.update(entry["name"] for entry in members["classes"] + members["functions"])
-
-    root = _get_public_members(init_file, pkg_dir)
-    return {key: [entry for entry in root[key] if entry["name"] not in covered] for key in ("classes", "functions")}
-
-
-def _extract_module_docstring(py_file):
-    """Extract the module-level docstring from a Python file."""
-    try:
-        source = py_file.read_text(encoding="utf-8")
-        tree = ast.parse(source)
-        docstring = ast.get_docstring(tree)
-        if docstring:
-            # Return only the first line
-            return docstring.strip().split("\n")[0]
-    except (SyntaxError, UnicodeDecodeError):
-        pass
-    return ""
-
-
-def _get_module_members(py_file):
-    """Discover public classes and functions in a Python module via AST.
-
-    Returns a dict with *classes* and *functions* lists.  Each entry is a dict
-    with *name* and *doc* (first line of the docstring, or empty string).
-    """
-    classes = []
-    functions = []
-    try:
-        source = py_file.read_text(encoding="utf-8")
-        tree = ast.parse(source)
-    except (SyntaxError, UnicodeDecodeError):
-        return {"classes": classes, "functions": functions}
-
-    for node in ast.iter_child_nodes(tree):
-        if isinstance(node, ast.ClassDef) and not node.name.startswith("_"):
-            doc = ast.get_docstring(node) or ""
-            classes.append({"name": node.name, "doc": doc.strip().split("\n")[0]})
-        elif isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef) and not node.name.startswith("_"):
-            doc = ast.get_docstring(node) or ""
-            functions.append({"name": node.name, "doc": doc.strip().split("\n")[0]})
-
-    return {"classes": classes, "functions": functions}
-
-
-def _get_dunder_all(tree):
-    """Return the set of names listed in ``__all__``, or None if absent."""
-    for node in ast.iter_child_nodes(tree):
-        if not isinstance(node, ast.Assign):
-            continue
-        for target in node.targets:
-            if isinstance(target, ast.Name) and target.id == "__all__":
-                if not isinstance(node.value, ast.List | ast.Tuple):
-                    return None
-                return {e.value for e in node.value.elts if isinstance(e, ast.Constant) and isinstance(e.value, str)}
-    return None
-
-
-def _iter_reexport_nodes(tree):
-    """Yield ``ImportFrom`` nodes that re-export names from a package.
-
-    Covers top-level imports and imports guarded by a top-level ``try`` block,
-    which is the conventional way to expose an optional extra::
-
-        try:
-            from mypkg.neural._impl import Forecaster
-        except ImportError as err:
-            raise ImportError("install mypkg[neural]") from err
-
-    Only the ``try`` body is walked: names in an ``except`` handler are the
-    fallback path, not the package's advertised API.
-    """
-    for node in ast.iter_child_nodes(tree):
-        if isinstance(node, ast.ImportFrom):
-            yield node
-        elif isinstance(node, ast.Try):
-            for inner in node.body:
-                if isinstance(inner, ast.ImportFrom):
-                    yield inner
-
-
-def _resolve_import_from(node, init_file, pkg_dir):
-    """Map an ``ImportFrom`` node to the file that declares its names.
-
-    Handles relative imports (``from .naive import X``) and absolute imports
-    rooted at this package (``from mypkg.stats._base import X``).  Returns
-    None for imports that leave the package, which is what keeps incidental
-    third-party imports (``from pathlib import Path``) out of the API.
-    """
-    if node.level:
-        base = init_file.parent
-        for _ in range(node.level - 1):
-            base = base.parent
-        parts = node.module.split(".") if node.module else []
-    else:
-        if not node.module:
-            return None
-        parts = node.module.split(".")
-        if parts[0] != pkg_dir.name:
-            return None
-        base = pkg_dir
-        parts = parts[1:]
-
-    target = base
-    for part in parts:
-        target = target / part
-    for candidate in (target.with_suffix(".py"), target / "__init__.py"):
-        if candidate.exists():
-            return candidate
-    return None
-
-
-def _resolve_external_module(module_name):
-    """Locate a module that lives outside this package.
-
-    A package may deliberately re-export a dependency's symbol -- a convenience
-    shim such as ``from otherpkg.thing import Widget`` under its own ``__all__``.
-    That name is part of *this* package's public API, but no file under
-    ``pkg_dir`` declares it, so ``_resolve_import_from`` cannot reach it and the
-    symbol would silently vanish from the index and lose its page.
-
-    ``find_spec`` locates the module's source file so the kind and docstring can
-    be read from it like any other module, rather than guessed.  It imports the
-    *parent* package to do so, which is why this is only ever consulted for a
-    name the author listed in ``__all__``: an incidental ``from pathlib import
-    Path`` must never reach here.  Anything that does not resolve to readable
-    source is skipped, not invented.
-    """
-    try:
-        spec = importlib.util.find_spec(module_name)
-    except (ImportError, AttributeError, ValueError):
-        return None
-    if spec is None or not spec.origin or not spec.origin.endswith(".py"):
-        return None
-    return Path(spec.origin)
-
-
-def _reexports_a_dunder_all_name(node, exported):
-    """Whether this ImportFrom binds any name the package advertises in ``__all__``."""
-    return any((alias.asname or alias.name) in exported for alias in node.names if alias.name != "*")
-
-
-def _get_reexported_members(init_file, pkg_dir):
-    """Discover members a module exposes by re-export rather than by declaring them.
-
-    A re-exporting ``__init__.py`` declares no classes or functions of its own,
-    so an AST scan of that file alone finds nothing.  This resolves each
-    ``ImportFrom`` binding to its declaring module and lifts the name's kind
-    and docstring from there.
-
-    ``__all__`` acts as a *filter*, not an authority: a name is exposed only if
-    it is listed there (when present) *and* resolves to a class or function in
-    its declaring module.  Constants and other exports are excluded, because
-    only classes and functions get generated pages.
-
-    A plain module can be a re-export shim too, so this is not limited to
-    ``__init__.py`` -- but for one, an import is normally a private detail
-    (``from .base import Helper`` to use it), not an advertisement.  Only an
-    explicit ``__all__`` marks a plain module's imports as its public surface;
-    without one, nothing here is re-exported.  An ``__init__.py`` re-exports by
-    convention, so it needs no such marker.
-    """
-    try:
-        tree = ast.parse(init_file.read_text(encoding="utf-8"))
-    except (SyntaxError, UnicodeDecodeError, OSError):
-        return {"classes": [], "functions": []}
-
-    exported = _get_dunder_all(tree)
-    if exported is None and init_file.name != "__init__.py":
-        return {"classes": [], "functions": []}
-    classes = []
-    functions = []
-    seen = set()
-
-    for node in _iter_reexport_nodes(tree):
-        decl_file = _resolve_import_from(node, init_file, pkg_dir)
-        if decl_file is None:
-            # The import leaves the package. That is normally an incidental
-            # third-party import and must stay out of the API -- unless the
-            # author advertised the name in __all__, which makes it this
-            # package's public API no matter where it was declared.
-            if exported is None or node.level or not node.module or not _reexports_a_dunder_all_name(node, exported):
-                continue
-            decl_file = _resolve_external_module(node.module)
-            if decl_file is None:
-                continue
-        decl_members = None
-        for alias in node.names:
-            if alias.name == "*":
-                continue
-            exposed = alias.asname or alias.name
-            if exposed.startswith("_") or exposed in seen:
-                continue
-            if exported is not None and exposed not in exported:
-                continue
-            if decl_members is None:
-                decl_members = _get_module_members(decl_file)
-            for bucket, entries in (("classes", decl_members["classes"]), ("functions", decl_members["functions"])):
-                match = next((e for e in entries if e["name"] == alias.name), None)
-                if match is None:
-                    continue
-                (classes if bucket == "classes" else functions).append({
-                    "name": exposed,
-                    "doc": match["doc"],
-                    "origin": str(decl_file),
-                    "reexported": True,
-                })
-                seen.add(exposed)
-                break
-
-    return {"classes": classes, "functions": functions}
-
-
-def _get_public_members(mod_file, pkg_dir):
-    """Public classes and functions of a module, including re-exported ones.
-
-    Each entry carries *origin* (the file that declares the symbol) and
-    *reexported*, so the name lookup can tell one symbol reachable by two paths
-    from two different symbols that happen to share a short name.
-    """
-    if not mod_file.exists():
-        return {"classes": [], "functions": []}
-    members = _get_module_members(mod_file)
-    for key in ("classes", "functions"):
-        for entry in members[key]:
-            entry.setdefault("origin", str(mod_file))
-            entry.setdefault("reexported", False)
-    reexported = _get_reexported_members(mod_file, pkg_dir)
-    declared = {e["name"] for e in members["classes"] + members["functions"]}
-    for key in ("classes", "functions"):
-        members[key].extend(e for e in reexported[key] if e["name"] not in declared)
-    return members
-
-
-def _get_api_name_lookup(project_root):
-    """Map a symbol's short name to the qualified name of its API page (cached).
-
-    Shared by See Also resolution and example-notebook cross-referencing so the
-    two cannot disagree about what a symbol is called.  Built by static
-    analysis only; the package is never imported.
-
-    When one symbol is reachable by two paths -- declared in a module and
-    re-exported by a package -- the published path wins: that is the name users
-    write, and the one whose page they expect.
-
-    When a short name identifies two genuinely different symbols, it is omitted
-    rather than resolved arbitrarily: consumers turn this straight into a URL,
-    and a wrong link is worse than no link.
-    """
-    global _API_NAME_LOOKUP_CACHE  # noqa: PLW0603
-    if _API_NAME_LOOKUP_CACHE is not None:
-        return _API_NAME_LOOKUP_CACHE
-
-    pkg_dir = project_root / "src" / "kedro_dagster"
-    candidates = {}
-    scans = []
-    for mod in _get_submodules(project_root):
-        scans.append((mod["module_name"], _get_public_members(_module_source(pkg_dir, mod["module_name"]), pkg_dir)))
-    scans.append(("", _get_root_members(project_root)))
-    for module_name, members in scans:
-        for entry in members["classes"] + members["functions"]:
-            qualified = _qualified_name(module_name, entry["name"])
-            candidates.setdefault(entry["name"], []).append({
-                "qualified": qualified,
-                "origin": entry.get("origin"),
-                "reexported": entry.get("reexported", False),
-            })
-
-    lookup = {}
-    for name, cands in candidates.items():
-        if len({c["origin"] for c in cands}) > 1:
-            continue  # genuinely different symbols share this short name
-        published = sorted(c["qualified"] for c in cands if c["reexported"])
-        if published:
-            lookup[name] = published[0]
-        elif len(cands) == 1:
-            lookup[name] = cands[0]["qualified"]
-
-    _API_NAME_LOOKUP_CACHE = lookup
-    return _API_NAME_LOOKUP_CACHE
-
-
-def _build_members_tables(package_name, module_name, members):
-    """Build markdown tables linking to generated per-class/function pages.
-
-    Produces a markdown string with ``### Classes`` and ``### Functions``
-    sections, each containing a markdown table with links to dedicated
-    pages under ``generated/``, matching the yohou submodule page style.
-    """
-    sections = []
-
-    if members["classes"]:
-        lines = [
-            "### Classes",
-            "",
-            "| Name | Description |",
-            "|------|-------------|",
-        ]
-        for cls in members["classes"]:
-            qualified = f"{package_name}.{module_name}.{cls['name']}"
-            link = f"[`{cls['name']}`](generated/{qualified}.md)"
-            lines.append(f"| {link} | {cls['doc']} |")
-        sections.append("\n".join(lines))
-
-    if members["functions"]:
-        lines = [
-            "### Functions",
-            "",
-            "| Name | Description |",
-            "|------|-------------|",
-        ]
-        for func in members["functions"]:
-            qualified = f"{package_name}.{module_name}.{func['name']}"
-            link = f"[`{func['name']}`](generated/{qualified}.md)"
-            lines.append(f"| {link} | {func['doc']} |")
-        sections.append("\n".join(lines))
-
-    if not sections:
-        return ""
-
-    return "\n\n".join(sections)
-
-
-def _write_member_pages(generated_dir, page_template, module_name, members):
-    """Write one detail page per public class/function. Returns how many."""
-    written = 0
-    for kind in ("classes", "functions"):
-        for entry in members[kind]:
-            qualified = _qualified_name(module_name, entry["name"])
-            page = generated_dir / f"{qualified}.md"
-            page.write_text(page_template.format(name=entry["name"], qualified=qualified))
-            written += 1
-    return written
-
-
-def _generate_api_pages(project_root):
-    """Generate per-submodule overview pages and per-class/function detail pages.
-
-    Reads ``docs/api-submodule.html`` and writes one ``.md`` overview page per
-    discovered submodule into ``docs/pages/api/``.  Each overview page uses
-    ``### Classes`` / ``### Functions`` headings with markdown tables linking
-    to dedicated per-member pages under ``docs/pages/api/generated/``.
-    """
-    template_file = project_root / "docs" / "api-submodule.html"
-    if not template_file.exists():
-        print("[hooks] docs/api-submodule.html not found, skipping API page generation")
-        return
-
-    template = template_file.read_text(encoding="utf-8")
-    api_dir = project_root / "docs" / "pages" / "api"
-    api_dir.mkdir(parents=True, exist_ok=True)
-
-    generated_dir = api_dir / "generated"
-    generated_dir.mkdir(parents=True, exist_ok=True)
-
-    # Clean stale generated pages
-    for old in generated_dir.glob("*.md"):
-        old.unlink()
-
-    pkg_dir = project_root / "src" / "kedro_dagster"
-    modules = _get_submodules(project_root)
-
-    _page_template = (
-        "---\n"
-        "template: api-page.html\n"
-        "---\n\n"
-        "# {name}\n\n"
-        "::: {qualified}\n"
-        "    options:\n"
-        "      show_root_heading: true\n"
-        "      show_source: true\n"
-        "      members_order: source\n"
-        "\n"
-        "<!-- EXAMPLES_FOR:{qualified} -->\n"
-    )
-
-    member_count = 0
-    for mod in modules:
-        # Determine the source file for member discovery
-        mod_file = pkg_dir / f"{mod['module_name']}.py"
-        if not mod_file.exists():
-            mod_file = pkg_dir / mod["module_name"] / "__init__.py"
-
-        members = _get_public_members(mod_file, pkg_dir)
-
-        # Generate submodule overview page with tables
-        members_tables = _build_members_tables(
-            "kedro_dagster",
-            mod["module_name"],
-            members,
-        )
-
-        content = template.format(
-            package_name="kedro_dagster",
-            module_name=mod["module_name"],
-            module_doc=mod["module_doc"],
-            members_tables=members_tables,
-        )
-        dest = api_dir / f"{mod['module_name']}.md"
-        dest.write_text(content, encoding="utf-8")
-        print(f"[hooks] generated api page: pages/api/{mod['module_name']}.md")
-
-        # Generate per-class/function detail pages
-        member_count += _write_member_pages(generated_dir, _page_template, mod["module_name"], members)
-
-    # Symbols exported only from the package root have no submodule and so no
-    # module page; they still need a detail page for the table and See Also to
-    # link at. Without this the link resolves to nothing and, being raw HTML,
-    # nothing validates it.
-    member_count += _write_member_pages(generated_dir, _page_template, "", _get_root_members(project_root))
-
-    if member_count:
-        print(f"[hooks] generated {member_count} API member pages in pages/api/generated/")
 
 
 def _site_root_prefix(page):
@@ -954,22 +487,12 @@ def _get_git_ref():
     return _GIT_REF_CACHE
 
 
-# Numpydoc section types to surface in the TOC.
-_DOC_SECTION_TITLE_SLUGS = {
-    "Parameters": "parameters",
-    "Attributes": "attributes",
-    "Returns": "returns",
-    "Raises": "raises",
-    "Examples": "doc-examples",
-}
-_DETAIL_SECTION_SLUGS = {
-    "note": ("notes", "Notes"),
-    "see-also": ("see-also", "See Also"),
-    "references": ("references", "References"),
-}
-
-
-_SEE_ALSO_BLOCK_RE = re.compile(r'<details\s+class="see-also"[^>]*>.*?</details>', re.DOTALL)
+# The See Also container. This used to be `<details class="see-also">`, emitted by
+# mkdocstrings' shipped admonition template and dissolved later by a restructuring
+# pass -- which is why linkification had to run first. The template now emits a
+# heading plus this div, so there is nothing left to dissolve and no ordering
+# constraint. Keyed on the class the override emits; change one and change both.
+_SEE_ALSO_BLOCK_RE = re.compile(r'<div\s+class="[^"]*doc-admonition-see-also[^"]*"[^>]*>.*?</div>', re.DOTALL)
 # An entry's name sits at the START of its line -- mkdocstrings renders one entry
 # per line inside the paragraph. Anchoring here is what keeps a colon-terminated
 # word in an entry's DESCRIPTION ("Target : Note: see below") from being treated
@@ -1257,10 +780,14 @@ def _linkify_glossary_terms(html, page, project_root):
 def _linkify_see_also(html, prefix):
     """Turn the names in a rendered See Also section into links.
 
-    Must run while the ``<details class="see-also">`` container still exists --
-    see the ordering comment in ``on_page_content``.  Unresolvable names are
-    left untouched: a docstring may reference a private helper or a concept,
-    and none of those are build errors.
+    Unresolvable names are left untouched: a docstring may reference a private
+    helper or a concept, and none of those are build errors.
+
+    This no longer has an ordering constraint. It used to have to run before the
+    restructuring pass, which dissolved the container it matches -- and getting
+    that order wrong silently degraded class-level sections while method-level
+    ones kept working. The container is now emitted by the admonition template
+    override and nothing consumes it.
     """
 
     def _process_block(block_match):
@@ -1309,289 +836,94 @@ def _linkify_see_also(html, prefix):
     return _SEE_ALSO_BLOCK_RE.sub(_process_block, html)
 
 
-def _make_section_heading(slug, title, level=3):
-    """Build a heading element for an API page section."""
-    return (
-        f'<h{level} id="{slug}" class="doc-section-heading">{title}'
-        f'<a class="headerlink" href="#{slug}" '
-        f'title="Permanent link">&para;</a></h{level}>'
-    )
+def _dedupe_heading_ids(html):
+    """Make repeated heading ids unique, keeping the first occurrence bare.
 
+    A page documenting more than one object -- a curated reference page with
+    several ``:::`` directives -- renders each of them at the same depth, so the
+    section templates give every one of them the same ids: two ``#see-also``,
+    two ``#parameters``. That is invalid HTML and makes the fragment ambiguous.
 
-def _process_api_page_content(html, page, config):
-    """Convert numpydoc sections to h3 headings under mkdocstrings h2.
+    The templates cannot prevent it. Each ``:::`` is rendered independently and a
+    template has no way to know another object shares its page. Qualifying every
+    id with the object path would fix it and break every existing deep link into
+    the generated pages, which are single-object and vastly more numerous.
 
-    Restructures the rendered HTML produced by mkdocstrings so that
-    Parameters, Attributes, Returns, Raises, Notes, See Also,
-    References, and Source Code become proper ``<h3>`` headings.
-    The Source Code section is kept collapsible and preceded by a
-    link to the source file on GitHub.
-    For class pages a "Methods" heading is inserted before
-    ``doc-children`` and method headings are re-levelled h3 → h5.
-    Finally the page TOC is rebuilt to reflect the new structure.
+    So the first occurrence keeps the bare id -- preserving those links -- and
+    later ones get a numeric suffix, which is what Python-Markdown's own toc
+    extension does for repeated markdown headings. Pages without duplicates are
+    returned unchanged, so this is inert for the single-object case.
     """
-    from mkdocs.structure.toc import AnchorLink
+    seen = {}
 
-    is_class_page = bool(re.search(r'<h3\s+id="kedro_dagster\.', html))
+    def _rewrite(match):
+        prefix, hid, suffix = match.group(1), match.group(2), match.group(3)
+        seen[hid] = seen.get(hid, 0) + 1
+        if seen[hid] == 1:
+            return match.group(0)
+        return f"{prefix}{hid}_{seen[hid] - 1}{suffix}"
 
-    # Locate class-level content region
-    h2_match = re.search(r'<h2\s+id="kedro_dagster\.', html)
-    if not h2_match:
+    return re.sub(r'(<h[1-6][^>]*\sid=")([^"]+)(")', _rewrite, html)
+
+
+def _strip_redundant_section_titles(html):
+    """Drop the section title the shipped mkdocstrings template still emits.
+
+    The docstring templates render every section title as
+    ``<p><span class="doc-section-title">Parameters:</span></p>``, and nothing in
+    the template layer can suppress it -- ``section.title`` falls back to a
+    translated string. Our dispatcher override emits a real heading for the same
+    sections, so without this the page shows each title twice.
+
+    Deliberately narrow: only the titles the dispatcher actually maps are
+    removed. A section it does not map (Yields, Warns, ...) keeps its title and
+    is untouched, so nothing loses its label. That set is the inverse of
+    ``doc_section_slugs`` in
+    ``docs/material/templates/python/material/docstring.html.jinja`` and the two
+    must stay in sync -- adding a heading there without adding its title here
+    renders it twice; the reverse renders it not at all.
+    """
+    titles = "|".join(re.escape(t) for t in ("Parameters", "Attributes", "Returns", "Raises", "Examples"))
+    return re.sub(
+        rf'<p>\s*<span class="doc-section-title">\s*(?:{titles}):?\s*</span>\s*</p>\s*',
+        "",
+        html,
+    )
+
+
+def _add_source_links(html, page, config):
+    """Insert a "View on GitHub" link after each Source Code heading.
+
+    This is the one part of the old restructuring pass that genuinely cannot move
+    into a template: it needs ``repo_url`` and a git ref, and a mkdocstrings
+    template receives the handler's options, not the mkdocs config. The heading
+    itself IS template-owned (see ``class.html.jinja`` / ``function.html.jinja``);
+    only the link is inserted here.
+
+    Keyed on the heading's id rather than its text, because the text is
+    translatable and the id is the thing we control.
+    """
+    repo_url = config.get("repo_url", "").rstrip("/")
+    if not repo_url:
         return html
-    h2_pos = h2_match.start()
 
-    if is_class_page:
-        boundary_match = re.search(r'<div\s+class="doc doc-children"', html[h2_pos:])
-        boundary_pos = h2_pos + boundary_match.start() if boundary_match else len(html)
-    else:
-        boundary_pos = len(html)
-
-    class_region = html[h2_pos:boundary_pos]
-    sections_found = []  # (id, title) in document order
-
-    # Convert doc-section-title spans to h3 headings
-    def _span_to_h3(m):
-        title = re.sub(r"<[^>]+>", "", m.group(1)).strip().rstrip(":")
-        slug = _DOC_SECTION_TITLE_SLUGS.get(title)
-        if slug:
-            sections_found.append((slug, title))
-            return _make_section_heading(slug, title)
-        return m.group(0)
-
-    new_class_region = re.sub(
-        r"<p>\s*<span\s+class=\"doc-section-title\"[^>]*>(.*?)</span>\s*</p>",
-        _span_to_h3,
-        class_region,
+    # pages/api/generated/{qualified}.md -> package/module.py
+    qualified = page.file.src_path.split("/")[-1].removesuffix(".md")
+    parts = qualified.split(".")
+    if len(parts) < 2:
+        return html
+    module_path = "/".join(parts[:-1])
+    link = (
+        f'<p class="github-source-link">'
+        f'<a href="{repo_url}/blob/{_get_git_ref()}/src/{module_path}.py">View on GitHub</a></p>'
     )
 
-    # Convert <details> sections to h3 heading + unwrapped content
-    for detail_cls, (slug, title) in _DETAIL_SECTION_SLUGS.items():
-        detail_re = re.compile(
-            rf'<details\s+class="{re.escape(detail_cls)}"[^>]*>'
-            rf"\s*<summary>{re.escape(title)}</summary>"
-            rf"(.*?)</details>",
-            re.DOTALL,
-        )
-        m = detail_re.search(new_class_region)
-        if m:
-            heading = _make_section_heading(slug, title)
-            inner = m.group(1).strip()
-            new_class_region = new_class_region[: m.start()] + heading + "\n" + inner + new_class_region[m.end() :]
-            sections_found.append((slug, title))
-
-    # Convert <details class="mkdocstrings-source"> to collapsible Source Code
-    # with a GitHub link preceding the code block
-    src_re = re.compile(
-        r'<details\s+class="mkdocstrings-source"[^>]*>'
-        r"\s*<summary>.*?</summary>"
-        r"(.*?)</details>",
-        re.DOTALL,
+    return re.sub(
+        r'(<h[35][^>]*id="[^"]*source-code"[^>]*>.*?</h[35]>)',
+        lambda m: m.group(1) + link,
+        html,
+        flags=re.DOTALL,
     )
-    src_m = src_re.search(new_class_region)
-    if src_m:
-        heading = _make_section_heading("source-code", "Source Code")
-        inner = src_m.group(1).strip()
-
-        # Build GitHub source link from page path and config
-        github_link = ""
-        repo_url = config.get("repo_url", "").rstrip("/")
-        if repo_url:
-            # Extract qualified name from page source path
-            src_path = page.file.src_path  # pages/api/generated/{qualified}.md
-            qualified = src_path.split("/")[-1].removesuffix(".md")
-            # qualified = package.module.Name → module path = package/module.py
-            parts = qualified.split(".")
-            if len(parts) >= 2:
-                module_path = "/".join(parts[:-1])
-                git_ref = _get_git_ref()
-                github_link = (
-                    f'<p class="github-source-link">'
-                    f'<a href="{repo_url}/blob/{git_ref}/src/{module_path}.py">'
-                    f"View on GitHub</a></p>\n"
-                )
-
-        source_block = (
-            heading
-            + "\n"
-            + github_link
-            + '<details class="source-code-details">\n'
-            + "<summary>Show/Hide source</summary>\n"
-            + inner
-            + "\n"
-            + "</details>"
-        )
-        new_class_region = new_class_region[: src_m.start()] + source_block + new_class_region[src_m.end() :]
-        sections_found.append(("source-code", "Source Code"))
-
-    html = html[:h2_pos] + new_class_region + html[boundary_pos:]
-
-    # Insert "Methods" h3 before doc-children
-    if is_class_page:
-        methods_heading = _make_section_heading("methods", "Methods") + "\n"
-        html = re.sub(
-            r'(<div\s+class="doc doc-children")',
-            methods_heading + r"\1",
-            html,
-            count=1,
-        )
-
-    # Increase method heading levels (h3 -> h4) in doc-children
-    if is_class_page:
-        dc_match = re.search(r'<div\s+class="doc doc-children"', html)
-        if dc_match:
-            before = html[: dc_match.start()]
-            after = html[dc_match.start() :]
-            after = re.sub(r"<h3(\s)", r"<h4\1", after)
-            after = re.sub(r"</h3>", "</h4>", after)
-            html = before + after
-
-    # Process method numpydoc sections and source code in doc-children
-    if is_class_page:
-        dc_match2 = re.search(r'<div\s+class="doc doc-children"', html)
-        if dc_match2:
-            dc_start = dc_match2.start()
-            dc_content = html[dc_start:]
-
-            # Build GitHub link once (same source file for all methods)
-            method_github_link = ""
-            repo_url = config.get("repo_url", "").rstrip("/")
-            if repo_url:
-                _src_path = page.file.src_path
-                _qualified = _src_path.split("/")[-1].removesuffix(".md")
-                _parts = _qualified.split(".")
-                if len(_parts) >= 2:
-                    _module_path = "/".join(_parts[:-1])
-                    _git_ref = _get_git_ref()
-                    method_github_link = (
-                        f'<p class="github-source-link">'
-                        f'<a href="{repo_url}/blob/{_git_ref}/src/{_module_path}.py">'
-                        f"View on GitHub</a></p>\n"
-                    )
-
-            # Find all method headings (h4) with their IDs
-            method_positions = [(m.start(), m.group(1)) for m in re.finditer(r'<h4\s+id="([^"]+)"', dc_content)]
-
-            if method_positions:
-                new_dc = dc_content[: method_positions[0][0]]
-                for idx, (pos, method_id) in enumerate(method_positions):
-                    end_pos = method_positions[idx + 1][0] if idx + 1 < len(method_positions) else len(dc_content)
-                    method_short = method_id.split(".")[-1]
-                    section = dc_content[pos:end_pos]
-
-                    # Convert numpydoc section-title spans to h5 headings
-                    def _method_span_to_h5(m, _ms=method_short):
-                        title = re.sub(r"<[^>]+>", "", m.group(1)).strip().rstrip(":")
-                        base_slug = _DOC_SECTION_TITLE_SLUGS.get(title)
-                        if base_slug:
-                            slug = f"{_ms}-{base_slug}"
-                            return _make_section_heading(slug, title, level=5)
-                        return m.group(0)
-
-                    section = re.sub(
-                        r"<p>\s*<span\s+class=\"doc-section-title\"[^>]*>(.*?)</span>\s*</p>",
-                        _method_span_to_h5,
-                        section,
-                    )
-
-                    # Convert detail sections (Notes, See Also, References) to h6
-                    for detail_cls, (base_slug, title) in _DETAIL_SECTION_SLUGS.items():
-                        _slug = f"{method_short}-{base_slug}"
-                        detail_re_m = re.compile(
-                            rf'<details\s+class="{re.escape(detail_cls)}"[^>]*>'
-                            rf"\s*<summary>{re.escape(title)}</summary>"
-                            rf"(.*?)</details>",
-                            re.DOTALL,
-                        )
-                        dm = detail_re_m.search(section)
-                        if dm:
-                            heading = _make_section_heading(_slug, title, level=5)
-                            inner = dm.group(1).strip()
-                            section = section[: dm.start()] + heading + "\n" + inner + section[dm.end() :]
-
-                    # Convert source code to collapsible block with GitHub link
-                    method_src_re = re.compile(
-                        r'<details\s+class="mkdocstrings-source"[^>]*>'
-                        r"\s*<summary>.*?</summary>"
-                        r"(.*?)</details>",
-                        re.DOTALL,
-                    )
-                    msrc_m = method_src_re.search(section)
-                    if msrc_m:
-                        _slug = f"{method_short}-source-code"
-                        heading = _make_section_heading(_slug, "Source Code", level=5)
-                        inner = msrc_m.group(1).strip()
-                        source_block = (
-                            heading
-                            + "\n"
-                            + method_github_link
-                            + '<details class="source-code-details">\n'
-                            + "<summary>Show/Hide source</summary>\n"
-                            + inner
-                            + "\n"
-                            + "</details>"
-                        )
-                        section = section[: msrc_m.start()] + source_block + section[msrc_m.end() :]
-
-                    new_dc += section
-
-                html = html[:dc_start] + new_dc
-
-    # Rename "Examples" h2 to "Tutorials" h3
-    examples_h2 = re.search(r'<h2 id="examples">.*?</h2>', html, re.DOTALL)
-    if examples_h2:
-        old = examples_h2.group(0)
-        new = (
-            old
-            .replace('<h2 id="examples">', '<h3 id="tutorials">')
-            .replace("</h2>", "</h3>")
-            .replace(">Examples<", ">Tutorials<")
-            .replace("#examples", "#tutorials")
-        )
-        html = html.replace(old, new, 1)
-
-    # Rebuild page.toc
-    old_toc = list(page.toc)
-    if old_toc:
-        h1 = old_toc[0]
-        old_h2s = list(h1.children)
-
-        # The first h2 child is the mkdocstrings class/func heading
-        if old_h2s:
-            main_h2 = old_h2s[0]
-
-        # All sections nest inside the mkdocstrings h2
-        section_children = []
-
-        # Numpydoc + detail + source code sections (level 3)
-        for slug, title in sections_found:
-            section_children.append(AnchorLink(title=title, id=slug, level=3))
-
-        # Methods with individual methods nested underneath (level 3 + 4)
-        if is_class_page:
-            methods_entry = AnchorLink(title="Methods", id="methods", level=3)
-            # Recover method names from the HTML h4 headings
-            dc_match_toc = re.search(r'<div\s+class="doc doc-children"', html)
-            if dc_match_toc:
-                for m_toc in re.finditer(r'<h4[^>]+id="([^"]+)"[^>]*>', html[dc_match_toc.start() :]):
-                    method_id = m_toc.group(1)
-                    method_short = method_id.split(".")[-1]
-                    badge = '<code class="doc-symbol doc-symbol-method"></code> '
-                    methods_entry.children.append(AnchorLink(title=badge + method_short, id=method_id, level=4))
-            section_children.append(methods_entry)
-
-        # Tutorials (level 3)
-        for h2 in old_h2s[1:]:
-            if h2.id in ("examples", "tutorials"):
-                section_children.append(AnchorLink(title="Tutorials", id="tutorials", level=3))
-                break
-
-        if old_h2s:
-            main_h2.children = section_children
-            h1.children = [main_h2]
-        else:
-            h1.children = section_children
-
-    return html
 
 
 def on_config(config):
@@ -1603,17 +935,22 @@ def on_config(config):
     Deliberately not `on_startup`: that runs once per `mkdocs` invocation, so a
     reset there fires when the caches are already empty and never again, and
     `mkdocs serve` keeps serving the first build's content.
+
+    The API discovery caches live in `_api_pages` now. A `global` statement here
+    cannot rebind another module's globals, so that module exposes its own reset
+    and this hook calls it -- which also keeps the set of caches defined beside
+    the functions that fill them.
     """
-    global _SUBMODULE_CACHE, _API_NAME_LOOKUP_CACHE, _GIT_REF_CACHE, _GLOSSARY_TERMS_CACHE  # noqa: PLW0603
-    _SUBMODULE_CACHE = None
-    _API_NAME_LOOKUP_CACHE = None
+    _api_pages.reset_caches()
+
+    global _GIT_REF_CACHE, _GLOSSARY_TERMS_CACHE  # noqa: PLW0603
     _GIT_REF_CACHE = None
     _GLOSSARY_TERMS_CACHE = None
     return config
 
 
 def on_page_content(html, page, config, files):
-    """Post-process HTML: API page TOC and content restructuring."""
+    """Post-process rendered HTML: See Also links, glossary links, API sidebar."""
     src = page.file.src_path
 
     # Keyed on the markup, not on where the page lives: mkdocstrings emits a See
@@ -1623,17 +960,29 @@ def on_page_content(html, page, config, files):
     # page rendered three entries as plain text while the same names linked fine
     # on the generated pages, which is exactly the shape of "it works where we
     # looked". --strict never sees it: this is our own HTML.
-
+    #
+    # There is no ordering constraint here any more. There used to be: a
+    # restructuring pass dissolved the `<details class="see-also">` container
+    # this linkifier matched, so linkifying afterwards silently did nothing for
+    # class-level sections -- the majority -- while appearing to work for
+    # method-level ones. The container is gone (the templates emit a heading
+    # instead), so nothing downstream can consume the markup out from under it.
     html = _linkify_see_also(html, _site_root_prefix(page))
 
-    # Process generated API member pages (per-class/function detail pages)
+    # NOT gated on `pages/api/generated/`. The templates render wherever a `:::`
+    # directive appears, including a curated reference page, so the duplicate
+    # title and the repeated ids appear there too. Gating these to the generated
+    # pages left a curated page showing each section title twice and carrying
+    # ambiguous fragments -- the same "it works where we looked" shape that once
+    # left See Also unlinked on exactly those pages. Both are no-ops on a page
+    # with no mkdocstrings output.
+    html = _strip_redundant_section_titles(html)
+    html = _dedupe_heading_ids(html)
+
+    # Still gated: this one derives the module path from the page's own filename
+    # (`pages/api/generated/{qualified}.md`), so it is meaningless elsewhere.
     if src.startswith("pages/api/generated/"):
-        # ORDER IS LOAD-BEARING: mkdocstrings emits See Also as a
-        # <details class="see-also"> block, and _process_api_page_content
-        # dissolves that block for class-level docstrings.  Linkifying after it
-        # silently does nothing for class-level See Also sections -- the
-        # majority of them -- while appearing to work for method-level ones.
-        html = _process_api_page_content(html, page, config)
+        html = _add_source_links(html, page, config)
 
     # Keyed on the template a page declares, not on where the page happens to
     # live: the index is wherever a project put it. Matching a hardcoded
@@ -1642,8 +991,6 @@ def on_page_content(html, page, config, files):
     if page.meta.get("template") in ("api-index.html", "api-submodule.html"):
         page.meta["module_toc"] = _build_module_toc(config, current_src_path=src, prefix=_site_root_prefix(page))
 
-    # Last: the API restructuring above rewrites whole regions, so linking
-    # before it would have its links discarded with the markup they sat in.
     html = _linkify_glossary_terms(html, page, Path(__file__).parent.parent)
 
     return html
@@ -1681,338 +1028,9 @@ def on_pre_build(config):
     """Generate API submodule pages."""
     project_root = Path(__file__).parent.parent
 
-    # Generate per-submodule API reference pages
-    _generate_api_pages(project_root)
-
-
-class _HtmlToMarkdown(HTMLParser):
-    """HTML parser that converts mkdocs-material HTML to clean markdown."""
-
-    def __init__(self) -> None:
-        super().__init__(convert_charrefs=True)
-        self._lines: list[str] = []
-        self._line: list[str] = []
-        self._list_stack: list[dict[str, int | str]] = []
-        self._in_pre = False
-        self._pre_buffer: list[str] = []
-        self._pre_lang: str | None = None
-        self._in_code_inline = False
-        self._code_buffer: list[str] = []
-        self._code_target: str = "line"
-        self._skip_depth = 0
-        self._in_table = False
-        self._table_rows: list[list[str]] = []
-        self._current_row: list[str] = []
-        self._current_cell: list[str] = []
-        self._row_has_th = False
-        self._first_row_is_header = False
-        self._in_highlight_table = False
-        self._in_doc_section_title = False
-        self._skip_next_table = False
-
-    def get_markdown(self) -> str:
-        """Return the accumulated markdown content."""
-        self._flush_line()
-        self._trim_trailing_blank_lines()
-        return "\n".join(self._lines).strip() + "\n"
-
-    def _trim_trailing_blank_lines(self) -> None:
-        """Remove trailing blank lines from output."""
-        while self._lines and not self._lines[-1].strip():
-            self._lines.pop()
-
-    def _flush_line(self) -> None:
-        """Flush current line buffer to output."""
-        if not self._line:
-            return
-        line = "".join(self._line).rstrip()
-        self._lines.append(line)
-        self._line = []
-
-    def _ensure_blank_line(self) -> None:
-        """Ensure there's a blank line before the next content."""
-        if self._line:
-            self._flush_line()
-        if not self._lines or self._lines[-1].strip():
-            self._lines.append("")
-
-    def _start_block(self) -> None:
-        """Start a new block-level element."""
-        self._ensure_blank_line()
-
-    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        """Handle HTML start tags and convert to markdown."""
-        if self._skip_depth:
-            self._skip_depth += 1
-            return
-        attr_map = {k: v or "" for k, v in attrs}
-        if tag == "a" and "headerlink" in attr_map.get("class", ""):
-            self._skip_depth = 1
-            return
-        if tag == "span" and "doc-section-title" in attr_map.get("class", ""):
-            self._in_doc_section_title = True
-            return
-        if tag in {"h1", "h2", "h3", "h4", "h5", "h6"}:
-            self._flush_line()
-            self._ensure_blank_line()
-            level = int(tag[1])
-            self._line.append("#" * level + " ")
-        elif tag == "p":
-            self._start_block()
-        elif tag == "br":
-            self._flush_line()
-        elif tag == "ul":
-            self._start_block()
-            self._list_stack.append({"type": "ul", "count": 0})
-        elif tag == "ol":
-            self._start_block()
-            self._list_stack.append({"type": "ol", "count": 1})
-        elif tag == "li":
-            self._flush_line()
-            indent = "  " * max(len(self._list_stack) - 1, 0)
-            if self._list_stack and self._list_stack[-1]["type"] == "ol":
-                count = int(self._list_stack[-1]["count"])
-                self._list_stack[-1]["count"] = count + 1
-                bullet = f"{count}."
-            else:
-                bullet = "-"
-            self._line.append(f"{indent}{bullet} ")
-        elif tag == "pre":
-            self._start_block()
-            self._in_pre = True
-            self._pre_buffer = []
-            self._pre_lang = None
-        elif tag == "code" and self._in_pre:
-            class_name = attr_map.get("class", "")
-            match = re.search(r"language-([a-zA-Z0-9_+-]+)", class_name)
-            if match:
-                self._pre_lang = match.group(1)
-        elif tag == "code":
-            self._in_code_inline = True
-            self._code_buffer = []
-            self._code_target = "cell" if self._in_table else "line"
-        elif tag in {"strong", "b"}:
-            self._line.append("**")
-        elif tag in {"em", "i"}:
-            self._line.append("*")
-        elif tag == "table":
-            if "highlighttable" in attr_map.get("class", ""):
-                self._in_highlight_table = True
-                return
-            if self._skip_next_table:
-                self._skip_next_table = False
-                self._skip_depth = 1
-                return
-            self._start_block()
-            self._in_table = True
-            self._table_rows = []
-            self._current_row = []
-            self._current_cell = []
-            self._row_has_th = False
-            self._first_row_is_header = False
-        elif tag == "td" and self._in_highlight_table and "linenos" in attr_map.get("class", ""):
-            self._skip_depth = 1
-        elif tag == "tr" and self._in_table:
-            self._current_row = []
-            self._row_has_th = False
-        elif tag in {"th", "td"} and self._in_table:
-            self._current_cell = []
-            if tag == "th":
-                self._row_has_th = True
-
-    def handle_endtag(self, tag: str) -> None:
-        """Handle HTML end tags and complete markdown conversion."""
-        if self._skip_depth:
-            self._skip_depth -= 1
-            return
-        if tag in {"h1", "h2", "h3", "h4", "h5", "h6"} or tag == "p":
-            self._flush_line()
-            self._ensure_blank_line()
-        elif tag in {"ul", "ol"}:
-            if self._list_stack:
-                self._list_stack.pop()
-            self._flush_line()
-            self._ensure_blank_line()
-        elif tag == "li":
-            self._flush_line()
-        elif tag == "pre":
-            self._in_pre = False
-            self._flush_pre()
-        elif tag == "code" and self._in_code_inline:
-            code_text = "".join(self._code_buffer).strip()
-            if code_text:
-                wrapped = f"`{code_text}`"
-                if self._code_target == "cell":
-                    self._current_cell.append(wrapped)
-                else:
-                    self._line.append(wrapped)
-            self._in_code_inline = False
-        elif tag in {"strong", "b"}:
-            self._line.append("**")
-        elif tag in {"em", "i"}:
-            self._line.append("*")
-        elif tag in {"th", "td"} and self._in_table:
-            cell_text = "".join(self._current_cell).strip()
-            self._current_row.append(cell_text)
-            self._current_cell = []
-        elif tag == "tr" and self._in_table:
-            if self._current_row:
-                if not self._table_rows:
-                    self._first_row_is_header = self._row_has_th
-                self._table_rows.append(self._current_row)
-            self._current_row = []
-        elif tag == "table":
-            if self._in_highlight_table:
-                self._in_highlight_table = False
-                return
-            self._emit_table()
-            self._in_table = False
-
-    def handle_data(self, data: str) -> None:
-        """Handle text data within HTML tags."""
-        if self._skip_depth:
-            return
-        if self._in_doc_section_title:
-            section_title = data.strip()
-            if section_title == "Parameters:":
-                self._skip_next_table = True
-            self._in_doc_section_title = False
-            return
-        if self._in_pre:
-            self._pre_buffer.append(data)
-            return
-        if self._in_code_inline:
-            self._code_buffer.append(data)
-            return
-        text = data
-        text = re.sub(r"\s+", " ", text)
-        if not text:
-            return
-        if self._in_table and self._current_cell is not None:
-            self._current_cell.append(text)
-            return
-        if self._line and self._line[-1].endswith(" "):
-            text = text.lstrip()
-        self._line.append(text)
-
-    def _flush_pre(self) -> None:
-        """Flush preformatted code block to markdown."""
-        pre_text = "".join(self._pre_buffer)
-        pre_text = pre_text.rstrip("\n")
-        fence = f"```{self._pre_lang or ''}".rstrip()
-        self._lines.append(fence)
-        if pre_text:
-            self._lines.extend(pre_text.splitlines())
-        self._lines.append("```")
-        self._lines.append("")
-        self._pre_buffer = []
-        self._pre_lang = None
-
-    def _emit_table(self) -> None:
-        """Emit accumulated table rows as markdown table."""
-        if not self._table_rows:
-            return
-        column_count = max(len(row) for row in self._table_rows)
-        rows = [row + [""] * (column_count - len(row)) for row in self._table_rows]
-        if self._first_row_is_header:
-            header = rows[0]
-            body = rows[1:]
-        else:
-            header = [""] * column_count
-            body = rows
-        header_line = "| " + " | ".join(self._escape_cell(cell) for cell in header) + " |"
-        separator = "| " + " | ".join("---" for _ in header) + " |"
-        self._lines.append(header_line)
-        self._lines.append(separator)
-        for row in body:
-            row_line = "| " + " | ".join(self._escape_cell(cell) for cell in row) + " |"
-            self._lines.append(row_line)
-        self._lines.append("")
-
-    @staticmethod
-    def _escape_cell(value: str) -> str:
-        """Escape special characters in table cells."""
-        return value.replace("|", r"\|").strip()
-
-
-def _html_to_markdown(html: str) -> str:
-    """Convert HTML to clean markdown using custom parser."""
-    parser = _HtmlToMarkdown()
-    parser.feed(html)
-    return parser.get_markdown()
-
-
-def _extract_article_html(html: str) -> str | None:
-    """Extract the main article content from mkdocs HTML."""
-    marker = '<article class="md-content__inner md-typeset">'
-    start = html.find(marker)
-    if start == -1:
-        return None
-    start += len(marker)
-    end = html.find("</article>", start)
-    if end == -1:
-        return None
-    return html[start:end]
-
-
-def _html_path_for(relative: str, site_dir: Path) -> Path:
-    """Convert markdown path to corresponding HTML path in site directory."""
-    if relative == "index.md":
-        return site_dir / "index.html"
-    return site_dir / relative.removesuffix(".md") / "index.html"
-
-
-def _is_excluded(relative_posix: str, patterns: list[str]) -> bool:
-    """Check if a relative path matches any exclusion pattern."""
-    return any(fnmatch.fnmatch(relative_posix, pattern) for pattern in patterns)
+    _api_pages.generate(project_root)
 
 
 def on_post_build(config):
     """Copy markdown files for LLM consumption after build completes."""
-    site_dir = Path(config["site_dir"])
-    docs_dir = Path(config["docs_dir"])
-    # Get exclude patterns from config
-    # Note: mkdocs converts exclude_docs to a GitIgnoreSpec object, so we hardcode patterns
-    exclude_patterns = ["examples/**/CLAUDE.md"]
-
-    # Remove legacy llm/ directory if it exists
-    legacy_dir = site_dir / "llm"
-    if legacy_dir.exists():
-        shutil.rmtree(legacy_dir)
-
-    # Copy llms.txt if it exists
-    llms_txt_source = docs_dir / "llms.txt"
-    if llms_txt_source.exists():
-        llms_txt_dest = site_dir / "llms.txt"
-        shutil.copy2(llms_txt_source, llms_txt_dest)
-        print("[hooks] copied llms.txt to site")
-
-    # Process markdown files
-    copied_count = 0
-    for md_file in sorted(docs_dir.rglob("*.md")):
-        relative_posix = md_file.relative_to(docs_dir).as_posix()
-
-        # Skip excluded files
-        if _is_excluded(relative_posix, exclude_patterns):
-            continue
-
-        destination = site_dir / relative_posix
-        destination.parent.mkdir(parents=True, exist_ok=True)
-
-        # Try to convert from built HTML first
-        html_path = _html_path_for(relative_posix, site_dir)
-        if html_path.exists():
-            html = html_path.read_text(encoding="utf-8")
-            article_html = _extract_article_html(html)
-            if article_html:
-                markdown = _html_to_markdown(article_html)
-                destination.write_text(markdown, encoding="utf-8")
-                copied_count += 1
-                continue
-
-        # Fallback: copy original markdown
-        destination.write_text(md_file.read_text(encoding="utf-8"), encoding="utf-8")
-        copied_count += 1
-
-    if copied_count > 0:
-        print(f"[hooks] copied {copied_count} markdown files to site")
+    _markdown_export.export(config["site_dir"], config["docs_dir"], Path(__file__).parent.parent)

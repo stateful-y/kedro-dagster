@@ -1,0 +1,26 @@
+{#- Render a docstring admonition as plain content, not a collapsible block.
+
+The shipped template wraps every admonition in
+`<details class="{{ section.value.kind }}" open>`. That one element is what the
+hooks' `_SEE_ALSO_BLOCK_RE` existed to find, and dissolving it was what forced
+`_linkify_see_also` to run BEFORE the restructuring pass -- an ordering the
+hooks called out as load-bearing, where getting it wrong silently degraded
+class-level See Also sections (the majority) while method-level ones kept
+working. Emitting the content directly removes the container, and with it the
+ordering constraint.
+
+The heading comes from the dispatcher (`docstring.html.jinja`), which is also
+what registers it for the table of contents. Kinds the dispatcher does not map
+still render their title here, so nothing loses its label.
+-#}
+{% block logs scoped %}
+  {{ log.debug("Rendering admonition") }}
+{% endblock logs %}
+
+{% set _mapped_kinds = ["note", "see-also", "references"] %}
+{% if section.value.kind not in _mapped_kinds %}
+  <p><span class="doc-section-title">{{ section.title|convert_markdown(heading_level, html_id, strip_paragraph=True, autoref_hook=autoref_hook) }}</span></p>
+{% endif %}
+<div class="doc-section-item doc-admonition-{{ section.value.kind }}">
+  {{ section.value.contents|convert_markdown(heading_level, html_id, autoref_hook=autoref_hook) }}
+</div>

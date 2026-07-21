@@ -1,0 +1,86 @@
+{#- Give a class's Source Code and Methods sections real headings.
+
+Both are anchors today (`#source-code`, `#methods`) that the hooks invented with
+a regex after the `toc` extension had run, which is why `page.toc` had to be
+rebuilt by hand. Emitting them here registers them for the table of contents
+automatically.
+
+`{{ super() }}` is doing the work: this file overrides only the two block
+*openings* and defers the bodies to the shipped template, so nothing upstream is
+copied and upstream fixes keep arriving. Extending `_base/class.html.jinja`
+rather than replacing it is what makes that possible -- the shipped
+`material/class.html.jinja` is a one-line stub over `_base/`, and this file
+takes that stub's place.
+
+The "View on GitHub" link is deliberately NOT here: it needs `repo_url` and a
+git ref, and a mkdocstrings template receives the handler's options, not the
+mkdocs config. The hooks insert it after this heading. That split is stated
+rather than accidental.
+-#}
+{% extends "_base/class.html.jinja" %}
+
+{% block source scoped %}
+  {#- Guarded on the same config the shipped block guards its body with:
+      without this, a project that turns off `show_source` would get a heading
+      introducing nothing. -#}
+  {% if config.show_source %}
+    {% filter heading(
+         3 if heading_level == 2 else 5,
+         id="source-code" if heading_level == 2 else (obj.name ~ "-source-code"),
+         toc_label="Source Code",
+       ) %}
+      <span class="doc-section-heading">Source Code</span>
+    {% endfilter %}
+  {% endif %}
+  {{ super() }}
+{% endblock source %}
+
+{% block children scoped %}
+  {#- Only a class that actually renders methods gets a Methods heading.
+
+      `obj.members` is the WRONG set to test and was the first guard here: it is
+      the pre-filter membership and counts attributes, so every attributes-only
+      class -- a pydantic config model, an Enum, a dataclass -- got a heading
+      introducing nothing plus a dead ToC entry. Measured at 12 of 25 class pages
+      in one repo before this was fixed. `--strict` cannot see it: the anchor
+      resolves, it just leads nowhere.
+
+      This mirrors what `children.html.jinja` actually renders: functions after
+      `filter_objects`, minus `__init__` when it is merged into the class. A
+      namespace is needed because a `{% set %}` inside `{% if %}` is scoped to
+      the branch and would not update the outer name. -#}
+  {% set _ns = namespace(methods=obj.functions|filter_objects(
+       filters=config.filters,
+       members_list=none,
+       inherited_members=config.inherited_members,
+       keep_no_docstrings=config.show_if_no_docstring,
+     )|list) %}
+  {% if config.merge_init_into_class %}
+    {% set _ns.methods = _ns.methods|rejectattr("name", "equalto", "__init__")|list %}
+  {% endif %}
+  {% if config.members is not false and _ns.methods %}
+    {% filter heading(3, id="methods", toc_label="Methods") %}
+      <span class="doc-section-heading">Methods</span>
+    {% endfilter %}
+  {% endif %}
+  {#- Deliberately +2, where the shipped block uses +1.
+
+      The page nests h1 title > h2 class > h3 sections, and "Methods" above is
+      one of those h3 sections. A member must therefore start at h4, so it sits
+      UNDER the heading that introduces it rather than beside it. With the
+      shipped +1 a method renders h3 -- level-equal to "Methods" -- which reads
+      as a sibling and flattens the sidebar.
+
+      This is what the old hooks achieved by regex (`<h3` -> `<h4` inside
+      `doc-children`, then the member's own sections `<h3` -> `<h5`). Setting the
+      level here instead lets mkdocstrings' HeadingShiftingTreeprocessor do the
+      shift, which is the machinery that already exists for exactly this.
+
+      The three lines below are the shipped block's body, copied rather than
+      deferred to `super()`: the level is set *inside* that block, so there is no
+      way to influence it from out here. Copying three lines is the smaller evil
+      -- but it is a copy, so check it on a mkdocstrings bump. -#}
+  {% set root = False %}
+  {% set heading_level = heading_level + 2 %}
+  {% include "children.html.jinja" with context %}
+{% endblock children %}
