@@ -897,7 +897,7 @@ class ExecutorRegistration(NamedTuple):
 # registration both read from here, so no second list can drift from it.
 #
 # The key is the Dagster symbol for library executors and the symbol minus
-# ``_executor`` for the two Dagster core ones -- see the naming rule in
+# ``_executor`` for the two Dagster core ones. See the naming rule in
 # docs/pages/reference/configuration.md.
 EXECUTOR_MAP: dict[str, ExecutorRegistration] = {
     "in_process": ExecutorRegistration(InProcessExecutorOptions, "dagster", "in_process_executor"),
@@ -1151,7 +1151,7 @@ class KedroDagsterConfig(BaseModel):
                 raise ValueError(msg)
 
             # Resolve against EXECUTOR_MAP itself so adding an entry there is
-            # enough to make it configurable -- no control flow to keep in sync.
+            # enough to make it configurable, with no control flow to keep in sync.
             declared = [key for key in EXECUTOR_MAP if key in executor_config]
 
             if not declared:

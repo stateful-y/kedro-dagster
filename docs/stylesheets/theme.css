@@ -1,4 +1,4 @@
-/* Kedro-Dagster — Material Design color token overrides.
+/* Kedro-Dagster: Material Design color token overrides.
  *
  * Shared color palette for all stateful-y packages.
  * See: https://squidfunk.github.io/mkdocs-material/setup/changing-the-colors/#custom-colors
@@ -45,7 +45,7 @@
 }
 
 /* ==========================================================================
-   API Reference: DataTables — Material for MkDocs integration
+   API Reference: DataTables integration for Material for MkDocs
    ========================================================================== */
 
 /*
@@ -336,7 +336,7 @@ div.dt-container .dt-paging .dt-paging-button.disabled:active {
 }
 
 /* ==========================================================================
-   API Reference: Source Code — collapsible block + GitHub link
+   API Reference: Source Code, collapsible block plus GitHub link
    ========================================================================== */
 
 .github-source-link {
@@ -355,7 +355,7 @@ div.dt-container .dt-paging .dt-paging-button.disabled:active {
 }
 
 .github-source-link a::before {
-  /* GitHub octicon — inline SVG encoded */
+  /* GitHub octicon, inline SVG encoded */
   content: "";
   display: inline-block;
   width: 1em;

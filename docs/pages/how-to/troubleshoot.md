@@ -95,13 +95,13 @@ env_vars:
   - WAREHOUSE_USER
 ```
 
-`image` and `network` are rejected inside `container_kwargs` for the same reason — use the `image` and `networks` config keys. See [How to Pass Database Credentials](pass-credentials.md).
+`image` and `network` are rejected inside `container_kwargs` for the same reason, so use the `image` and `networks` config keys. See [How to Pass Database Credentials](pass-credentials.md).
 
 ### Executor requires a package that is not installed
 
 ```text
 Executor 'dask' uses 'dask_executor', which is provided by the 'dagster_dask' module.
-That module is not installed -- install it with `pip install dagster-dask`.
+That module is not installed. Install it with `pip install dagster-dask`.
 ```
 
 Executors other than `in_process` and `multiprocess` come from separate Dagster packages. Install the one named in the message. The full key-to-package table is in the [Configuration Reference](../reference/configuration.md#executor-key-naming).

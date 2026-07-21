@@ -85,19 +85,20 @@ executors:
         password: pass
 ```
 
-!!! warning "`registry.password` is a literal — do not commit it"
+!!! warning "Do not commit `registry.password`"
 
     Unlike database credentials, this value cannot currently be sourced from the
     environment: `registry` is typed as a plain string mapping, so neither
     `${oc.env:...}` (not interpolated in `dagster.yml`) nor Dagster's
     `{ env: MY_VAR }` source form validates.
 
-    Keep the populated version of this file out of version control — for example
-    in a git-ignored Kedro environment such as `conf/local/` — or authenticate the
-    Docker daemon out of band with `docker login` and omit the `registry` block.
+    Keep the populated version of this file out of version control, for example in
+    a git-ignored Kedro environment such as `conf/local/`. Alternatively,
+    authenticate the Docker daemon out of band with `docker login` and omit the
+    `registry` block entirely.
 
-    For database and API secrets, use `env_vars` plus `credentials.yml` instead —
-    see [How to Pass Database Credentials](pass-credentials.md).
+    For database and API secrets, use `env_vars` plus `credentials.yml` instead.
+    See [How to Pass Database Credentials](pass-credentials.md).
 
 ## Kubernetes executor
 

@@ -132,7 +132,7 @@ class ExecutorCreator:
             package = module.replace("_", "-")
             return (
                 f"Executor '{name}' uses '{yaml_key}', which is provided by the '{module}' module. "
-                f"That module is not installed -- install it with `pip install {package}`."
+                f"That module is not installed. Install it with `pip install {package}`."
             )
 
         valid_keys = ", ".join(sorted(EXECUTOR_MAP))

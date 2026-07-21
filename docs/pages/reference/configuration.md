@@ -94,12 +94,12 @@ Each executor entry declares exactly one executor type. The key follows one rule
 - Executors provided by **Dagster core** use their short name: `in_process`, `multiprocess`.
 - Executors provided by a **`dagster_*` library** use their Dagster symbol name verbatim: `dask_executor`, `docker_executor`, `k8s_job_executor`, `celery_executor`, `celery_docker_executor`, `celery_k8s_job_executor`.
 
-That is why `in_process` sits alongside `docker_executor` rather than `in_process_executor` or `docker`: the suffix tracks where the executor comes from. Library executors additionally require their package to be installed — see the note under each example below.
+That is why `in_process` sits alongside `docker_executor` rather than `in_process_executor` or `docker`: the suffix tracks where the executor comes from. Library executors additionally require their package to be installed. See the note under each example below.
 
 | Key | Provided by | Requires |
 | --- | --- | --- |
-| `in_process` | Dagster core | — |
-| `multiprocess` | Dagster core | — |
+| `in_process` | Dagster core | Nothing extra |
+| `multiprocess` | Dagster core | Nothing extra |
 | `dask_executor` | `dagster_dask` | `pip install dagster-dask` |
 | `docker_executor` | `dagster_docker` | `pip install dagster-docker` |
 | `k8s_job_executor` | `dagster_k8s` | `pip install dagster-k8s` |
@@ -119,7 +119,7 @@ That is why `in_process` sits alongside `docker_executor` rather than `in_proces
     `${oc.env:...}` works.
 
     To pass secrets to a containerized executor, list bare variable names under
-    `env_vars` and read them from `credentials.yml` — see
+    `env_vars` and read them from `credentials.yml`. See
     [How to Pass Database Credentials](../how-to/pass-credentials.md).
 
 **Multiprocess example** ([`MultiprocessExecutorOptions`](../api/generated/kedro_dagster.config.MultiprocessExecutorOptions.md)):

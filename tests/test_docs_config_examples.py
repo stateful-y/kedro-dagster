@@ -64,7 +64,7 @@ CONFIG_EXAMPLES = _iter_config_examples()
 
 def test_documentation_contains_config_examples():
     """The collector finds dagster.yml examples, so a passing suite is not vacuous."""
-    assert CONFIG_EXAMPLES, "No dagster.yml examples found in docs -- the collector is likely broken."
+    assert CONFIG_EXAMPLES, "No dagster.yml examples found in docs. The collector is likely broken."
 
 
 @pytest.mark.parametrize(
