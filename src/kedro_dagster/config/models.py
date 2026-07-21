@@ -5,7 +5,7 @@ plugin into a single file. Models are ordered bottom-up by dependency.
 """
 
 from logging import getLogger
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, NamedTuple
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -271,6 +271,8 @@ class InProcessExecutorOptions(BaseModel):
         Builds Dagster executor definitions from these options.
     """
 
+    model_config = ConfigDict(extra="forbid")
+
     class RetriesEnableOptions(BaseModel):
         """Enable retries for the executor."""
 
@@ -408,6 +410,8 @@ class DaskExecutorOptions(BaseModel):
         Builds Dagster executor definitions from these options.
     """
 
+    model_config = ConfigDict(extra="forbid")
+
     cluster: DaskClusterConfig = Field(default=DaskClusterConfig(), description="Configuration for the Dask cluster.")
 
 
@@ -529,6 +533,8 @@ class CeleryExecutorOptions(BaseModel):
     `kedro_dagster.dagster.ExecutorCreator` :
         Builds Dagster executor definitions from these options.
     """
+
+    model_config = ConfigDict(extra="forbid")
 
     broker: str | None = Field(
         default=None,
@@ -863,15 +869,49 @@ ExecutorOptions = (
 )
 
 
-EXECUTOR_MAP = {
-    "in_process": InProcessExecutorOptions,
-    "multiprocess": MultiprocessExecutorOptions,
-    "dask_executor": DaskExecutorOptions,
-    "k8s_job_executor": K8sJobExecutorOptions,
-    "docker_executor": DockerExecutorOptions,
-    "celery_executor": CeleryExecutorOptions,
-    "celery_docker_executor": CeleryDockerExecutorOptions,
-    "celery_k8s_job_executor": CeleryK8sJobExecutorOptions,
+class ExecutorRegistration(NamedTuple):
+    """How a ``dagster.yml`` executor key maps onto a Dagster executor.
+
+    Parameters
+    ----------
+    options : type
+        Pydantic model validating this executor's options.
+    module : str
+        Module providing the Dagster executor. ``"dagster"`` for the two core
+        executors, a ``dagster_*`` distribution for the rest.
+    symbol : str
+        Name of the executor factory within ``module``.
+
+    See Also
+    --------
+    `kedro_dagster.dagster.ExecutorCreator` :
+        Resolves these registrations into Dagster executor definitions.
+    """
+
+    options: type[ExecutorOptions]
+    module: str
+    symbol: str
+
+
+# Single registry of executor knowledge: configuration parsing and runtime
+# registration both read from here, so no second list can drift from it.
+#
+# The key is the Dagster symbol for library executors and the symbol minus
+# ``_executor`` for the two Dagster core ones -- see the naming rule in
+# docs/pages/reference/configuration.md.
+EXECUTOR_MAP: dict[str, ExecutorRegistration] = {
+    "in_process": ExecutorRegistration(InProcessExecutorOptions, "dagster", "in_process_executor"),
+    "multiprocess": ExecutorRegistration(MultiprocessExecutorOptions, "dagster", "multiprocess_executor"),
+    "dask_executor": ExecutorRegistration(DaskExecutorOptions, "dagster_dask", "dask_executor"),
+    "k8s_job_executor": ExecutorRegistration(K8sJobExecutorOptions, "dagster_k8s", "k8s_job_executor"),
+    "docker_executor": ExecutorRegistration(DockerExecutorOptions, "dagster_docker", "docker_executor"),
+    "celery_executor": ExecutorRegistration(CeleryExecutorOptions, "dagster_celery", "celery_executor"),
+    "celery_docker_executor": ExecutorRegistration(
+        CeleryDockerExecutorOptions, "dagster_celery_docker", "celery_docker_executor"
+    ),
+    "celery_k8s_job_executor": ExecutorRegistration(
+        CeleryK8sJobExecutorOptions, "dagster_celery_k8s", "celery_k8s_job_executor"
+    ),
 }
 
 
@@ -1094,28 +1134,45 @@ class KedroDagsterConfig(BaseModel):
         Raises
         ------
         ValueError
-            If an executor type is not recognized.
+            If an executor entry declares no known executor type, declares more
+            than one, or is not a mapping.
         """
         executors = values.get("executors") or {}
+        valid_keys = ", ".join(sorted(EXECUTOR_MAP))
 
         parsed_executors = {}
         for name, executor_config in executors.items():
-            if "in_process" in executor_config:
-                executor_name = "in_process"
-            elif "multiprocess" in executor_config:
-                executor_name = "multiprocess"
-            elif "k8s_job_executor" in executor_config:
-                executor_name = "k8s_job_executor"
-            elif "docker_executor" in executor_config:
-                executor_name = "docker_executor"
-            else:
-                msg = f"Unknown executor type in {name}"
+            if not isinstance(executor_config, dict):
+                msg = (
+                    f"Executor '{name}' must be a mapping from an executor type to its options. "
+                    f"Expected one of: {valid_keys}."
+                )
                 LOGGER.error(msg)
                 raise ValueError(msg)
 
-            executor_options_class = EXECUTOR_MAP[executor_name]
-            executor_options_params = executor_config[executor_name] or {}
-            parsed_executors[name] = executor_options_class(**executor_options_params)
+            # Resolve against EXECUTOR_MAP itself so adding an entry there is
+            # enough to make it configurable -- no control flow to keep in sync.
+            declared = [key for key in EXECUTOR_MAP if key in executor_config]
+
+            if not declared:
+                msg = (
+                    f"Executor '{name}' does not declare a known executor type. "
+                    f"Expected one of: {valid_keys}. Got: {', '.join(sorted(executor_config)) or '<empty>'}."
+                )
+                LOGGER.error(msg)
+                raise ValueError(msg)
+
+            if len(declared) > 1:
+                msg = (
+                    f"Executor '{name}' declares more than one executor type "
+                    f"({', '.join(sorted(declared))}). Declare exactly one."
+                )
+                LOGGER.error(msg)
+                raise ValueError(msg)
+
+            executor_key = declared[0]
+            executor_options_params = executor_config[executor_key] or {}
+            parsed_executors[name] = EXECUTOR_MAP[executor_key].options(**executor_options_params)
 
         values["executors"] = parsed_executors
         return values

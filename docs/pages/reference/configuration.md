@@ -35,7 +35,7 @@ jobs:
   my_job:
     pipeline:
       pipeline_name: __default__
-      node_namespace: my_namespace
+      node_namespaces: [my_namespace]
     executor: my_executor
     schedule: my_job_schedule
     loggers: [my_logger]
@@ -87,6 +87,26 @@ Define how jobs are executed: in-process, multiprocess, Docker, Celery, Kubernet
 
 Configuration models per executor type are documented in the [API reference](../api/config.md).
 
+#### Executor key naming
+
+Each executor entry declares exactly one executor type. The key follows one rule:
+
+- Executors provided by **Dagster core** use their short name: `in_process`, `multiprocess`.
+- Executors provided by a **`dagster_*` library** use their Dagster symbol name verbatim: `dask_executor`, `docker_executor`, `k8s_job_executor`, `celery_executor`, `celery_docker_executor`, `celery_k8s_job_executor`.
+
+That is why `in_process` sits alongside `docker_executor` rather than `in_process_executor` or `docker`: the suffix tracks where the executor comes from. Library executors additionally require their package to be installed — see the note under each example below.
+
+| Key | Provided by | Requires |
+| --- | --- | --- |
+| `in_process` | Dagster core | — |
+| `multiprocess` | Dagster core | — |
+| `dask_executor` | `dagster_dask` | `pip install dagster-dask` |
+| `docker_executor` | `dagster_docker` | `pip install dagster-docker` |
+| `k8s_job_executor` | `dagster_k8s` | `pip install dagster-k8s` |
+| `celery_executor` | `dagster_celery` | `pip install dagster-celery` |
+| `celery_docker_executor` | `dagster_celery_docker` | `pip install dagster-celery-docker` |
+| `celery_k8s_job_executor` | `dagster_celery_k8s` | `pip install dagster-celery-k8s` |
+
 **Multiprocess example** ([`MultiprocessExecutorOptions`](../api/generated/kedro_dagster.config.MultiprocessExecutorOptions.md)):
 
 ```yaml
@@ -103,7 +123,10 @@ executors:
   my_docker_executor:
     docker_executor:
       image: my-custom-image:latest
-      registry: "my_registry.com"
+      registry:
+        url: "my_registry.com"
+        username: "my_user"
+        password: "my_password"
       network: "my_network"
       networks: ["my_network_1", "my_network_2"]
       container_kwargs:

@@ -29,7 +29,8 @@ schedules:
 
 jobs:
   training_pipeline:
-    pipeline: data_science
+    pipeline:
+      pipeline_name: data_science
     executor: prod_executor
     schedule: nightly
 ```

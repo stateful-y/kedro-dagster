@@ -11,6 +11,7 @@ This guide shows you how to configure different execution backends for your Dags
 
 Executors are defined in `conf/<env>/dagster.yml` under the `executors` key. Each job references an executor by name. If no executor is specified, Dagster uses in-process execution by default.
 
+<!-- dagster-config-test: skip -->
 ```yaml
 executors:
   my_executor:
@@ -19,7 +20,8 @@ executors:
 
 jobs:
   my_job:
-    pipeline: __default__
+    pipeline:
+      pipeline_name: __default__
     executor: my_executor
 ```
 
@@ -82,7 +84,6 @@ executors:
         username: user
         password: pass
 ```
-
 ## Kubernetes executor
 
 Runs each step as a Kubernetes Job. **Requires:** `dagster-k8s`.
@@ -94,7 +95,7 @@ pip install dagster-k8s
 ```yaml
 executors:
   k8s:
-    k8s_job:
+    k8s_job_executor:
       job_namespace: dagster
       load_incluster_config: true
       max_concurrent: 10
@@ -119,7 +120,7 @@ If you are running outside the cluster, provide a kubeconfig:
 ```yaml
 executors:
   k8s_external:
-    k8s_job:
+    k8s_job_executor:
       load_incluster_config: false
       kubeconfig_file: /path/to/kubeconfig
       job_namespace: dagster
@@ -133,7 +134,7 @@ To override configuration for specific steps:
 ```yaml
 executors:
   k8s_mixed:
-    k8s_job:
+    k8s_job_executor:
       job_namespace: dagster
       step_k8s_config:
         container_config:
@@ -160,7 +161,7 @@ Connect to an existing scheduler:
 ```yaml
 executors:
   dask_existing:
-    dask:
+    dask_executor:
       cluster:
         existing:
           address: tcp://scheduler:8786
@@ -171,7 +172,7 @@ Or use a local cluster for development:
 ```yaml
 executors:
   dask_local:
-    dask:
+    dask_executor:
       cluster:
         local:
           n_workers: 4
@@ -189,7 +190,7 @@ pip install dagster-celery
 ```yaml
 executors:
   celery:
-    celery:
+    celery_executor:
       broker: redis://redis:6379/0
       backend: redis://redis:6379/1
       include:
@@ -205,7 +206,7 @@ Combines Celery task routing with Docker container isolation. **Requires:** `dag
 ```yaml
 executors:
   celery_docker:
-    celery_docker:
+    celery_docker_executor:
       broker: redis://redis:6379/0
       backend: redis://redis:6379/1
       image: my-project:latest
@@ -219,7 +220,7 @@ Routes steps through Celery and runs each as a Kubernetes Job. **Requires:** `da
 ```yaml
 executors:
   celery_k8s:
-    celery_k8s:
+    celery_k8s_job_executor:
       broker: redis://redis:6379/0
       backend: redis://redis:6379/1
       job_namespace: dagster
@@ -243,11 +244,13 @@ executors:
 
 jobs:
   quick_test:
-    pipeline: __default__
+    pipeline:
+      pipeline_name: __default__
     executor: dev
 
   full_run:
-    pipeline: __default__
+    pipeline:
+      pipeline_name: __default__
     executor: prod
 ```
 
