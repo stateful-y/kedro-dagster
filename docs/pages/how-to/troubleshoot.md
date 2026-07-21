@@ -45,6 +45,67 @@ Use `StaticPartitionsDefinition` with explicit partition keys, or use Dagster sc
 
 Some configuration changes require a full server restart and are not hot-reloaded.
 
+### `InterpolationKeyError` when loading `dagster.yml`
+
+```text
+InterpolationKeyError: Interpolation key 'WAREHOUSE_USER' not found
+    full_key: executors.pipeline_docker.docker_executor.container_kwargs.environment[0]
+```
+
+Or, with the `oc.env` prefix:
+
+```text
+UnsupportedInterpolationType: Unsupported interpolation type oc.env
+```
+
+Environment variables are **not** interpolated in `dagster.yml`. Kedro's `OmegaConfigLoader` clears the `oc.env` resolver and re-enables it only for the `credentials` config key, so `${MY_VAR}` and `${oc.env:MY_VAR}` both raise there.
+
+Move the variable reference into `credentials.yml`, and forward the variable into containers with bare names under `env_vars`:
+
+```yaml
+executors:
+  pipeline_docker:
+    docker_executor:
+      image: registry.example.com/my-project:latest
+      env_vars:
+        - WAREHOUSE_USER
+        - WAREHOUSE_PASSWORD
+```
+
+See [How to Pass Database Credentials](pass-credentials.md).
+
+### `'environment' cannot be used in 'container_kwargs'`
+
+```text
+Exception: 'environment' cannot be used in 'container_kwargs'. Use the 'env_vars' config key instead.
+```
+
+`dagster-docker` rejects this key outright. `container_kwargs` is applied *after* the container environment is assembled, so an `environment` entry would overwrite the variables Dagster injects to track the run (`DAGSTER_RUN_JOB_NAME`, `DAGSTER_RUN_STEP_KEY`).
+
+Use `env_vars` instead:
+
+```yaml
+# Rejected
+container_kwargs:
+  environment:
+    - "WAREHOUSE_USER=analytics"
+
+# Correct
+env_vars:
+  - WAREHOUSE_USER
+```
+
+`image` and `network` are rejected inside `container_kwargs` for the same reason — use the `image` and `networks` config keys. See [How to Pass Database Credentials](pass-credentials.md).
+
+### Executor requires a package that is not installed
+
+```text
+Executor 'dask' uses 'dask_executor', which is provided by the 'dagster_dask' module.
+That module is not installed -- install it with `pip install dagster-dask`.
+```
+
+Executors other than `in_process` and `multiprocess` come from separate Dagster packages. Install the one named in the message. The full key-to-package table is in the [Configuration Reference](../reference/configuration.md#executor-key-naming).
+
 ## Debugging guide
 
 When encountering an issue, follow this systematic approach:

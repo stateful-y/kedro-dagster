@@ -107,6 +107,21 @@ That is why `in_process` sits alongside `docker_executor` rather than `in_proces
 | `celery_docker_executor` | `dagster_celery_docker` | `pip install dagster-celery-docker` |
 | `celery_k8s_job_executor` | `dagster_celery_k8s` | `pip install dagster-celery-k8s` |
 
+!!! warning "Environment variables are not interpolated in `dagster.yml`"
+
+    `${oc.env:MY_VAR}` and `${MY_VAR}` do **not** resolve anywhere in `dagster.yml`,
+    and the attempt raises at config load rather than leaving the value
+    unsubstituted.
+
+    This is deliberate Kedro behaviour, not a plugin limitation: `OmegaConfigLoader`
+    clears the `oc.env` resolver and re-enables it only for the `credentials` config
+    key. `credentials.yml` is therefore the one Kedro config file where
+    `${oc.env:...}` works.
+
+    To pass secrets to a containerized executor, list bare variable names under
+    `env_vars` and read them from `credentials.yml` — see
+    [How to Pass Database Credentials](../how-to/pass-credentials.md).
+
 **Multiprocess example** ([`MultiprocessExecutorOptions`](../api/generated/kedro_dagster.config.MultiprocessExecutorOptions.md)):
 
 ```yaml
