@@ -1,0 +1,25 @@
+{#- Give a function's Source Code section a real heading.
+
+Same reasoning as `class.html.jinja`: the anchor exists today (`#source-code` on
+a function page, `#<method>-source-code` for a class member) but was invented by
+a regex after `toc` had run, so it never reached the table of contents on its
+own. `{{ super() }}` defers the block body to the shipped template.
+
+A function rendered as a class member arrives here with a deeper
+`heading_level`, which is what selects the prefixed id -- the same rule the
+hooks applied by string concatenation.
+-#}
+{% extends "_base/function.html.jinja" %}
+
+{% block source scoped %}
+  {% if config.show_source %}
+    {% filter heading(
+         3 if heading_level == 2 else 5,
+         id="source-code" if heading_level == 2 else (obj.name ~ "-source-code"),
+         toc_label="Source Code",
+       ) %}
+      <span class="doc-section-heading">Source Code</span>
+    {% endfilter %}
+  {% endif %}
+  {{ super() }}
+{% endblock source %}

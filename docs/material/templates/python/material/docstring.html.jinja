@@ -1,0 +1,102 @@
+{#- Emit a real heading before each docstring section this project surfaces.
+
+This overrides mkdocstrings' section *dispatcher*, not the section templates
+themselves. That distinction is the whole design:
+
+  - A section's title lives INSIDE its style block (`table_style` and friends),
+    so overriding `parameters.html.jinja` to change one line means copying its
+    57-line table. Across the eight table-style templates that is ~271 lines of
+    forked upstream markup -- more than the regex pass it replaces, and it stops
+    receiving upstream fixes silently.
+  - Emitting the heading here instead leaves all nine section templates
+    untouched, so they keep getting upstream fixes.
+
+A heading emitted with the `heading` filter is registered for the table of
+contents by mkdocstrings itself (`mkdocstrings_headings_list` records it,
+`get_headings()` hands it to the outer layer, `_HeadingsPostProcessor` removes
+the duplicate). That is why this file exists at all: the hooks used to invent
+these headings with a regex AFTER the `toc` extension had run, so nothing could
+see them, and `page.toc` had to be rebuilt by hand with `AnchorLink` objects.
+Emit them here and that whole apparatus is unnecessary.
+
+Only the sections listed below get headings. That set is not arbitrary -- it
+mirrors exactly what the hooks used to surface, so the page's anchor set is
+unchanged. Adding a kind here ADDS an anchor, which is a URL, so treat it as a
+breaking link change rather than a tidy-up.
+
+The shipped section template still writes its own
+`<p><span class="doc-section-title">...</span></p>`; nothing in the template
+layer can suppress it (`section.title` falls back to a translated string). The
+hooks strip exactly the titles named here -- the inverse of this map, and the
+reason the two must stay in sync.
+-#}
+{% set doc_section_slugs = {
+     "parameters": ("parameters", "Parameters"),
+     "attributes": ("attributes", "Attributes"),
+     "returns": ("returns", "Returns"),
+     "raises": ("raises", "Raises"),
+     "examples": ("doc-examples", "Examples"),
+   } %}
+{% set admonition_slugs = {
+     "note": ("notes", "Notes"),
+     "see-also": ("see-also", "See Also"),
+     "references": ("references", "References"),
+   } %}
+{% if docstring_sections %}
+  {% block logs scoped %}
+    {{ log.debug("Rendering docstring") }}
+  {% endblock logs %}
+  {% with autoref_hook = AutorefsHook(obj, config) %}
+    {% for section in docstring_sections %}
+      {#- The page's own object renders at heading_level 2, its members deeper.
+          Class-level sections are bare (`#parameters`); a member's are prefixed
+          with its name (`#greet-parameters`), which is the scheme the hooks
+          built by string concatenation. -#}
+      {%- set at_root = heading_level == 2 -%}
+      {%- if section.kind.value == "admonition" -%}
+        {%- set mapped = admonition_slugs.get(section.value.kind) -%}
+      {%- else -%}
+        {%- set mapped = doc_section_slugs.get(section.kind.value) -%}
+      {%- endif -%}
+      {%- if mapped -%}
+        {%- set section_id = mapped[0] if at_root else (obj.name ~ "-" ~ mapped[0]) -%}
+        {% filter heading(3 if at_root else 5, id=section_id, toc_label=mapped[1]) %}
+          <span class="doc-section-heading">{{ mapped[1] }}</span>
+        {% endfilter %}
+      {%- endif -%}
+      {% if config.show_docstring_description and section.kind.value == "text" %}
+        {{ section.value|convert_markdown(heading_level, html_id, autoref_hook=autoref_hook) }}
+      {% elif config.show_docstring_attributes and section.kind.value == "attributes" %}
+        {% include "docstring/attributes.html.jinja" with context %}
+      {% elif config.show_docstring_functions and section.kind.value == "functions" %}
+        {% include "docstring/functions.html.jinja" with context %}
+      {% elif config.show_docstring_classes and section.kind.value == "classes" %}
+        {% include "docstring/classes.html.jinja" with context %}
+      {% elif config.show_docstring_type_aliases and section.kind.value == "type aliases" %}
+        {% include "docstring/type_aliases.html.jinja" with context %}
+      {% elif config.show_docstring_modules and section.kind.value == "modules" %}
+        {% include "docstring/modules.html.jinja" with context %}
+      {% elif config.show_docstring_type_parameters and section.kind.value == "type parameters" %}
+        {% include "docstring/type_parameters.html.jinja" with context %}
+      {% elif config.show_docstring_parameters and section.kind.value == "parameters" %}
+        {% include "docstring/parameters.html.jinja" with context %}
+      {% elif config.show_docstring_other_parameters and section.kind.value == "other parameters" %}
+        {% include "docstring/other_parameters.html.jinja" with context %}
+      {% elif config.show_docstring_raises and section.kind.value == "raises" %}
+        {% include "docstring/raises.html.jinja" with context %}
+      {% elif config.show_docstring_warns and section.kind.value == "warns" %}
+        {% include "docstring/warns.html.jinja" with context %}
+      {% elif config.show_docstring_yields and section.kind.value == "yields" %}
+        {% include "docstring/yields.html.jinja" with context %}
+      {% elif config.show_docstring_receives and section.kind.value == "receives" %}
+        {% include "docstring/receives.html.jinja" with context %}
+      {% elif config.show_docstring_returns and section.kind.value == "returns" %}
+        {% include "docstring/returns.html.jinja" with context %}
+      {% elif config.show_docstring_examples and section.kind.value == "examples" %}
+        {% include "docstring/examples.html.jinja" with context %}
+      {% elif config.show_docstring_description and section.kind.value == "admonition" %}
+        {% include "docstring/admonition.html.jinja" with context %}
+      {% endif %}
+    {% endfor %}
+  {% endwith %}
+{% endif %}

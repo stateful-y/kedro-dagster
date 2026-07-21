@@ -377,14 +377,20 @@ h5.doc-section-heading {
   color: var(--md-default-fg-color);
 }
 
-/* Collapsible source code details */
-.source-code-details {
+/* Collapsible source code block.
+ *
+ * Keyed on mkdocstrings' own `.mkdocstrings-source`, not a class of ours. The
+ * hooks used to rewrite that element into `<details class="source-code-details">`;
+ * the templates now leave mkdocstrings' markup alone, so the selector follows it.
+ * A stale selector here is invisible -- the page renders unstyled and the build
+ * stays green -- so this moved in the same commit as the markup. */
+.mkdocstrings-source {
   margin: 0.5em 0 1em;
   border: 0.05rem solid var(--md-typeset-table-color);
   border-radius: 0.2rem;
 }
 
-.source-code-details > summary {
+.mkdocstrings-source > summary {
   display: block;
   padding: 0.5em 0.8em;
   font-size: 0.72rem;
@@ -397,27 +403,27 @@ h5.doc-section-heading {
   list-style: none;
 }
 
-.source-code-details > summary::before {
+.mkdocstrings-source > summary::before {
   content: "\25B6\FE0E";   /* right-pointing triangle */
   display: inline-block;
   margin-right: 0.4em;
   transition: transform 0.2s;
 }
 
-.source-code-details[open] > summary::before {
+.mkdocstrings-source[open] > summary::before {
   transform: rotate(90deg);
 }
 
-.source-code-details > summary::-webkit-details-marker {
+.mkdocstrings-source > summary::-webkit-details-marker {
   display: none;
 }
 
-.source-code-details > summary:hover {
+.mkdocstrings-source > summary:hover {
   color: var(--md-accent-fg-color);
   background: var(--md-default-bg-color--lightest);
 }
 
-.source-code-details pre {
+.mkdocstrings-source pre {
   margin: 0 !important;
   border-radius: 0 0 0.2rem 0.2rem;
 }
