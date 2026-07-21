@@ -59,7 +59,7 @@ def reset_caches():
 
 
 def _preload_modules(project_root):
-    """Packages Griffe must load before it can resolve re-exports into them.
+    """Return the packages Griffe must load before it can resolve re-exports into them.
 
     Read from ``mkdocs.yml``'s
     ``plugins.mkdocstrings.handlers.python.options.preload_modules`` rather than
@@ -95,7 +95,7 @@ def _preload_modules(project_root):
 
 
 def _kind_of(obj):
-    """The object's kind, or None when it cannot be determined.
+    """Return the object's kind, or None when it cannot be determined.
 
     An alias Griffe CAN see through reports its target's kind -- that is what
     makes a re-export appear as the class or function it points at. One it
