@@ -487,22 +487,12 @@ def _get_git_ref():
     return _GIT_REF_CACHE
 
 
-# Numpydoc section types to surface in the TOC.
-_DOC_SECTION_TITLE_SLUGS = {
-    "Parameters": "parameters",
-    "Attributes": "attributes",
-    "Returns": "returns",
-    "Raises": "raises",
-    "Examples": "doc-examples",
-}
-_DETAIL_SECTION_SLUGS = {
-    "note": ("notes", "Notes"),
-    "see-also": ("see-also", "See Also"),
-    "references": ("references", "References"),
-}
-
-
-_SEE_ALSO_BLOCK_RE = re.compile(r'<details\s+class="see-also"[^>]*>.*?</details>', re.DOTALL)
+# The See Also container. This used to be `<details class="see-also">`, emitted by
+# mkdocstrings' shipped admonition template and dissolved later by a restructuring
+# pass -- which is why linkification had to run first. The template now emits a
+# heading plus this div, so there is nothing left to dissolve and no ordering
+# constraint. Keyed on the class the override emits; change one and change both.
+_SEE_ALSO_BLOCK_RE = re.compile(r'<div\s+class="[^"]*doc-admonition-see-also[^"]*"[^>]*>.*?</div>', re.DOTALL)
 # An entry's name sits at the START of its line -- mkdocstrings renders one entry
 # per line inside the paragraph. Anchoring here is what keeps a colon-terminated
 # word in an entry's DESCRIPTION ("Target : Note: see below") from being treated
@@ -790,10 +780,14 @@ def _linkify_glossary_terms(html, page, project_root):
 def _linkify_see_also(html, prefix):
     """Turn the names in a rendered See Also section into links.
 
-    Must run while the ``<details class="see-also">`` container still exists --
-    see the ordering comment in ``on_page_content``.  Unresolvable names are
-    left untouched: a docstring may reference a private helper or a concept,
-    and none of those are build errors.
+    Unresolvable names are left untouched: a docstring may reference a private
+    helper or a concept, and none of those are build errors.
+
+    This no longer has an ordering constraint. It used to have to run before the
+    restructuring pass, which dissolved the container it matches -- and getting
+    that order wrong silently degraded class-level sections while method-level
+    ones kept working. The container is now emitted by the admonition template
+    override and nothing consumes it.
     """
 
     def _process_block(block_match):
@@ -842,289 +836,94 @@ def _linkify_see_also(html, prefix):
     return _SEE_ALSO_BLOCK_RE.sub(_process_block, html)
 
 
-def _make_section_heading(slug, title, level=3):
-    """Build a heading element for an API page section."""
-    return (
-        f'<h{level} id="{slug}" class="doc-section-heading">{title}'
-        f'<a class="headerlink" href="#{slug}" '
-        f'title="Permanent link">&para;</a></h{level}>'
-    )
+def _dedupe_heading_ids(html):
+    """Make repeated heading ids unique, keeping the first occurrence bare.
 
+    A page documenting more than one object -- a curated reference page with
+    several ``:::`` directives -- renders each of them at the same depth, so the
+    section templates give every one of them the same ids: two ``#see-also``,
+    two ``#parameters``. That is invalid HTML and makes the fragment ambiguous.
 
-def _process_api_page_content(html, page, config):
-    """Convert numpydoc sections to h3 headings under mkdocstrings h2.
+    The templates cannot prevent it. Each ``:::`` is rendered independently and a
+    template has no way to know another object shares its page. Qualifying every
+    id with the object path would fix it and break every existing deep link into
+    the generated pages, which are single-object and vastly more numerous.
 
-    Restructures the rendered HTML produced by mkdocstrings so that
-    Parameters, Attributes, Returns, Raises, Notes, See Also,
-    References, and Source Code become proper ``<h3>`` headings.
-    The Source Code section is kept collapsible and preceded by a
-    link to the source file on GitHub.
-    For class pages a "Methods" heading is inserted before
-    ``doc-children`` and method headings are re-levelled h3 → h5.
-    Finally the page TOC is rebuilt to reflect the new structure.
+    So the first occurrence keeps the bare id -- preserving those links -- and
+    later ones get a numeric suffix, which is what Python-Markdown's own toc
+    extension does for repeated markdown headings. Pages without duplicates are
+    returned unchanged, so this is inert for the single-object case.
     """
-    from mkdocs.structure.toc import AnchorLink
+    seen = {}
 
-    is_class_page = bool(re.search(r'<h3\s+id="kedro_dagster\.', html))
+    def _rewrite(match):
+        prefix, hid, suffix = match.group(1), match.group(2), match.group(3)
+        seen[hid] = seen.get(hid, 0) + 1
+        if seen[hid] == 1:
+            return match.group(0)
+        return f"{prefix}{hid}_{seen[hid] - 1}{suffix}"
 
-    # Locate class-level content region
-    h2_match = re.search(r'<h2\s+id="kedro_dagster\.', html)
-    if not h2_match:
+    return re.sub(r'(<h[1-6][^>]*\sid=")([^"]+)(")', _rewrite, html)
+
+
+def _strip_redundant_section_titles(html):
+    """Drop the section title the shipped mkdocstrings template still emits.
+
+    The docstring templates render every section title as
+    ``<p><span class="doc-section-title">Parameters:</span></p>``, and nothing in
+    the template layer can suppress it -- ``section.title`` falls back to a
+    translated string. Our dispatcher override emits a real heading for the same
+    sections, so without this the page shows each title twice.
+
+    Deliberately narrow: only the titles the dispatcher actually maps are
+    removed. A section it does not map (Yields, Warns, ...) keeps its title and
+    is untouched, so nothing loses its label. That set is the inverse of
+    ``doc_section_slugs`` in
+    ``docs/material/templates/python/material/docstring.html.jinja`` and the two
+    must stay in sync -- adding a heading there without adding its title here
+    renders it twice; the reverse renders it not at all.
+    """
+    titles = "|".join(re.escape(t) for t in ("Parameters", "Attributes", "Returns", "Raises", "Examples"))
+    return re.sub(
+        rf'<p>\s*<span class="doc-section-title">\s*(?:{titles}):?\s*</span>\s*</p>\s*',
+        "",
+        html,
+    )
+
+
+def _add_source_links(html, page, config):
+    """Insert a "View on GitHub" link after each Source Code heading.
+
+    This is the one part of the old restructuring pass that genuinely cannot move
+    into a template: it needs ``repo_url`` and a git ref, and a mkdocstrings
+    template receives the handler's options, not the mkdocs config. The heading
+    itself IS template-owned (see ``class.html.jinja`` / ``function.html.jinja``);
+    only the link is inserted here.
+
+    Keyed on the heading's id rather than its text, because the text is
+    translatable and the id is the thing we control.
+    """
+    repo_url = config.get("repo_url", "").rstrip("/")
+    if not repo_url:
         return html
-    h2_pos = h2_match.start()
 
-    if is_class_page:
-        boundary_match = re.search(r'<div\s+class="doc doc-children"', html[h2_pos:])
-        boundary_pos = h2_pos + boundary_match.start() if boundary_match else len(html)
-    else:
-        boundary_pos = len(html)
-
-    class_region = html[h2_pos:boundary_pos]
-    sections_found = []  # (id, title) in document order
-
-    # Convert doc-section-title spans to h3 headings
-    def _span_to_h3(m):
-        title = re.sub(r"<[^>]+>", "", m.group(1)).strip().rstrip(":")
-        slug = _DOC_SECTION_TITLE_SLUGS.get(title)
-        if slug:
-            sections_found.append((slug, title))
-            return _make_section_heading(slug, title)
-        return m.group(0)
-
-    new_class_region = re.sub(
-        r"<p>\s*<span\s+class=\"doc-section-title\"[^>]*>(.*?)</span>\s*</p>",
-        _span_to_h3,
-        class_region,
+    # pages/api/generated/{qualified}.md -> package/module.py
+    qualified = page.file.src_path.split("/")[-1].removesuffix(".md")
+    parts = qualified.split(".")
+    if len(parts) < 2:
+        return html
+    module_path = "/".join(parts[:-1])
+    link = (
+        f'<p class="github-source-link">'
+        f'<a href="{repo_url}/blob/{_get_git_ref()}/src/{module_path}.py">View on GitHub</a></p>'
     )
 
-    # Convert <details> sections to h3 heading + unwrapped content
-    for detail_cls, (slug, title) in _DETAIL_SECTION_SLUGS.items():
-        detail_re = re.compile(
-            rf'<details\s+class="{re.escape(detail_cls)}"[^>]*>'
-            rf"\s*<summary>{re.escape(title)}</summary>"
-            rf"(.*?)</details>",
-            re.DOTALL,
-        )
-        m = detail_re.search(new_class_region)
-        if m:
-            heading = _make_section_heading(slug, title)
-            inner = m.group(1).strip()
-            new_class_region = new_class_region[: m.start()] + heading + "\n" + inner + new_class_region[m.end() :]
-            sections_found.append((slug, title))
-
-    # Convert <details class="mkdocstrings-source"> to collapsible Source Code
-    # with a GitHub link preceding the code block
-    src_re = re.compile(
-        r'<details\s+class="mkdocstrings-source"[^>]*>'
-        r"\s*<summary>.*?</summary>"
-        r"(.*?)</details>",
-        re.DOTALL,
+    return re.sub(
+        r'(<h[35][^>]*id="[^"]*source-code"[^>]*>.*?</h[35]>)',
+        lambda m: m.group(1) + link,
+        html,
+        flags=re.DOTALL,
     )
-    src_m = src_re.search(new_class_region)
-    if src_m:
-        heading = _make_section_heading("source-code", "Source Code")
-        inner = src_m.group(1).strip()
-
-        # Build GitHub source link from page path and config
-        github_link = ""
-        repo_url = config.get("repo_url", "").rstrip("/")
-        if repo_url:
-            # Extract qualified name from page source path
-            src_path = page.file.src_path  # pages/api/generated/{qualified}.md
-            qualified = src_path.split("/")[-1].removesuffix(".md")
-            # qualified = package.module.Name → module path = package/module.py
-            parts = qualified.split(".")
-            if len(parts) >= 2:
-                module_path = "/".join(parts[:-1])
-                git_ref = _get_git_ref()
-                github_link = (
-                    f'<p class="github-source-link">'
-                    f'<a href="{repo_url}/blob/{git_ref}/src/{module_path}.py">'
-                    f"View on GitHub</a></p>\n"
-                )
-
-        source_block = (
-            heading
-            + "\n"
-            + github_link
-            + '<details class="source-code-details">\n'
-            + "<summary>Show/Hide source</summary>\n"
-            + inner
-            + "\n"
-            + "</details>"
-        )
-        new_class_region = new_class_region[: src_m.start()] + source_block + new_class_region[src_m.end() :]
-        sections_found.append(("source-code", "Source Code"))
-
-    html = html[:h2_pos] + new_class_region + html[boundary_pos:]
-
-    # Insert "Methods" h3 before doc-children
-    if is_class_page:
-        methods_heading = _make_section_heading("methods", "Methods") + "\n"
-        html = re.sub(
-            r'(<div\s+class="doc doc-children")',
-            methods_heading + r"\1",
-            html,
-            count=1,
-        )
-
-    # Increase method heading levels (h3 -> h4) in doc-children
-    if is_class_page:
-        dc_match = re.search(r'<div\s+class="doc doc-children"', html)
-        if dc_match:
-            before = html[: dc_match.start()]
-            after = html[dc_match.start() :]
-            after = re.sub(r"<h3(\s)", r"<h4\1", after)
-            after = re.sub(r"</h3>", "</h4>", after)
-            html = before + after
-
-    # Process method numpydoc sections and source code in doc-children
-    if is_class_page:
-        dc_match2 = re.search(r'<div\s+class="doc doc-children"', html)
-        if dc_match2:
-            dc_start = dc_match2.start()
-            dc_content = html[dc_start:]
-
-            # Build GitHub link once (same source file for all methods)
-            method_github_link = ""
-            repo_url = config.get("repo_url", "").rstrip("/")
-            if repo_url:
-                _src_path = page.file.src_path
-                _qualified = _src_path.split("/")[-1].removesuffix(".md")
-                _parts = _qualified.split(".")
-                if len(_parts) >= 2:
-                    _module_path = "/".join(_parts[:-1])
-                    _git_ref = _get_git_ref()
-                    method_github_link = (
-                        f'<p class="github-source-link">'
-                        f'<a href="{repo_url}/blob/{_git_ref}/src/{_module_path}.py">'
-                        f"View on GitHub</a></p>\n"
-                    )
-
-            # Find all method headings (h4) with their IDs
-            method_positions = [(m.start(), m.group(1)) for m in re.finditer(r'<h4\s+id="([^"]+)"', dc_content)]
-
-            if method_positions:
-                new_dc = dc_content[: method_positions[0][0]]
-                for idx, (pos, method_id) in enumerate(method_positions):
-                    end_pos = method_positions[idx + 1][0] if idx + 1 < len(method_positions) else len(dc_content)
-                    method_short = method_id.split(".")[-1]
-                    section = dc_content[pos:end_pos]
-
-                    # Convert numpydoc section-title spans to h5 headings
-                    def _method_span_to_h5(m, _ms=method_short):
-                        title = re.sub(r"<[^>]+>", "", m.group(1)).strip().rstrip(":")
-                        base_slug = _DOC_SECTION_TITLE_SLUGS.get(title)
-                        if base_slug:
-                            slug = f"{_ms}-{base_slug}"
-                            return _make_section_heading(slug, title, level=5)
-                        return m.group(0)
-
-                    section = re.sub(
-                        r"<p>\s*<span\s+class=\"doc-section-title\"[^>]*>(.*?)</span>\s*</p>",
-                        _method_span_to_h5,
-                        section,
-                    )
-
-                    # Convert detail sections (Notes, See Also, References) to h6
-                    for detail_cls, (base_slug, title) in _DETAIL_SECTION_SLUGS.items():
-                        _slug = f"{method_short}-{base_slug}"
-                        detail_re_m = re.compile(
-                            rf'<details\s+class="{re.escape(detail_cls)}"[^>]*>'
-                            rf"\s*<summary>{re.escape(title)}</summary>"
-                            rf"(.*?)</details>",
-                            re.DOTALL,
-                        )
-                        dm = detail_re_m.search(section)
-                        if dm:
-                            heading = _make_section_heading(_slug, title, level=5)
-                            inner = dm.group(1).strip()
-                            section = section[: dm.start()] + heading + "\n" + inner + section[dm.end() :]
-
-                    # Convert source code to collapsible block with GitHub link
-                    method_src_re = re.compile(
-                        r'<details\s+class="mkdocstrings-source"[^>]*>'
-                        r"\s*<summary>.*?</summary>"
-                        r"(.*?)</details>",
-                        re.DOTALL,
-                    )
-                    msrc_m = method_src_re.search(section)
-                    if msrc_m:
-                        _slug = f"{method_short}-source-code"
-                        heading = _make_section_heading(_slug, "Source Code", level=5)
-                        inner = msrc_m.group(1).strip()
-                        source_block = (
-                            heading
-                            + "\n"
-                            + method_github_link
-                            + '<details class="source-code-details">\n'
-                            + "<summary>Show/Hide source</summary>\n"
-                            + inner
-                            + "\n"
-                            + "</details>"
-                        )
-                        section = section[: msrc_m.start()] + source_block + section[msrc_m.end() :]
-
-                    new_dc += section
-
-                html = html[:dc_start] + new_dc
-
-    # Rename "Examples" h2 to "Tutorials" h3
-    examples_h2 = re.search(r'<h2 id="examples">.*?</h2>', html, re.DOTALL)
-    if examples_h2:
-        old = examples_h2.group(0)
-        new = (
-            old
-            .replace('<h2 id="examples">', '<h3 id="tutorials">')
-            .replace("</h2>", "</h3>")
-            .replace(">Examples<", ">Tutorials<")
-            .replace("#examples", "#tutorials")
-        )
-        html = html.replace(old, new, 1)
-
-    # Rebuild page.toc
-    old_toc = list(page.toc)
-    if old_toc:
-        h1 = old_toc[0]
-        old_h2s = list(h1.children)
-
-        # The first h2 child is the mkdocstrings class/func heading
-        if old_h2s:
-            main_h2 = old_h2s[0]
-
-        # All sections nest inside the mkdocstrings h2
-        section_children = []
-
-        # Numpydoc + detail + source code sections (level 3)
-        for slug, title in sections_found:
-            section_children.append(AnchorLink(title=title, id=slug, level=3))
-
-        # Methods with individual methods nested underneath (level 3 + 4)
-        if is_class_page:
-            methods_entry = AnchorLink(title="Methods", id="methods", level=3)
-            # Recover method names from the HTML h4 headings
-            dc_match_toc = re.search(r'<div\s+class="doc doc-children"', html)
-            if dc_match_toc:
-                for m_toc in re.finditer(r'<h4[^>]+id="([^"]+)"[^>]*>', html[dc_match_toc.start() :]):
-                    method_id = m_toc.group(1)
-                    method_short = method_id.split(".")[-1]
-                    badge = '<code class="doc-symbol doc-symbol-method"></code> '
-                    methods_entry.children.append(AnchorLink(title=badge + method_short, id=method_id, level=4))
-            section_children.append(methods_entry)
-
-        # Tutorials (level 3)
-        for h2 in old_h2s[1:]:
-            if h2.id in ("examples", "tutorials"):
-                section_children.append(AnchorLink(title="Tutorials", id="tutorials", level=3))
-                break
-
-        if old_h2s:
-            main_h2.children = section_children
-            h1.children = [main_h2]
-        else:
-            h1.children = section_children
-
-    return html
 
 
 def on_config(config):
@@ -1151,7 +950,7 @@ def on_config(config):
 
 
 def on_page_content(html, page, config, files):
-    """Post-process HTML: API page TOC and content restructuring."""
+    """Post-process rendered HTML: See Also links, glossary links, API sidebar."""
     src = page.file.src_path
 
     # Keyed on the markup, not on where the page lives: mkdocstrings emits a See
@@ -1161,17 +960,29 @@ def on_page_content(html, page, config, files):
     # page rendered three entries as plain text while the same names linked fine
     # on the generated pages, which is exactly the shape of "it works where we
     # looked". --strict never sees it: this is our own HTML.
-
+    #
+    # There is no ordering constraint here any more. There used to be: a
+    # restructuring pass dissolved the `<details class="see-also">` container
+    # this linkifier matched, so linkifying afterwards silently did nothing for
+    # class-level sections -- the majority -- while appearing to work for
+    # method-level ones. The container is gone (the templates emit a heading
+    # instead), so nothing downstream can consume the markup out from under it.
     html = _linkify_see_also(html, _site_root_prefix(page))
 
-    # Process generated API member pages (per-class/function detail pages)
+    # NOT gated on `pages/api/generated/`. The templates render wherever a `:::`
+    # directive appears, including a curated reference page, so the duplicate
+    # title and the repeated ids appear there too. Gating these to the generated
+    # pages left a curated page showing each section title twice and carrying
+    # ambiguous fragments -- the same "it works where we looked" shape that once
+    # left See Also unlinked on exactly those pages. Both are no-ops on a page
+    # with no mkdocstrings output.
+    html = _strip_redundant_section_titles(html)
+    html = _dedupe_heading_ids(html)
+
+    # Still gated: this one derives the module path from the page's own filename
+    # (`pages/api/generated/{qualified}.md`), so it is meaningless elsewhere.
     if src.startswith("pages/api/generated/"):
-        # ORDER IS LOAD-BEARING: mkdocstrings emits See Also as a
-        # <details class="see-also"> block, and _process_api_page_content
-        # dissolves that block for class-level docstrings.  Linkifying after it
-        # silently does nothing for class-level See Also sections -- the
-        # majority of them -- while appearing to work for method-level ones.
-        html = _process_api_page_content(html, page, config)
+        html = _add_source_links(html, page, config)
 
     # Keyed on the template a page declares, not on where the page happens to
     # live: the index is wherever a project put it. Matching a hardcoded
@@ -1180,8 +991,6 @@ def on_page_content(html, page, config, files):
     if page.meta.get("template") in ("api-index.html", "api-submodule.html"):
         page.meta["module_toc"] = _build_module_toc(config, current_src_path=src, prefix=_site_root_prefix(page))
 
-    # Last: the API restructuring above rewrites whole regions, so linking
-    # before it would have its links discarded with the markup they sat in.
     html = _linkify_glossary_terms(html, page, Path(__file__).parent.parent)
 
     return html

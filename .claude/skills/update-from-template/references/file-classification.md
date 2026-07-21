@@ -48,6 +48,7 @@ docs/_notebooks.py                   # build step split out of hooks.py; example
 docs/pages/reference/changelog.md   # one-line include of the root CHANGELOG.md
 docs/javascripts/mathjax.js
 docs/javascripts/readthedocs.js
+docs/material/templates/**                  # mkdocstrings template overrides; thin extends over the shipped _base/
 docs/material/overrides/api-index.html
 docs/material/overrides/api-page.html
 docs/material/overrides/api-submodule.html
