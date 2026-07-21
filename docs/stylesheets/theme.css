@@ -370,8 +370,19 @@ div.dt-container .dt-paging .dt-paging-button.disabled:active {
   color: var(--md-accent-fg-color);
 }
 
-/* Override Material h5 styling for API doc section headings */
-h5.doc-section-heading {
+/* Override Material's h5 styling for API doc section headings.
+ *
+ * A DESCENDANT selector, not `h5.doc-section-heading`. The class used to sit on
+ * the heading itself, when a hook synthesised the element; the templates that
+ * replaced it wrap the text in `<h5 id="..."><span class="doc-section-heading">`,
+ * so the old selector matched nothing and Material's default
+ * `.md-typeset h5 {text-transform: uppercase; font-size: .8em}` reasserted on
+ * every method-level section heading -- 40 of them on two pages in one repo,
+ * with a green build and no warning, because CSS that matches nothing is silent.
+ *
+ * Both forms are matched so this does not depend on where the class lands. */
+h5.doc-section-heading,
+h5 .doc-section-heading {
   text-transform: none;
   font-size: 1em;
   color: var(--md-default-fg-color);

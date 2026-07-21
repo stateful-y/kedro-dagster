@@ -836,6 +836,36 @@ def _linkify_see_also(html, prefix):
     return _SEE_ALSO_BLOCK_RE.sub(_process_block, html)
 
 
+def _dedupe_heading_ids(html):
+    """Make repeated heading ids unique, keeping the first occurrence bare.
+
+    A page documenting more than one object -- a curated reference page with
+    several ``:::`` directives -- renders each of them at the same depth, so the
+    section templates give every one of them the same ids: two ``#see-also``,
+    two ``#parameters``. That is invalid HTML and makes the fragment ambiguous.
+
+    The templates cannot prevent it. Each ``:::`` is rendered independently and a
+    template has no way to know another object shares its page. Qualifying every
+    id with the object path would fix it and break every existing deep link into
+    the generated pages, which are single-object and vastly more numerous.
+
+    So the first occurrence keeps the bare id -- preserving those links -- and
+    later ones get a numeric suffix, which is what Python-Markdown's own toc
+    extension does for repeated markdown headings. Pages without duplicates are
+    returned unchanged, so this is inert for the single-object case.
+    """
+    seen = {}
+
+    def _rewrite(match):
+        prefix, hid, suffix = match.group(1), match.group(2), match.group(3)
+        seen[hid] = seen.get(hid, 0) + 1
+        if seen[hid] == 1:
+            return match.group(0)
+        return f"{prefix}{hid}_{seen[hid] - 1}{suffix}"
+
+    return re.sub(r'(<h[1-6][^>]*\sid=")([^"]+)(")', _rewrite, html)
+
+
 def _strip_redundant_section_titles(html):
     """Drop the section title the shipped mkdocstrings template still emits.
 
@@ -939,8 +969,19 @@ def on_page_content(html, page, config, files):
     # instead), so nothing downstream can consume the markup out from under it.
     html = _linkify_see_also(html, _site_root_prefix(page))
 
+    # NOT gated on `pages/api/generated/`. The templates render wherever a `:::`
+    # directive appears, including a curated reference page, so the duplicate
+    # title and the repeated ids appear there too. Gating these to the generated
+    # pages left a curated page showing each section title twice and carrying
+    # ambiguous fragments -- the same "it works where we looked" shape that once
+    # left See Also unlinked on exactly those pages. Both are no-ops on a page
+    # with no mkdocstrings output.
+    html = _strip_redundant_section_titles(html)
+    html = _dedupe_heading_ids(html)
+
+    # Still gated: this one derives the module path from the page's own filename
+    # (`pages/api/generated/{qualified}.md`), so it is meaningless elsewhere.
     if src.startswith("pages/api/generated/"):
-        html = _strip_redundant_section_titles(html)
         html = _add_source_links(html, page, config)
 
     # Keyed on the template a page declares, not on where the page happens to

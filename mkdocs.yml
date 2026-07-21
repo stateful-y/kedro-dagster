@@ -122,6 +122,14 @@ exclude_docs: |
   # four modules instead of one, which is what made it visible.
   *.py
   __pycache__/
+  # Same reason, one directory over: `docs/material/templates/` holds
+  # mkdocstrings template overrides, which are build tooling, not pages. Without
+  # this they are published as static assets -- confirmed live, `class.html.jinja`
+  # served 200 from the docs site. `material/overrides/*.html` leaks the same way
+  # and is excluded here too; `api-submodule.html` above was the one instance of
+  # this that had been noticed before, handled one file at a time.
+  *.jinja
+  material/overrides/*.html
 
 not_in_nav: |
   assets/README.md
