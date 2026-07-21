@@ -103,7 +103,7 @@ loggers:
         prefix: "CUSTOM"
         format: "%(message)s"
       class_formatter:
-        class: my_package.formatters.AnotherFormatter
+        "()": my_package.formatters.AnotherFormatter
         custom_param: "value"
     filters:
       custom_filter:

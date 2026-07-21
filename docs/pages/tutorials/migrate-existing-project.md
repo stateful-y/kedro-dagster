@@ -83,11 +83,13 @@ Edit `conf/base/dagster.yml` to define which pipelines become Dagster jobs:
 ```yaml
 jobs:
   full_pipeline:
-    pipeline: __default__
+    pipeline:
+      pipeline_name: __default__
 
   training_only:
-    pipeline: data_science
-    tags: [train]
+    pipeline:
+      pipeline_name: data_science
+      tags: [train]
 ```
 
 If you have multiple Kedro pipelines registered in `pipeline_registry.py`, each can become a separate Dagster job with its own executor and schedule.

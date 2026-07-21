@@ -215,6 +215,7 @@ nav:
     - pages/how-to/index.md
     - Configure Logging: pages/how-to/configure-logging.md
     - Configure Executors: pages/how-to/configure-executors.md
+    - Pass Database Credentials: pages/how-to/pass-credentials.md
     - Use Job Factories: pages/how-to/use-job-factories.md
     - Use Partitions: pages/how-to/use-partitions.md
     - Use MLflow: pages/how-to/use-mlflow.md

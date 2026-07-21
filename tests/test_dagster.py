@@ -298,7 +298,7 @@ class TestExecutorCreator:
 
     @pytest.mark.parametrize("env", ["base"])  # keep fast
     def test_executor_creator_unsupported_executor_raises(self, env, project_scenario_factory):
-        """If an optional executor's package isn't installed, creating it should raise a ValueError."""
+        """A missing optional package is reported by YAML key and install command, not as unsupported."""
         # Use a k8s executor which relies on `dagster_k8s` being importable; assume it's not installed in test env.
         dagster_cfg = {
             "executors": {"k8s": {"k8s_job_executor": {}}},
@@ -319,7 +319,13 @@ class TestExecutorCreator:
         with pytest.raises(ValueError) as e:
             creator.create_executors()
 
-        assert "not supported" in str(e.value)
+        message = str(e.value)
+        # Names the YAML key and how to fix it, rather than reporting the
+        # executor as unsupported or listing Python classes.
+        assert "k8s_job_executor" in message
+        assert "pip install dagster-k8s" in message
+        assert "not supported" not in message
+        assert "class '" not in message
 
     def test_executor_creator_with_job_inline_executors(self):
         """Test ExecutorCreator handling inline executor configurations in job definitions."""
@@ -404,8 +410,32 @@ class TestExecutorCreator:
         with pytest.raises(ValueError) as exc_info:
             executor_creator.create_executors()
 
-        assert "Executor type" in str(exc_info.value)
-        assert "not supported" in str(exc_info.value)
+        message = str(exc_info.value)
+        assert "unsupported type" in message
+        assert "UnsupportedExecutor" in message
+        # An unknown type lists the valid YAML keys, not Python classes.
+        assert "docker_executor" in message
+
+    def test_register_executor_overrides_the_builtin_registry(self):
+        """A registered executor takes precedence over the one resolved from EXECUTOR_MAP."""
+        config = KedroDagsterConfig(executors={"local": {"in_process": {}}})
+        creator = ExecutorCreator(dagster_config=config)
+
+        creator.register_executor(InProcessExecutorOptions, dg.multiprocess_executor)
+        executors = creator.create_executors()
+
+        # Resolved from the registration, not from EXECUTOR_MAP's in_process entry.
+        assert executors["local"].name == dg.multiprocess_executor.name
+
+    def test_register_executor_does_not_leak_between_instances(self):
+        """Registrations are instance-scoped, not shared via a class attribute."""
+        config = KedroDagsterConfig(executors={"local": {"in_process": {}}})
+        registered, untouched = ExecutorCreator(config), ExecutorCreator(config)
+
+        registered.register_executor(InProcessExecutorOptions, dg.multiprocess_executor)
+
+        assert registered.create_executors()["local"].name == dg.multiprocess_executor.name
+        assert untouched.create_executors()["local"].name == dg.in_process_executor.name
 
     def test_executor_creator_handles_none_executor(self):
         """Test ExecutorCreator properly handles jobs with executor=None."""
