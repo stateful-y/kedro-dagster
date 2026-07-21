@@ -21,20 +21,26 @@ definition of that surface. Two definitions drift, and the drift renders as a
 missing page rather than an error.
 """
 
-import ast
-import importlib.util
+import logging
+import sys
 from pathlib import Path
 
-# Module-level caches, moved here with the functions that own them. The build
-# loads this module once per process, so an unreset cache serves stale content
-# for the rest of a `mkdocs serve` session.
+import yaml
+from griffe import GriffeLoader
+
+# By NAME, not by importing mkdocs -- this module must import nothing from it,
+# and the generated project's own test suite enforces that. `hooks.py` and
+# `_notebooks.py` use the same idiom, so a warning raised here lands in the same
+# stream mkdocs' `--strict` escalates.
+log = logging.getLogger("mkdocs.hooks")
+
+# Module-level caches. The build loads this module once per process, so an
+# unreset cache serves stale content for the rest of a `mkdocs serve` session.
 #
 # Naming is load-bearing: the per-build reset and its registration test discover
 # caches by the `_CACHE` suffix, so a cache named otherwise escapes both,
-# silently. The test scans every module the hooks load, not just hooks.py --
-# these two live here now, and a scan of hooks.py alone would quietly stop
-# covering them while still passing.
-_SUBMODULE_CACHE = None
+# silently. The test scans every module the hooks load, not just hooks.py.
+_SURFACE_CACHE = None
 _API_NAME_LOOKUP_CACHE = None
 
 
@@ -44,327 +50,328 @@ def reset_caches():
     Called by ``on_config`` in ``docs/hooks.py``, which fires on every build
     including each rebuild in a serve session. Exposed as a function because a
     caller cannot rebind another module's globals with a ``global`` statement --
-    resetting from hooks.py would need ``_api_pages._SUBMODULE_CACHE = None``,
+    resetting from hooks.py would need ``_api_pages._SURFACE_CACHE = None``,
     which works but puts the cache set's definition in the wrong file.
     """
-    global _SUBMODULE_CACHE, _API_NAME_LOOKUP_CACHE  # noqa: PLW0603
-    _SUBMODULE_CACHE = None
+    global _SURFACE_CACHE, _API_NAME_LOOKUP_CACHE  # noqa: PLW0603
+    _SURFACE_CACHE = None
     _API_NAME_LOOKUP_CACHE = None
 
 
+def _preload_modules(project_root):
+    """Packages Griffe must load before it can resolve re-exports into them.
+
+    Read from ``mkdocs.yml``'s
+    ``plugins.mkdocstrings.handlers.python.options.preload_modules`` rather than
+    from a key of our own. mkdocstrings already owns that setting and at least
+    one project in this template's fleet already sets it, so a second key would
+    mean two declarations of one list -- and a list that silently disagrees with
+    itself renders as a missing page, which is the failure mode this whole
+    module is written to avoid.
+
+    Reading the file is not importing MkDocs: this module still imports nothing
+    from it. The custom tags have to be tolerated because a real ``mkdocs.yml``
+    carries ``!ENV`` and ``python/name:``, and a strict loader raises on them.
+    """
+    config_file = project_root / "mkdocs.yml"
+    if not config_file.exists():
+        return []
+
+    class _Loader(yaml.SafeLoader):
+        pass
+
+    _Loader.add_multi_constructor("tag:yaml.org,2002:python/name:", lambda _loader, suffix, _node: suffix)
+    _Loader.add_constructor("!ENV", lambda _loader, _node: None)
+    try:
+        config = yaml.load(config_file.read_text(encoding="utf-8"), Loader=_Loader)
+    except yaml.YAMLError:
+        return []
+    for plugin in (config or {}).get("plugins", []) or []:
+        if isinstance(plugin, dict) and "mkdocstrings" in plugin:
+            handlers = (plugin["mkdocstrings"] or {}).get("handlers", {}) or {}
+            options = (handlers.get("python", {}) or {}).get("options", {}) or {}
+            return list(options.get("preload_modules") or [])
+    return []
+
+
+def _kind_of(obj):
+    """The object's kind, or None when it cannot be determined.
+
+    An alias Griffe CAN see through reports its target's kind -- that is what
+    makes a re-export appear as the class or function it points at. One it
+    CANNOT see through reports ``Kind.ALIAS``, which is the signal wanted here,
+    and is why that value maps to None rather than being passed through: a
+    caller comparing against "class"/"function" would otherwise drop the symbol
+    as merely uninteresting and say nothing, which is the silence this module
+    was rewritten to remove.
+
+    Do NOT use ``Alias.resolved`` for this. It reports whether the alias has
+    been resolved YET, not whether it can be: a perfectly resolvable in-package
+    re-export reads ``resolved=False`` until something touches it, while
+    ``.kind`` resolves on demand and answers correctly. Testing ``resolved``
+    here dropped every such re-export -- caught only because a fixture asserted
+    one had to survive.
+    """
+    try:
+        kind = obj.kind.value
+    except Exception:  # noqa: BLE001
+        return None
+    return None if kind == "alias" else kind
+
+
+def _members_of(module, collection):
+    """Public members of one module: declarations, plus ``__all__`` re-exports.
+
+    Three rules, each measured against the previous AST implementation across
+    the seven packages generated from this template:
+
+    1. **Declarations always count.**
+    2. **An import counts when ``__all__`` names it**, wherever it points. That
+       is what makes a re-export a deliberate part of the API rather than a
+       detail, and it is the only way a dependency's symbol becomes ours.
+    3. **A package's ``__init__`` re-exports by convention**, so an in-package
+       import counts there even with no ``__all__``. A PLAIN module does not:
+       ``from .base import Helper`` in ``translator.py`` is normally something
+       that module uses, not something it advertises.
+
+    Rule 3 is the one with teeth in both directions. Drop its first half and a
+    package that re-exports without ``__all__`` loses every page it publishes.
+    Drop its second half -- treat every module's imports as public -- and the
+    seven packages generated from this template gain **67 phantom pages**, each
+    a second URL for a symbol already documented elsewhere. The distinction is
+    inherited verbatim from the AST implementation this replaced; it was right.
+
+    4. **``__all__`` beats a submodule of the same name.** A package holding
+       ``commands.py`` that also does ``from .commands import commands`` has the
+       submodule occupying ``members["commands"]``; Python's import rebinds the
+       name to the function, and ``module.imports`` records that binding
+       independently. Without this the function's page disappears.
+
+    ``exports`` is ``None`` when there is no ``__all__`` and an EMPTY LIST when
+    ``__all__`` is computed (a comprehension) -- hence ``if exports`` and not
+    ``if exports is not None``. The latter filters an empty list down to zero
+    members and deletes every page for that module without raising.
+    """
+    exports = getattr(module, "exports", None)
+    exported = {e if isinstance(e, str) else getattr(e, "name", str(e)) for e in exports} if exports else set()
+    reexports_by_convention = getattr(module, "is_package", False) or getattr(module, "is_subpackage", False)
+    own_prefix = "kedro_dagster."
+
+    selected = {}
+    for name, member in module.members.items():
+        if name.startswith("_"):
+            continue
+        if getattr(member, "is_alias", False):
+            target = str(getattr(member, "target_path", "") or "")
+            if name in exported or (reexports_by_convention and target.startswith(own_prefix)):
+                selected[name] = member
+        else:
+            selected[name] = member
+
+    for name in exported:
+        target_path = (getattr(module, "imports", None) or {}).get(name)
+        if not target_path:
+            continue
+        owner_path, _, attr = target_path.rpartition(".")
+        try:
+            target = collection[owner_path].members.get(attr)
+        except Exception:  # noqa: BLE001
+            target = None
+        if target is not None and _kind_of(target) in ("class", "function"):
+            selected[name] = target
+
+    return selected
+
+
+def _entry(name, obj, module_label, *, reexported):
+    """One member entry, or None if this object gets no page.
+
+    *origin* is the object's own canonical path, which is what distinguishes one
+    symbol reachable by two paths from two different symbols that happen to
+    share a short name -- the distinction ``_get_api_name_lookup`` turns into a
+    URL.
+
+    Returning None is NOT a problem report. A re-exported submodule, a constant
+    and an unresolvable alias all land here, and only the last is worth a word:
+    only classes and functions get pages, so the first two are ordinary. The
+    caller decides, using ``_kind_of`` -- conflating the two produced 120
+    warnings on one package for its own submodules and constants, which would
+    have failed a ``--strict`` build on nothing at all.
+    """
+    kind = _kind_of(obj)
+    if kind not in ("class", "function"):
+        return None
+    doc = ""
+    try:
+        if obj.docstring and obj.docstring.value:
+            doc = obj.docstring.value.strip().split("\n")[0]
+    except Exception:  # noqa: BLE001
+        doc = ""
+    return {
+        "name": name,
+        "doc": doc,
+        "origin": getattr(obj, "path", f"{module_label}.{name}"),
+        "reexported": reexported,
+        "kind": kind,
+    }
+
+
+def _load_surface(project_root):
+    """Discover the package's public surface with Griffe (cached).
+
+    Griffe is the same analysis mkdocstrings renders the API pages from, so this
+    module and the rendered pages cannot disagree about what is public. Nothing
+    is imported: the package's own dependencies may be absent.
+
+    Returns ``{module_name: {"module_doc", "classes", "functions"}}`` with the
+    package root under the empty-string key.
+    """
+    global _SURFACE_CACHE  # noqa: PLW0603
+    if _SURFACE_CACHE is not None:
+        return _SURFACE_CACHE
+
+    package = "kedro_dagster"
+    src = project_root / "src"
+    if not (src / package).exists():
+        _SURFACE_CACHE = {}
+        return _SURFACE_CACHE
+
+    # `src` first, then the interpreter's own path. Passing `search_paths`
+    # REPLACES Griffe's default rather than extending it, so a bare `[src]`
+    # leaves it unable to find any installed package -- which silently disables
+    # `preload_modules` entirely, and with it the only case Griffe cannot handle
+    # on its own. Measured: with `[src]` alone, a project preloading a
+    # dependency to resolve three re-exported classes got none of them and one
+    # "could not preload" warning; with `sys.path` appended, all three resolve.
+    #
+    # `src` stays first so the project under documentation always wins over an
+    # installed copy of itself.
+    loader = GriffeLoader(search_paths=[str(src), *sys.path])
+    # Preloading is the one case Griffe does not handle by default: it will not
+    # resolve an alias into a module it has not loaded, and neither extra search
+    # paths nor `allow_inspection` change that (`allow_inspection` also imports
+    # code, which this module must not do).
+    for name in _preload_modules(project_root):
+        try:
+            loader.load(name)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("api: could not preload %r for re-export resolution: %s", name, exc)
+    root = loader.load(package)
+    loader.resolve_aliases(external=True)
+    collection = loader.modules_collection
+
+    surface = {}
+    submodules = {
+        name: member
+        for name, member in root.members.items()
+        if _kind_of(member) == "module" and not name.startswith("_")
+    }
+    for module_name, module in sorted(submodules.items()):
+        module_doc = ""
+        try:
+            if module.docstring and module.docstring.value:
+                module_doc = module.docstring.value.strip().split("\n")[0]
+        except Exception:  # noqa: BLE001
+            module_doc = ""
+        entries = {"classes": [], "functions": [], "module_doc": module_doc}
+        for name, member in _members_of(module, collection).items():
+            entry = _entry(
+                name,
+                member,
+                f"{package}.{module_name}",
+                reexported=getattr(member, "is_alias", False)
+                or not str(getattr(member, "path", "")).startswith(f"{package}.{module_name}."),
+            )
+            if entry is None:
+                # Only an alias we genuinely cannot see is worth reporting.
+                # A submodule or a constant simply gets no page, which is normal.
+                if _kind_of(member) is None:
+                    _warn_unresolved(f"{package}.{module_name}", name)
+                continue
+            entries["classes" if entry["kind"] == "class" else "functions"].append(entry)
+        surface[module_name] = entries
+
+    # Root-only exports: a symbol the package publishes from its own
+    # `__init__.py` that no submodule publishes has no module segment in its
+    # public path, and falls through anything keyed on a submodule.
+    published = {e["name"] for m in surface.values() for e in m["classes"] + m["functions"]}
+    root_entries = {"classes": [], "functions": [], "module_doc": ""}
+    for name, member in _members_of(root, collection).items():
+        if name in published:
+            continue
+        entry = _entry(name, member, package, reexported=getattr(member, "is_alias", False))
+        if entry is None:
+            if _kind_of(member) is None:
+                _warn_unresolved(package, name)
+            continue
+        root_entries["classes" if entry["kind"] == "class" else "functions"].append(entry)
+    surface[""] = root_entries
+
+    _SURFACE_CACHE = surface
+    return _SURFACE_CACHE
+
+
+def _warn_unresolved(module_label, name):
+    """Warn that a symbol we meant to publish could not be resolved.
+
+    Scoped deliberately to symbols the package publishes, NOT to every alias
+    Griffe fails to resolve. ``resolve_aliases`` reports across the whole loaded
+    object graph, so on a package depending on numpy and scikit-learn it returns
+    over a hundred unresolved aliases that all live inside those dependencies --
+    none of them ours, and warning on each would fail a `--strict` build for
+    reasons having nothing to do with this project's documentation.
+
+    The previous implementation returned ``None`` here and the symbol vanished
+    from the index with no signal at all. Silence is the behaviour being
+    removed: ``nox -s check_docs`` builds with warnings fatal, so this becomes a
+    CI failure while an ordinary `mkdocs serve` keeps working.
+    """
+    log.warning(
+        "api: %s.%s could not be resolved and gets no page; "
+        "if it re-exports a dependency's symbol, add that package to "
+        "mkdocstrings' preload_modules in mkdocs.yml",
+        module_label,
+        name,
+    )
+
+
 def _get_submodules(project_root):
-    """Discover public submodules in the package (cached).
-
-    Scans ``src/kedro_dagster/`` for ``.py`` files (excluding ``__init__``)
-    and sub-packages with an ``__init__.py``.  Returns a sorted list of dicts
-    with *module_name* and *module_doc* keys.
-    """
-    global _SUBMODULE_CACHE  # noqa: PLW0603
-    if _SUBMODULE_CACHE is not None:
-        return _SUBMODULE_CACHE
-
-    pkg_dir = project_root / "src" / "kedro_dagster"
-    if not pkg_dir.exists():
-        _SUBMODULE_CACHE = []
-        return _SUBMODULE_CACHE
-
-    modules = []
-    # Single-file modules
-    for py_file in sorted(pkg_dir.glob("*.py")):
-        if py_file.name.startswith("_"):
-            continue
-        module_name = py_file.stem
-        module_doc = _extract_module_docstring(py_file)
-        modules.append({"module_name": module_name, "module_doc": module_doc})
-
-    # Sub-packages (directories with __init__.py)
-    for child in sorted(pkg_dir.iterdir()):
-        if not child.is_dir() or child.name.startswith("_"):
-            continue
-        init = child / "__init__.py"
-        if init.exists():
-            module_doc = _extract_module_docstring(init)
-            modules.append({"module_name": child.name, "module_doc": module_doc})
-
-    _SUBMODULE_CACHE = modules
-    return _SUBMODULE_CACHE
+    """Public submodules of the package, with their one-line docstrings."""
+    surface = _load_surface(project_root)
+    return [
+        {"module_name": name, "module_doc": entries["module_doc"]} for name, entries in sorted(surface.items()) if name
+    ]
 
 
-def _qualified_name(module_name, member_name):
-    """Public dotted path of a member.
-
-    A symbol exported only from the package root has no module segment --
-    `pkg.Name`, not `pkg..Name` -- which is the whole reason code keyed on a
-    submodule silently drops it.
-    """
-    parts = ["kedro_dagster", module_name, member_name]
-    return ".".join(part for part in parts if part)
-
-
-def _module_source(pkg_dir, module_name):
-    """Return the file backing a submodule: ``name.py``, else ``name/__init__.py``."""
-    mod_file = pkg_dir / f"{module_name}.py"
-    if not mod_file.exists():
-        mod_file = pkg_dir / module_name / "__init__.py"
-    return mod_file
+def _get_public_members(project_root, module_name):
+    """Public classes and functions of one module, including re-exported ones."""
+    entries = _load_surface(project_root).get(module_name)
+    if entries is None:
+        return {"classes": [], "functions": []}
+    return {"classes": entries["classes"], "functions": entries["functions"]}
 
 
 def _get_root_members(project_root):
     """Public symbols the package exports only from its own ``__init__.py``.
 
-    ``_get_submodules`` skips every ``_``-prefixed name, which is right for
-    private modules and also silently excludes ``__init__.py`` itself. A package
-    that keeps a base class in ``_base.py`` and re-exports it from the root --
-    an ordinary layout, and what sklearn does -- therefore has a public symbol
-    that belongs to no submodule, reaches no page, and never appears in the API
-    table. Nothing reports it: yohou-nixtla ships 18 names in ``__all__`` and the
-    table lists 17.
-
-    Their public path has no module segment (``pkg.Name``, not
-    ``pkg.module.Name``), which is exactly why they fall through code keyed on a
-    submodule. Names a real submodule already publishes keep their module path;
-    only the homeless ones are adopted here.
+    A package that keeps a base class in ``_base.py`` and re-exports it from the
+    root -- an ordinary layout -- has a public symbol that belongs to no
+    submodule and would otherwise reach no page. Their public path has no module
+    segment (``pkg.Name``, not ``pkg.module.Name``), which is exactly why they
+    fall through code keyed on a submodule. Names a real submodule already
+    publishes keep their module path; only the homeless ones are adopted here.
     """
-    pkg_dir = project_root / "src" / "kedro_dagster"
-    init_file = pkg_dir / "__init__.py"
-    if not init_file.exists():
-        return {"classes": [], "functions": []}
-
-    covered = set()
-    for mod in _get_submodules(project_root):
-        members = _get_public_members(_module_source(pkg_dir, mod["module_name"]), pkg_dir)
-        covered.update(entry["name"] for entry in members["classes"] + members["functions"])
-
-    root = _get_public_members(init_file, pkg_dir)
-    return {key: [entry for entry in root[key] if entry["name"] not in covered] for key in ("classes", "functions")}
+    return _get_public_members(project_root, "")
 
 
-def _extract_module_docstring(py_file):
-    """Extract the module-level docstring from a Python file."""
-    try:
-        source = py_file.read_text(encoding="utf-8")
-        tree = ast.parse(source)
-        docstring = ast.get_docstring(tree)
-        if docstring:
-            # Return only the first line
-            return docstring.strip().split("\n")[0]
-    except (SyntaxError, UnicodeDecodeError):
-        pass
-    return ""
+def _qualified_name(module_name, member_name):
+    """Dotted path of a member's API page.
 
-
-def _get_module_members(py_file):
-    """Discover public classes and functions in a Python module via AST.
-
-    Returns a dict with *classes* and *functions* lists.  Each entry is a dict
-    with *name* and *doc* (first line of the docstring, or empty string).
+    A root-only export has no module segment, so the empty module name must not
+    produce a doubled dot.
     """
-    classes = []
-    functions = []
-    try:
-        source = py_file.read_text(encoding="utf-8")
-        tree = ast.parse(source)
-    except (SyntaxError, UnicodeDecodeError):
-        return {"classes": classes, "functions": functions}
-
-    for node in ast.iter_child_nodes(tree):
-        if isinstance(node, ast.ClassDef) and not node.name.startswith("_"):
-            doc = ast.get_docstring(node) or ""
-            classes.append({"name": node.name, "doc": doc.strip().split("\n")[0]})
-        elif isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef) and not node.name.startswith("_"):
-            doc = ast.get_docstring(node) or ""
-            functions.append({"name": node.name, "doc": doc.strip().split("\n")[0]})
-
-    return {"classes": classes, "functions": functions}
-
-
-def _get_dunder_all(tree):
-    """Return the set of names listed in ``__all__``, or None if absent."""
-    for node in ast.iter_child_nodes(tree):
-        if not isinstance(node, ast.Assign):
-            continue
-        for target in node.targets:
-            if isinstance(target, ast.Name) and target.id == "__all__":
-                if not isinstance(node.value, ast.List | ast.Tuple):
-                    return None
-                return {e.value for e in node.value.elts if isinstance(e, ast.Constant) and isinstance(e.value, str)}
-    return None
-
-
-def _iter_reexport_nodes(tree):
-    """Yield ``ImportFrom`` nodes that re-export names from a package.
-
-    Covers top-level imports and imports guarded by a top-level ``try`` block,
-    which is the conventional way to expose an optional extra::
-
-        try:
-            from mypkg.neural._impl import Forecaster
-        except ImportError as err:
-            raise ImportError("install mypkg[neural]") from err
-
-    Only the ``try`` body is walked: names in an ``except`` handler are the
-    fallback path, not the package's advertised API.
-    """
-    for node in ast.iter_child_nodes(tree):
-        if isinstance(node, ast.ImportFrom):
-            yield node
-        elif isinstance(node, ast.Try):
-            for inner in node.body:
-                if isinstance(inner, ast.ImportFrom):
-                    yield inner
-
-
-def _resolve_import_from(node, init_file, pkg_dir):
-    """Map an ``ImportFrom`` node to the file that declares its names.
-
-    Handles relative imports (``from .naive import X``) and absolute imports
-    rooted at this package (``from mypkg.stats._base import X``).  Returns
-    None for imports that leave the package, which is what keeps incidental
-    third-party imports (``from pathlib import Path``) out of the API.
-    """
-    if node.level:
-        base = init_file.parent
-        for _ in range(node.level - 1):
-            base = base.parent
-        parts = node.module.split(".") if node.module else []
-    else:
-        if not node.module:
-            return None
-        parts = node.module.split(".")
-        if parts[0] != pkg_dir.name:
-            return None
-        base = pkg_dir
-        parts = parts[1:]
-
-    target = base
-    for part in parts:
-        target = target / part
-    for candidate in (target.with_suffix(".py"), target / "__init__.py"):
-        if candidate.exists():
-            return candidate
-    return None
-
-
-def _resolve_external_module(module_name):
-    """Locate a module that lives outside this package.
-
-    A package may deliberately re-export a dependency's symbol -- a convenience
-    shim such as ``from otherpkg.thing import Widget`` under its own ``__all__``.
-    That name is part of *this* package's public API, but no file under
-    ``pkg_dir`` declares it, so ``_resolve_import_from`` cannot reach it and the
-    symbol would silently vanish from the index and lose its page.
-
-    ``find_spec`` locates the module's source file so the kind and docstring can
-    be read from it like any other module, rather than guessed.  It imports the
-    *parent* package to do so, which is why this is only ever consulted for a
-    name the author listed in ``__all__``: an incidental ``from pathlib import
-    Path`` must never reach here.  Anything that does not resolve to readable
-    source is skipped, not invented.
-    """
-    try:
-        spec = importlib.util.find_spec(module_name)
-    except (ImportError, AttributeError, ValueError):
-        return None
-    if spec is None or not spec.origin or not spec.origin.endswith(".py"):
-        return None
-    return Path(spec.origin)
-
-
-def _reexports_a_dunder_all_name(node, exported):
-    """Whether this ImportFrom binds any name the package advertises in ``__all__``."""
-    return any((alias.asname or alias.name) in exported for alias in node.names if alias.name != "*")
-
-
-def _get_reexported_members(init_file, pkg_dir):
-    """Discover members a module exposes by re-export rather than by declaring them.
-
-    A re-exporting ``__init__.py`` declares no classes or functions of its own,
-    so an AST scan of that file alone finds nothing.  This resolves each
-    ``ImportFrom`` binding to its declaring module and lifts the name's kind
-    and docstring from there.
-
-    ``__all__`` acts as a *filter*, not an authority: a name is exposed only if
-    it is listed there (when present) *and* resolves to a class or function in
-    its declaring module.  Constants and other exports are excluded, because
-    only classes and functions get generated pages.
-
-    A plain module can be a re-export shim too, so this is not limited to
-    ``__init__.py`` -- but for one, an import is normally a private detail
-    (``from .base import Helper`` to use it), not an advertisement.  Only an
-    explicit ``__all__`` marks a plain module's imports as its public surface;
-    without one, nothing here is re-exported.  An ``__init__.py`` re-exports by
-    convention, so it needs no such marker.
-    """
-    try:
-        tree = ast.parse(init_file.read_text(encoding="utf-8"))
-    except (SyntaxError, UnicodeDecodeError, OSError):
-        return {"classes": [], "functions": []}
-
-    exported = _get_dunder_all(tree)
-    if exported is None and init_file.name != "__init__.py":
-        return {"classes": [], "functions": []}
-    classes = []
-    functions = []
-    seen = set()
-
-    for node in _iter_reexport_nodes(tree):
-        decl_file = _resolve_import_from(node, init_file, pkg_dir)
-        if decl_file is None:
-            # The import leaves the package. That is normally an incidental
-            # third-party import and must stay out of the API -- unless the
-            # author advertised the name in __all__, which makes it this
-            # package's public API no matter where it was declared.
-            if exported is None or node.level or not node.module or not _reexports_a_dunder_all_name(node, exported):
-                continue
-            decl_file = _resolve_external_module(node.module)
-            if decl_file is None:
-                continue
-        decl_members = None
-        for alias in node.names:
-            if alias.name == "*":
-                continue
-            exposed = alias.asname or alias.name
-            if exposed.startswith("_") or exposed in seen:
-                continue
-            if exported is not None and exposed not in exported:
-                continue
-            if decl_members is None:
-                decl_members = _get_module_members(decl_file)
-            for bucket, entries in (("classes", decl_members["classes"]), ("functions", decl_members["functions"])):
-                match = next((e for e in entries if e["name"] == alias.name), None)
-                if match is None:
-                    continue
-                (classes if bucket == "classes" else functions).append({
-                    "name": exposed,
-                    "doc": match["doc"],
-                    "origin": str(decl_file),
-                    "reexported": True,
-                })
-                seen.add(exposed)
-                break
-
-    return {"classes": classes, "functions": functions}
-
-
-def _get_public_members(mod_file, pkg_dir):
-    """Public classes and functions of a module, including re-exported ones.
-
-    Each entry carries *origin* (the file that declares the symbol) and
-    *reexported*, so the name lookup can tell one symbol reachable by two paths
-    from two different symbols that happen to share a short name.
-    """
-    if not mod_file.exists():
-        return {"classes": [], "functions": []}
-    members = _get_module_members(mod_file)
-    for key in ("classes", "functions"):
-        for entry in members[key]:
-            entry.setdefault("origin", str(mod_file))
-            entry.setdefault("reexported", False)
-    reexported = _get_reexported_members(mod_file, pkg_dir)
-    declared = {e["name"] for e in members["classes"] + members["functions"]}
-    for key in ("classes", "functions"):
-        members[key].extend(e for e in reexported[key] if e["name"] not in declared)
-    return members
+    package = "kedro_dagster"
+    return f"{package}.{module_name}.{member_name}" if module_name else f"{package}.{member_name}"
 
 
 def _get_api_name_lookup(project_root):
@@ -386,17 +393,11 @@ def _get_api_name_lookup(project_root):
     if _API_NAME_LOOKUP_CACHE is not None:
         return _API_NAME_LOOKUP_CACHE
 
-    pkg_dir = project_root / "src" / "kedro_dagster"
     candidates = {}
-    scans = []
-    for mod in _get_submodules(project_root):
-        scans.append((mod["module_name"], _get_public_members(_module_source(pkg_dir, mod["module_name"]), pkg_dir)))
-    scans.append(("", _get_root_members(project_root)))
-    for module_name, members in scans:
-        for entry in members["classes"] + members["functions"]:
-            qualified = _qualified_name(module_name, entry["name"])
+    for module_name, entries in _load_surface(project_root).items():
+        for entry in entries["classes"] + entries["functions"]:
             candidates.setdefault(entry["name"], []).append({
-                "qualified": qualified,
+                "qualified": _qualified_name(module_name, entry["name"]),
                 "origin": entry.get("origin"),
                 "reexported": entry.get("reexported", False),
             })
@@ -492,7 +493,6 @@ def _generate_api_pages(project_root):
     for old in generated_dir.glob("*.md"):
         old.unlink()
 
-    pkg_dir = project_root / "src" / "kedro_dagster"
     modules = _get_submodules(project_root)
 
     _page_template = (
@@ -511,12 +511,10 @@ def _generate_api_pages(project_root):
 
     member_count = 0
     for mod in modules:
-        # Determine the source file for member discovery
-        mod_file = pkg_dir / f"{mod['module_name']}.py"
-        if not mod_file.exists():
-            mod_file = pkg_dir / mod["module_name"] / "__init__.py"
-
-        members = _get_public_members(mod_file, pkg_dir)
+        # Discovery is keyed on the module NAME now, not on a source path: a
+        # single-file module and a package directory are the same thing to
+        # Griffe, so the file-or-__init__ probe this used to do is gone.
+        members = _get_public_members(project_root, mod["module_name"])
 
         # Generate submodule overview page with tables
         members_tables = _build_members_tables(

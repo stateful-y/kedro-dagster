@@ -63,12 +63,25 @@ lint = [
     "ty>=0.0.12",
 ]
 docs = [
+    # Griffe is imported directly by docs/_api_pages.py to discover the package's
+    # public surface -- the same analysis mkdocstrings renders the API pages from,
+    # so the two cannot disagree about what is public. It already arrives via
+    # mkdocstrings[python] and this adds no wheel; declaring it records a
+    # dependency that is now real. Deliberately NOT pinned tighter than
+    # mkdocstrings pins it: two floors on one package is a resolver conflict
+    # waiting for a release.
+    "griffe>=1.0",
     "mkdocs>=1.6.0",
     "mkdocs-autorefs>=1.0",
     "mkdocs-material>=9.7",
     "mkdocstrings[python]>=0.26.0",
     "pymdown-extensions>=10.20.1",
     "mkdocs-glightbox>=0.5",
+    # Also a direct import of docs/_api_pages.py, which reads mkdocstrings'
+    # `preload_modules` out of mkdocs.yml so that list has one definition rather
+    # than two. Same argument as griffe above: it arrives via mkdocs anyway, but
+    # relying on a transitive dependency is how a future release breaks this.
+    "pyyaml>=6.0",
 ]
 fix = [
   # prek runs the hooks. Pinned here, never invoked via `uvx`: prek substitutes its
