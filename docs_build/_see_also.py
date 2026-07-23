@@ -25,14 +25,12 @@ from griffe import Extension
 # indent. numpydoc requires the underline to be at least as long as the title.
 _HEADING = re.compile(r"(?m)^(?P<indent>[ \t]*)See Also[ \t]*\n(?P=indent)-{3,}[ \t]*\n")
 
-# An entry opens a line with a name (backticked or bare, possibly dotted) and a
-# colon. A line that does not match is a continuation of the entry above -- a
-# wrapped description -- not a new entry. Anchored so a colon inside a
-# description ("Target : note: ...") does not start a spurious entry.
-_ENTRY_START = re.compile(r"^\s*(?:`[^`]+`|[A-Za-z_][\w.]*)\s*:")
-
-# A single entry: its name (backticked or bare) and the rest of the line.
-_ENTRY = re.compile(r"^\s*`?(?P<name>[A-Za-z_][\w.]*)`?\s*:\s*(?P<desc>.*)$")
+# A single entry: a name (backticked or bare, possibly dotted) and, optionally, a
+# description after a colon. numpydoc allows a See Also target with NO description
+# -- just the name -- so the ": desc" tail is optional. Requiring it once left
+# every name-only entry unlinked, and (via _split_entries) collapsed a block of
+# name-only targets onto one line.
+_ENTRY = re.compile(r"^\s*`?(?P<name>[A-Za-z_][\w.]*)`?\s*(?::\s*(?P<desc>.*))?$")
 
 
 class SeeAlsoExtension(Extension):
@@ -105,16 +103,28 @@ class SeeAlsoExtension(Extension):
         return text[:body_start] + block + text[body_start + consumed :]
 
     def _split_entries(self, lines: list[str]) -> list[str]:
-        """Group lines into entries; a continuation line joins the entry above."""
+        """Group lines into entries by indentation.
+
+        numpydoc puts each See Also target at the section's base indent and
+        indents any wrapped description beneath it. A target often has NO
+        description (just a name), so the presence of a colon cannot mark a new
+        entry: keying on it collapsed every name-only block onto a single line and
+        left it unlinked. Indentation is the real signal -- a line at (or below)
+        the first entry's indent starts a new entry; a more-indented line
+        continues the one above.
+        """
         entries: list[list[str]] = []
+        base_indent: int | None = None
         for line in lines:
-            stripped = line.strip()
-            if not stripped:
+            if not line.strip():
                 continue
-            if _ENTRY_START.match(line) or not entries:
-                entries.append([stripped])
+            indent = len(line) - len(line.lstrip())
+            if base_indent is None:
+                base_indent = indent
+            if not entries or indent <= base_indent:
+                entries.append([line.strip()])
             else:
-                entries[-1].append(stripped)
+                entries[-1].append(line.strip())
         return [" ".join(parts) for parts in entries]
 
     def _render_entry(self, entry: str) -> str:
@@ -134,9 +144,16 @@ class SeeAlsoExtension(Extension):
         - A project class or function resolves to its qualified path.
         - `Class.member` resolves the class, then appends the member, so a method
           named in a See Also block links to its anchor on the class page.
-        - A dotted external name (`numpy.ndarray`) is handed to autorefs by
-          identifier; if no inventory resolves it, autorefs leaves it as text
-          rather than failing a strict build.
+        - A dotted name qualified with THIS package resolves to itself; a wrong
+          path there (`pkg.config.logging.X` where the class is `pkg.config.X`) is
+          a real broken reference and SHOULD red the strict build.
+        - A dotted name from ANOTHER top-level package (`numpy.ndarray`,
+          `yohou.point.Base`) is left unlinked. At collection time we cannot know
+          whether an inventory will resolve it, and an autoref that fails to
+          resolve is a FATAL warning under `--strict`, not the harmless plain text
+          this once assumed -- so a legitimate cross-reference to a dependency
+          symbol reddened the whole build. Plain text is what the old HTML hook
+          produced for these, and it never failed.
         - A bare name that is not a project symbol is left unlinked: a wrong link
           to an unrelated same-named symbol is worse than no link.
         """
@@ -145,8 +162,8 @@ class SeeAlsoExtension(Extension):
         if "." in name:
             head, rest = name.split(".", 1)
             if head == self._package.split(".", 1)[0]:
-                return name  # already package-qualified
+                return name  # already package-qualified (internal; a wrong path here is a real bug)
             if head in self._paths:
                 return f"{self._paths[head]}.{rest}"
-            return name  # external dotted name: let autorefs try, harmless if it cannot
+            return None  # foreign-package dotted name: an unresolvable autoref is fatal under --strict
         return None
