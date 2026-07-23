@@ -738,7 +738,7 @@ def get_filter_params_dict(pipeline_config: dict[str, Any]) -> dict[str, Any]:
 
     See Also
     --------
-    `kedro_dagster.config.job.PipelineOptions` :
+    `kedro_dagster.config.PipelineOptions` :
         Model whose fields are extracted by this function.
     `kedro_dagster.translator.KedroProjectTranslator.get_defined_pipelines` :
         Uses filter params to select and filter pipelines.
