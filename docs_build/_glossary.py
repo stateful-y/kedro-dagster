@@ -171,9 +171,16 @@ def _linkify(lines, page):
             fence = fence_match.group(1)
             out.append(line)
             continue
-        # Indented code (4 spaces or a tab) and ATX headings are not prose: a
-        # link mid-heading looks broken, and code is code.
-        if line.startswith(("    ", "\t")) or line.lstrip().startswith("#"):
+        # Indented code (4 spaces or a tab), ATX headings and mkdocstrings autodoc
+        # directives are not prose. A link mid-heading looks broken and code is
+        # code -- and linkifying a term inside a `::: pkg.module.Symbol` directive
+        # corrupts the identifier so mkdocstrings cannot collect it, failing the
+        # strict build. A project with a module named after an .autolink term (a
+        # `stationarity` module and a `Stationarity` term) would otherwise turn a
+        # generated API page's `::: pkg.stationarity.X` into
+        # `::: pkg.[stationarity](...).X`. Options under a `:::` are indented, so
+        # the `"    "` guard already covers them; this adds the directive itself.
+        if line.startswith(("    ", "\t")) or line.lstrip().startswith(("#", ":::")):
             out.append(line)
             continue
         out.append(_link_line(line, pattern, terms, rel_glossary, linked))

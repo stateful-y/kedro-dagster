@@ -26,11 +26,18 @@ build:
       # Generate the API pages and export the notebooks before mkdocs builds --
       # the explicit step that replaced the deleted on_pre_build hook, which the
       # mkdocs integration no longer triggers.
-      - "${READTHEDOCS_VIRTUALENV_PATH}/bin/python" docs_build/build.py prebuild
+      #
+      # The value is an UNQUOTED (plain) scalar on purpose: a YAML list item that
+      # STARTS with a quote is a quoted scalar and may carry no trailing content,
+      # so `- "${VENV}/bin/python" docs_build/build.py prebuild` is a parse error
+      # (check-yaml and Read the Docs both reject it). The variable needs no
+      # quoting -- RTD's paths contain no spaces -- exactly like the `install:`
+      # line above.
+      - ${READTHEDOCS_VIRTUALENV_PATH}/bin/python docs_build/build.py prebuild
     post_build:
       # Export the cleaned markdown into the built site for LLM consumption --
       # the explicit step that replaced the deleted on_post_build hook.
-      - "${READTHEDOCS_VIRTUALENV_PATH}/bin/python" docs_build/build.py postbuild "${READTHEDOCS_OUTPUT}html"
+      - ${READTHEDOCS_VIRTUALENV_PATH}/bin/python docs_build/build.py postbuild "${READTHEDOCS_OUTPUT}html"
       # Check for broken links
       - uvx linkchecker "${READTHEDOCS_OUTPUT}html/index.html" --no-status --no-warnings --ignore-url material/overrides
 
