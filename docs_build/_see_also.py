@@ -32,6 +32,12 @@ _HEADING = re.compile(r"(?m)^(?P<indent>[ \t]*)See Also[ \t]*\n(?P=indent)-{3,}[
 # name-only targets onto one line.
 _ENTRY = re.compile(r"^\s*`?(?P<name>[A-Za-z_][\w.]*)`?\s*(?::\s*(?P<desc>.*))?$")
 
+# A leading markdown list marker on an entry line. Some docstrings hand-write See
+# Also as a bullet list already (``- `X` : ...``); stripping the marker before we
+# re-wrap the entry stops ``- `X``` becoming ``- - `X```` -- a nested,
+# double-bulleted list once rendered.
+_LIST_MARKER = re.compile(r"^[-*+]\s+")
+
 
 class SeeAlsoExtension(Extension):
     """Rewrite See Also blocks into markdown cross-references at collection time."""
@@ -112,6 +118,10 @@ class SeeAlsoExtension(Extension):
         left it unlinked. Indentation is the real signal -- a line at (or below)
         the first entry's indent starts a new entry; a more-indented line
         continues the one above.
+
+        A leading markdown list marker on an entry is stripped: some docstrings
+        hand-write See Also as a bullet list, and re-wrapping ``- `X``` into
+        ``- - `X``` renders a nested, double-bulleted list.
         """
         entries: list[list[str]] = []
         base_indent: int | None = None
@@ -122,7 +132,7 @@ class SeeAlsoExtension(Extension):
             if base_indent is None:
                 base_indent = indent
             if not entries or indent <= base_indent:
-                entries.append([line.strip()])
+                entries.append([_LIST_MARKER.sub("", line.strip())])
             else:
                 entries[-1].append(line.strip())
         return [" ".join(parts) for parts in entries]
