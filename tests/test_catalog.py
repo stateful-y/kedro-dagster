@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import datetime
 import importlib
 from pathlib import Path
@@ -95,6 +96,33 @@ class TestDatasetPreviewMetadata:
         md = metadata["kedro_dataset_preview"]
         assert isinstance(md, dg.MarkdownMetadataValue)
         assert f"data:image/png;base64,{value}" in md.md_str
+
+    @pytest.mark.parametrize(
+        ("header", "expected"),
+        [
+            (b"\x89PNG\r\n\x1a\n\x00\x00", "![preview](data:image/png;base64,"),
+            (b"\xff\xd8\xff\xe0\x00\x10JFIF", "![preview](data:image/jpeg;base64,"),
+            (b"GIF89a\x01\x00", "![preview](data:image/gif;base64,"),
+            (b"RIFF\x00\x00\x00\x00WEBPVP8 ", "![preview](data:image/webp;base64,"),
+            (b"<svg xmlns='http://www.w3.org/2000/svg'>", "![preview](data:image/svg+xml;base64,"),
+            (b"<?xml version='1.0'?>\n<svg>", "![preview](data:image/svg+xml;base64,"),
+        ],
+    )
+    def test_image_preview_sniffs_non_png_formats(self, header, expected):
+        """MatplotlibDataset.preview() encodes whatever format was saved (svg/pdf/jpg/...),
+        so the data URI media type must follow the real magic bytes, not a hardcoded PNG."""
+        payload = base64.b64encode(header + b"\x00" * 16).decode()
+        metadata = _get_dataset_preview_metadata(_ImagePreviewDataset(payload))
+        md = metadata["kedro_dataset_preview"]
+        assert isinstance(md, dg.MarkdownMetadataValue)
+        assert md.md_str == f"{expected}{payload})"
+
+    def test_image_preview_pdf_renders_as_link_not_broken_image(self):
+        payload = base64.b64encode(b"%PDF-1.7\n%\xe2\xe3\xcf\xd3").decode()
+        metadata = _get_dataset_preview_metadata(_ImagePreviewDataset(payload))
+        md = metadata["kedro_dataset_preview"]
+        assert isinstance(md, dg.MarkdownMetadataValue)
+        assert md.md_str == f"[preview.pdf](data:application/pdf;base64,{payload})"
 
     def test_json_preview_is_parsed_into_structured_metadata(self):
         metadata = _get_dataset_preview_metadata(_JSONPreviewDataset('{"a": 1, "b": [2, 3]}'))

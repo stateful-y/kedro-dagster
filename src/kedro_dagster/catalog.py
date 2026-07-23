@@ -12,6 +12,7 @@ See Also
     Translates Kedro pipelines into Dagster jobs.
 """
 
+import base64
 import json
 from logging import getLogger
 from os import PathLike
@@ -74,6 +75,40 @@ def _json_metadata(preview: Any) -> dg.MetadataValue:
         return dg.MetadataValue.text(str(preview))
 
 
+def _image_preview_metadata(preview: str) -> dg.MetadataValue:
+    """Render a Kedro ``ImagePreview`` (base64 of the saved file) as Dagster metadata.
+
+    ``MatplotlibDataset.preview()`` base64-encodes the raw saved bytes, so the format
+    follows ``save_args["format"]``/the filepath suffix and may be PNG, JPEG, GIF, WEBP,
+    SVG or PDF rather than always PNG. Sniff the decoded magic bytes to pick the right
+    media type instead of assuming PNG (which would corrupt every non-PNG image). PDF
+    cannot be inlined as a markdown image, so surface it as a data-URI link; anything we
+    cannot identify falls back to the historical PNG assumption.
+    """
+    try:
+        header = base64.b64decode(preview[:48], validate=False)
+    except (ValueError, TypeError):
+        return dg.MetadataValue.md(f"![preview](data:image/png;base64,{preview})")
+
+    stripped = header.lstrip()
+    if header.startswith(b"\x89PNG\r\n\x1a\n"):
+        media_type = "image/png"
+    elif header.startswith(b"\xff\xd8\xff"):
+        media_type = "image/jpeg"
+    elif header.startswith((b"GIF87a", b"GIF89a")):
+        media_type = "image/gif"
+    elif header[:4] == b"RIFF" and header[8:12] == b"WEBP":
+        media_type = "image/webp"
+    elif stripped.startswith((b"<?xml", b"<svg")):
+        media_type = "image/svg+xml"
+    elif header.startswith(b"%PDF"):
+        return dg.MetadataValue.md(f"[preview.pdf](data:application/pdf;base64,{preview})")
+    else:
+        media_type = "image/png"
+
+    return dg.MetadataValue.md(f"![preview](data:{media_type};base64,{preview})")
+
+
 def _metadata_value_from_preview(preview: Any, preview_type: "str | None") -> dg.MetadataValue:
     """Convert a Kedro dataset preview into a Dagster metadata value.
 
@@ -82,8 +117,7 @@ def _metadata_value_from_preview(preview: Any, preview_type: "str | None") -> dg
     a structural check when no annotation is available.
     """
     if preview_type == "ImagePreview" and isinstance(preview, str):
-        # Base64-encoded PNG; embed as a data URI so Dagit renders the image.
-        return dg.MetadataValue.md(f"![preview](data:image/png;base64,{preview})")
+        return _image_preview_metadata(preview)
 
     if preview_type == "HTMLPreview" and isinstance(preview, str):
         return dg.MetadataValue.md(preview)
