@@ -17,9 +17,20 @@ build:
       # Create the virtual environment using uv
       - uv venv "${READTHEDOCS_VIRTUALENV_PATH}"
     install:
-      # Sync doc-dependencies (the group "docs") and install the project itself
+      # Sync doc-dependencies (the group "docs") and install the project itself.
+      # The editable install is what puts the repo root on sys.path (via the
+      # wheel's `dev-mode-dirs`), so the build can load the `docs_build` markdown
+      # extensions by module name at config time.
       - UV_PROJECT_ENVIRONMENT="${READTHEDOCS_VIRTUALENV_PATH}" uv sync --group docs
+    pre_build:
+      # Generate the API pages and export the notebooks before mkdocs builds --
+      # the explicit step that replaced the deleted on_pre_build hook, which the
+      # mkdocs integration no longer triggers.
+      - "${READTHEDOCS_VIRTUALENV_PATH}/bin/python" docs_build/build.py prebuild
     post_build:
+      # Export the cleaned markdown into the built site for LLM consumption --
+      # the explicit step that replaced the deleted on_post_build hook.
+      - "${READTHEDOCS_VIRTUALENV_PATH}/bin/python" docs_build/build.py postbuild "${READTHEDOCS_OUTPUT}html"
       # Check for broken links
       - uvx linkchecker "${READTHEDOCS_OUTPUT}html/index.html" --no-status --no-warnings --ignore-url material/overrides
 

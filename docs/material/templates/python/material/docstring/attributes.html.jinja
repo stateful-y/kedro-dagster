@@ -1,0 +1,4 @@
+{% extends "_base/docstring/attributes.html.jinja" %}
+{#- Strip the redundant Attributes title; see parameters.html.jinja for the why. -#}
+{% block table_style scoped %}{{ super() | replace('<p><span class="doc-section-title">Attributes:</span></p>', "") }}{% endblock table_style %}
+{% block list_style scoped %}{{ super() | replace('<p><span class="doc-section-title">Attributes:</span></p>', "") }}{% endblock list_style %}

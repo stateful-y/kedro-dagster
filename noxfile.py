@@ -262,15 +262,16 @@ def build_steps(session: nox.Session) -> None:
     to 3.14 an unpinned session fails for a reason that has nothing to do with
     the docs.
 
-    ``docs/hooks.py`` calls these from ``on_pre_build``/``on_post_build`` so that
-    ``mkdocs serve`` regenerates on a source edit, but none of them needs a theme,
-    a server or a markdown renderer -- they read the filesystem and write it. This
-    session is how you run one on its own: to see the generated API pages, to
-    re-export the notebooks, or to get a stack trace that is not buried in a build.
+    ``docs_build/build.py prebuild`` runs these before ``mkdocs build`` (and the
+    serve supervisor runs them on a source edit), the explicit commands that
+    replaced the mkdocs build hooks no engine but MkDocs executes. None of them
+    needs a theme, a server or a markdown renderer -- they read the filesystem and
+    write it. This session runs them on their own: to see the generated API pages,
+    to re-export the notebooks, or to get a stack trace not buried in a build.
 
-    ``_markdown_export`` is deliberately not run here: its input is a site
-    directory a previous build produced, so it has nothing to convert until
-    ``build_docs`` has run.
+    ``_markdown_export`` (the ``postbuild`` step) is deliberately not run here: its
+    input is a site directory a previous build produced, so it has nothing to
+    convert until ``build_docs`` has run.
     """
     session.run_install(
         "uv",
@@ -281,7 +282,7 @@ def build_steps(session: nox.Session) -> None:
         env={"UV_PROJECT_ENVIRONMENT": session.virtualenv.location},
     )
 
-    session.run("python", "docs/_api_pages.py", external=True)
+    session.run("python", "docs_build/_api_pages.py", external=True)
 
 
 @nox.session(venv_backend="uv")
@@ -297,8 +298,11 @@ def build_docs(session: nox.Session) -> None:
         env={"UV_PROJECT_ENVIRONMENT": session.virtualenv.location},
     )
 
-    # Build the docs (hooks automatically export notebooks and prepare site)
+    # Generate the API pages and export the notebooks, build, then export the LLM
+    # markdown -- the explicit steps that replaced the deleted mkdocs build hooks.
+    session.run("python", "docs_build/build.py", "prebuild", external=True)
     session.run("mkdocs", "build", "--clean", external=True)
+    session.run("python", "docs_build/build.py", "postbuild", "site", external=True)
 
 
 @nox.session(python=PYTHON_VERSIONS[0], venv_backend="uv")
@@ -312,10 +316,10 @@ def check_docs(session: nox.Session) -> None:
     bumped past the ceiling would turn this red for a reason that has nothing to
     do with the docs.
 
-    docs/hooks.py warns when a marker resolves to nothing, because a placeholder
-    that renders nothing looks exactly like a page that never had one -- the
-    warning is the only signal that a page silently lost its content. That signal
-    is worthless unless something fails on it, which is what this session is for.
+    docs_build/_markers.py warns when a marker resolves to nothing, because a
+    placeholder that renders nothing looks exactly like a page that never had one
+    -- the warning is the only signal that a page silently lost its content. That
+    signal is worthless unless something fails on it, which is what this session is for.
 
     A full build is too slow to run on every PR: exporting the notebooks executes
     every one of them and dominates the time. MKDOCS_SKIP_NOTEBOOKS skips only the
@@ -332,6 +336,15 @@ def check_docs(session: nox.Session) -> None:
         env={"UV_PROJECT_ENVIRONMENT": session.virtualenv.location},
     )
 
+    # Generate the API pages first (skipping notebook execution) so the markers
+    # resolve, then run the strict build. This is what on_pre_build used to do.
+    session.run(
+        "python",
+        "docs_build/build.py",
+        "prebuild",
+        external=True,
+        env={"MKDOCS_SKIP_NOTEBOOKS": "1"},
+    )
     session.run(
         "mkdocs",
         "build",
@@ -355,9 +368,10 @@ def serve_docs(session: nox.Session) -> None:
         env={"UV_PROJECT_ENVIRONMENT": session.virtualenv.location},
     )
 
-    # Serve the docs (hooks automatically export notebooks and prepare site)
+    # Serve via the supervisor: it regenerates the API pages when src/ changes,
+    # so a new class appears without a restart, without relying on a hook.
     session.log("###### Starting local server. Press Control+C to stop server ######")
-    session.run("mkdocs", "serve", "-a", "localhost:8080", external=True)
+    session.run("python", "docs_build/serve.py", external=True)
 
 
 @nox.session(venv_backend="uv")

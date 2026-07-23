@@ -5,9 +5,6 @@ repo_url: https://github.com/stateful-y/kedro-dagster
 repo_name: stateful-y/kedro-dagster
 edit_uri: edit/main/docs/
 
-hooks:
-  - docs/hooks.py
-
 theme:
   name: material
   custom_dir: docs/material/overrides
@@ -77,7 +74,15 @@ markdown_extensions:
       pygments_lang_class: true
   - pymdownx.inlinehilite
   - pymdownx.keys
-  - pymdownx.magiclink
+  - pymdownx.magiclink:
+      # Without these two, `#12` and `@octocat` render as literal text. The
+      # extension was declared bare, so only bare-URL autolinking worked and
+      # the issue/PR/user shorthand -- the reason to enable magiclink on a
+      # project that lives on GitHub -- silently did nothing.
+      repo_url_shorthand: true
+      social_url_shorthand: true
+      user: stateful-y
+      repo: kedro-dagster
   - pymdownx.mark
   - pymdownx.smartsymbols
   - pymdownx.snippets:
@@ -99,7 +104,30 @@ markdown_extensions:
   - pymdownx.tasklist:
       custom_checkbox: true
   - pymdownx.tilde
-  - pymdownx.emoji
+  - pymdownx.emoji:
+      # `pymdownx.emoji` declared bare defaults to the EmojiOne index, which
+      # points at `cdnjs.cloudflare.com/.../emojione/2.2.7/` -- a CDN path that
+      # has been dead since 2017. Every emoji on every generated site was a
+      # broken image, in every engine, and nothing warned.
+      #
+      # Deliberately `pymdownx.emoji.twemoji`, not `material.extensions.emoji.
+      # twemoji`. Material's index adds `:material-*:` icon shortcodes, which
+      # this template does not use anywhere, and naming it would bind the
+      # markdown config to the theme package. The pymdownx index ships with a
+      # dependency the template already declares.
+      emoji_index: !!python/name:pymdownx.emoji.twemoji
+      emoji_generator: !!python/name:pymdownx.emoji.to_svg
+  # Resolves the docs markers (<!-- API_TABLE -->, <!-- SUBPAGES -->, gallery and
+  # companion placeholders) at markdown level, so they render under any engine --
+  # the `hooks:` key that used to do this is not executed by the successor engine.
+  # Loaded by module name at config time, which the `dev-mode-dirs = ["."]` wheel
+  # target makes possible (it puts the repo root on the editable install's path).
+  - docs_build._markers
+  # Links the first occurrence of each opted-in glossary term to its definition,
+  # at markdown level so it runs under any engine (this replaced the on_page_content
+  # hook). Registers above the markers so it only ever links author prose, never
+  # the HTML tables and cards they inject.
+  - docs_build._glossary
 
 extra_javascript:
   - javascripts/readthedocs.js
@@ -114,12 +142,14 @@ extra_css:
 
 exclude_docs: |
   api-submodule.html
-  # The build steps live in docs/ so mkdocs can load hooks.py by path and the
-  # hooks can import their siblings. mkdocs treats every non-page file under
-  # docs_dir as a static asset, so without this it publishes the build tooling's
-  # source -- and its bytecode -- to the documentation site. That was already
-  # true of hooks.py before the steps were split out; splitting them made it
-  # four modules instead of one, which is what made it visible.
+  # The template's build tooling (hooks.py and its siblings) no longer lives
+  # under docs_dir -- it moved to docs_build/, so mkdocs cannot see it to publish
+  # it, and none of the entries here are what protects it. Deleting them would
+  # not leak the build tooling; the location does that.
+  #
+  # `*.py` and `__pycache__/` remain for a different reason: a project may keep
+  # its OWN script under docs/ (yohou has docs/precache_datasets.py), and mkdocs
+  # would publish it as a static asset. These entries cover that case.
   *.py
   __pycache__/
   # Same reason, one directory over: `docs/material/templates/` holds
@@ -186,6 +216,13 @@ plugins:
             #   - https://numpy.org/doc/stable/objects.inv
             - https://docs.python.org/3/objects.inv
           options:
+            # Griffe extensions run during collection. `_see_also` rewrites
+            # numpydoc "See Also" blocks into markdown cross-references before the
+            # docstring is rendered, so autorefs links them -- replacing the HTML
+            # post-processing the docs hooks used to do.
+            extensions:
+              - docs_build/_see_also.py
+              - docs_build/_source_links.py
             docstring_style: numpy
             docstring_options:
               # The pydantic models in config/models.py document their fields in
@@ -242,8 +279,18 @@ extra:
       link: https://github.com/stateful-y/kedro-dagster
 
 watch:
-  - mkdocs.yml
+  # Just `docs`, on purpose. The engine watches only its own source directory;
+  # the live-preview watcher in docs_build/serve.py owns `src/` (a source edit
+  # regenerates the API pages under docs/pages/api/, which are in `docs` and so
+  # trigger a rebuild). Watching `src` here too would fire a second, stale
+  # rebuild before regeneration completes -- and the successor engine cannot
+  # watch `src` at all (it refuses paths outside the project folder), so an
+  # engine that watches `src` was never the portable answer. Run `just serve`
+  # (which runs the watcher); raw `mkdocs serve` gives a static preview.
+  #
+  # Deliberately NOT `mkdocs.yml`. MkDocs already watches its own config during
+  # `serve`, so listing it buys nothing -- and under Zensical a config file
+  # naming itself in `watch:` makes the build emit ZERO html, silently, at
+  # exit 0, even under `--strict`. Re-adding it would publish an empty site
+  # from a green build, in every repo at once.
   - docs
-  # The API pages are generated from the package source, so a source edit must
-  # trigger a rebuild -- otherwise adding a class shows nothing until restart.
-  - src

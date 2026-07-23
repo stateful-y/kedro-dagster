@@ -1867,6 +1867,7 @@ dev = [
     { name = "ruff" },
     { name = "rumdl" },
     { name = "ty" },
+    { name = "watchdog" },
 ]
 docs = [
     { name = "griffe" },
@@ -1877,6 +1878,7 @@ docs = [
     { name = "mkdocstrings", extra = ["python"] },
     { name = "pymdown-extensions" },
     { name = "pyyaml" },
+    { name = "watchdog" },
 ]
 fix = [
     { name = "prek" },
@@ -1938,6 +1940,7 @@ dev = [
     { name = "ruff", specifier = ">=0.8.0" },
     { name = "rumdl", specifier = ">=0.1.33" },
     { name = "ty", specifier = ">=0.0.12" },
+    { name = "watchdog", specifier = ">=4.0" },
 ]
 docs = [
     { name = "griffe", specifier = ">=1.0" },
@@ -1948,6 +1951,7 @@ docs = [
     { name = "mkdocstrings", extras = ["python"], specifier = ">=0.26.0" },
     { name = "pymdown-extensions", specifier = ">=10.20.1" },
     { name = "pyyaml", specifier = ">=6.0" },
+    { name = "watchdog", specifier = ">=4.0" },
 ]
 fix = [{ name = "prek", specifier = ">=0.4.10" }]
 lint = [

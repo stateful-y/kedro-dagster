@@ -7,18 +7,17 @@ the package's own dependencies are absent.
 
 Importable and runnable on its own::
 
-    python docs/_api_pages.py
+    python docs_build/_api_pages.py
 
 This module deliberately imports nothing from ``mkdocs``. It is called from
-``docs/hooks.py``'s ``on_pre_build`` so that ``mkdocs serve`` regenerates on a
-source edit, but nothing here depends on that being the caller -- which is what
-makes it testable without a docs build, and what the template's test suite
-enforces.
+``docs_build/build.py``'s ``prebuild`` step (and by ``serve.py`` on a source
+edit), but nothing here depends on that being the caller -- which is what makes
+it testable without a docs build, and what the template's test suite enforces.
 
-``docs/hooks.py`` also imports the discovery helpers below (the page hooks need
-the same answer to "what is public in this package?"), so this module is the one
-definition of that surface. Two definitions drift, and the drift renders as a
-missing page rather than an error.
+``docs_build/_markers.py`` also imports the discovery helpers below (the marker
+builders need the same answer to "what is public in this package?"), so this
+module is the one definition of that surface. Two definitions drift, and the
+drift renders as a missing page rather than an error.
 """
 
 import logging
@@ -29,7 +28,7 @@ import yaml
 from griffe import GriffeLoader
 
 # By NAME, not by importing mkdocs -- this module must import nothing from it,
-# and the generated project's own test suite enforces that. `hooks.py` and
+# and the generated project's own test suite enforces that. `_markers.py` and
 # `_notebooks.py` use the same idiom, so a warning raised here lands in the same
 # stream mkdocs' `--strict` escalates.
 log = logging.getLogger("mkdocs.hooks")
@@ -39,7 +38,7 @@ log = logging.getLogger("mkdocs.hooks")
 #
 # Naming is load-bearing: the per-build reset and its registration test discover
 # caches by the `_CACHE` suffix, so a cache named otherwise escapes both,
-# silently. The test scans every module the hooks load, not just hooks.py.
+# silently. The test scans every module the build tooling loads.
 _SURFACE_CACHE = None
 _API_NAME_LOOKUP_CACHE = None
 
@@ -47,11 +46,11 @@ _API_NAME_LOOKUP_CACHE = None
 def reset_caches():
     """Clear this module's per-build caches.
 
-    Called by ``on_config`` in ``docs/hooks.py``, which fires on every build
-    including each rebuild in a serve session. Exposed as a function because a
-    caller cannot rebind another module's globals with a ``global`` statement --
-    resetting from hooks.py would need ``_api_pages._SURFACE_CACHE = None``,
-    which works but puts the cache set's definition in the wrong file.
+    Called by ``_markers.reset_caches()`` and by ``serve.py`` when a source edit
+    regenerates the pages. Exposed as a function because a caller cannot rebind
+    another module's globals with a ``global`` statement -- resetting from
+    elsewhere would need ``_api_pages._SURFACE_CACHE = None``, which works but
+    puts the cache set's definition in the wrong file.
     """
     global _SURFACE_CACHE, _API_NAME_LOOKUP_CACHE  # noqa: PLW0603
     _SURFACE_CACHE = None
@@ -479,7 +478,7 @@ def _generate_api_pages(project_root):
     """
     template_file = project_root / "docs" / "api-submodule.html"
     if not template_file.exists():
-        print("[hooks] docs/api-submodule.html not found, skipping API page generation")
+        print("[docs] docs/api-submodule.html not found, skipping API page generation")
         return
 
     template = template_file.read_text(encoding="utf-8")
@@ -531,7 +530,7 @@ def _generate_api_pages(project_root):
         )
         dest = api_dir / f"{mod['module_name']}.md"
         dest.write_text(content, encoding="utf-8")
-        print(f"[hooks] generated api page: pages/api/{mod['module_name']}.md")
+        print(f"[docs] generated api page: pages/api/{mod['module_name']}.md")
 
         # Generate per-class/function detail pages
         member_count += _write_member_pages(generated_dir, _page_template, mod["module_name"], members)
@@ -543,7 +542,7 @@ def _generate_api_pages(project_root):
     member_count += _write_member_pages(generated_dir, _page_template, "", _get_root_members(project_root))
 
     if member_count:
-        print(f"[hooks] generated {member_count} API member pages in pages/api/generated/")
+        print(f"[docs] generated {member_count} API member pages in pages/api/generated/")
 
 
 def generate(project_root):
