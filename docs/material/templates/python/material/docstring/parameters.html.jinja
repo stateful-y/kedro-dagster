@@ -1,0 +1,20 @@
+{% extends "_base/docstring/parameters.html.jinja" %}
+{#- Strip the redundant section title the shipped template emits.
+
+Our dispatcher override (`docstring.html.jinja`) already emits a real heading for
+this section -- registered for the table of contents -- so the shipped
+`<p><span class="doc-section-title">Parameters:</span></p>` renders the label a
+second time, and `section.title` falls back to a translated string so nothing in
+the config suppresses it.
+
+Rather than fork the 56-line table body (which would stop receiving upstream
+fixes), each style block is rendered with `super()` and only the title line is
+removed from that output -- the table keeps coming from upstream. The title text
+is the literal the shipped template emits for numpydoc (`section.title` is always
+None because the handler is pinned to `docstring_style: numpy`), which is exactly
+the set the old `_strip_redundant_section_titles` pass matched. Only the five
+sections the dispatcher maps get an override; an unmapped section (Yields,
+Warns, ...) keeps its own title, which is why this is not done globally. The
+`spacy` style uses a `<th>` and is left alone, matching the old pass. -#}
+{% block table_style scoped %}{{ super() | replace('<p><span class="doc-section-title">Parameters:</span></p>', "") }}{% endblock table_style %}
+{% block list_style scoped %}{{ super() | replace('<p><span class="doc-section-title">Parameters:</span></p>', "") }}{% endblock list_style %}

@@ -48,10 +48,19 @@ reason the two must stay in sync.
   {% endblock logs %}
   {% with autoref_hook = AutorefsHook(obj, config) %}
     {% for section in docstring_sections %}
-      {#- The page's own object renders at heading_level 2, its members deeper.
-          Class-level sections are bare (`#parameters`); a member's are prefixed
-          with its name (`#greet-parameters`), which is the scheme the hooks
-          built by string concatenation. -#}
+      {#- The page's own object renders at heading_level 2, its members deeper;
+          `at_root` still selects the heading LEVEL (h3 vs h5).
+
+          The id is qualified by `obj.path` for EVERY object, root or member, so
+          two `:::` directives on one curated page (both rendered at root) get
+          distinct ids -- `pkg.mod.Alpha-parameters` and `pkg.mod.Beta-parameters`
+          -- rather than colliding on a bare `#parameters`. A template renders
+          each object independently and cannot see that another shares its page,
+          so a per-object-unique key is the only fix it can apply; the hooks used
+          to de-duplicate this after the fact in whole-page HTML, which no
+          engine-independent host can do. The cost is that a single-object page's
+          anchor is now `#pkg.mod.Class-parameters`, not `#parameters` -- a
+          deliberate, one-time change to published anchors. -#}
       {%- set at_root = heading_level == 2 -%}
       {%- if section.kind.value == "admonition" -%}
         {%- set mapped = admonition_slugs.get(section.value.kind) -%}
@@ -59,7 +68,7 @@ reason the two must stay in sync.
         {%- set mapped = doc_section_slugs.get(section.kind.value) -%}
       {%- endif -%}
       {%- if mapped -%}
-        {%- set section_id = mapped[0] if at_root else (obj.name ~ "-" ~ mapped[0]) -%}
+        {%- set section_id = obj.path ~ "-" ~ mapped[0] -%}
         {% filter heading(3 if at_root else 5, id=section_id, toc_label=mapped[1]) %}
           <span class="doc-section-heading">{{ mapped[1] }}</span>
         {% endfilter %}

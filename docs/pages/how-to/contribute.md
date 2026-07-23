@@ -410,7 +410,12 @@ Build documentation:
     uv run mkdocs build
     ```
 
-Serve documentation locally:
+Serve documentation locally. `just serve` and `nox -s serve_docs` run the
+preview supervisor (`docs_build/serve.py`), which watches `src/` and regenerates
+the API pages when you add or change a public symbol, so it appears in the
+preview without a restart. Raw `mkdocs serve` still works but is a **static**
+preview: it does not regenerate the API pages on a source edit, because that
+regeneration is not tied to the documentation engine.
 
 === "just"
 
@@ -424,7 +429,7 @@ Serve documentation locally:
     uvx nox -s serve_docs
     ```
 
-=== "uv run"
+=== "uv run (static preview)"
 
     ```bash
     uv run mkdocs serve

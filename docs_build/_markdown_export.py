@@ -8,11 +8,11 @@ unexpanded directives.
 Importable and runnable on its own against a site directory a previous build
 produced::
 
-    python docs/_markdown_export.py
+    python docs_build/_markdown_export.py
 
 This module deliberately imports nothing from ``mkdocs``. It is called from
-``docs/hooks.py``'s ``on_post_build``, which passes the configured directories
-in; nothing here depends on that being the caller.
+``docs_build/build.py``'s ``postbuild`` step, which passes the configured
+directories in; nothing here depends on that being the caller.
 """
 
 import fnmatch
@@ -338,7 +338,7 @@ def export(site_dir, docs_dir, project_root=None):
     if llms_txt_source.exists():
         llms_txt_dest = site_dir / "llms.txt"
         shutil.copy2(llms_txt_source, llms_txt_dest)
-        print("[hooks] copied llms.txt to site")
+        print("[docs] copied llms.txt to site")
 
     # Process markdown files
     copied_count = 0
@@ -368,7 +368,7 @@ def export(site_dir, docs_dir, project_root=None):
         copied_count += 1
 
     if copied_count > 0:
-        print(f"[hooks] copied {copied_count} markdown files to site")
+        print(f"[docs] copied {copied_count} markdown files to site")
 
 
 def main():

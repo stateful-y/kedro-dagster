@@ -41,10 +41,16 @@ docs/api-submodule.html
 docs/assets/.gitkeep
 docs/assets/made_by_stateful-y.png   # the "made by stateful-y" mark is template branding
 docs/assets/README.md
-docs/hooks.py
-docs/_api_pages.py                   # build step split out of hooks.py; same tier as its caller
-docs/_markdown_export.py             # build step split out of hooks.py; same tier as its caller
-docs/_notebooks.py                   # build step split out of hooks.py; examples-only
+docs_build/build.py                  # explicit pre/post-build steps; lives outside docs_dir so it cannot be published
+docs_build/_git_ref.py               # single git-ref definition shared by the marker and source-link extensions
+docs_build/_api_pages.py             # build step imported by build.py; same tier as its caller
+docs_build/_markdown_export.py       # build step imported by build.py; same tier as its caller
+docs_build/_notebooks.py             # build step imported by build.py; examples-only
+docs_build/serve.py                  # live-preview supervisor; watches src/ and regenerates API pages
+docs_build/_see_also.py              # griffe extension; rewrites numpydoc See Also into cross-references
+docs_build/_source_links.py           # griffe extension; attaches View-on-GitHub URLs for the Source Code heading
+docs_build/_markers.py               # python-markdown extension; resolves the docs markers (API_TABLE, SUBPAGES, gallery, companion)
+docs_build/_glossary.py              # python-markdown extension; links glossary terms to their definitions at markdown level
 docs/pages/reference/changelog.md   # one-line include of the root CHANGELOG.md
 docs/javascripts/mathjax.js
 docs/javascripts/readthedocs.js

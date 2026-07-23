@@ -89,7 +89,7 @@ openspec/
 # build
 src/kedro_dagster/_version.py
 
-# Auto-generated API submodule pages (created by docs/hooks.py)
+# Auto-generated API submodule pages (created by docs_build/build.py)
 docs/pages/api/
 
 # Worktrees

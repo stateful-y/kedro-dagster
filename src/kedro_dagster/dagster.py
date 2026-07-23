@@ -224,7 +224,7 @@ class ScheduleCreator:
         Creates executor definitions from configuration.
     `kedro_dagster.dagster.LoggerCreator` :
         Creates logger definitions from configuration.
-    `kedro_dagster.config.automation.ScheduleOptions` :
+    `kedro_dagster.config.ScheduleOptions` :
         Schedule option model.
     """
 
@@ -242,7 +242,7 @@ class ScheduleCreator:
 
         See Also
         --------
-        `kedro_dagster.config.automation.ScheduleOptions` :
+        `kedro_dagster.config.ScheduleOptions` :
             Schedule option model used as input.
         """
         LOGGER.info("Creating Dagster schedules...")
@@ -302,7 +302,7 @@ class LoggerCreator:
         Creates executor definitions from configuration.
     `kedro_dagster.dagster.ScheduleCreator` :
         Creates schedule definitions from configuration.
-    `kedro_dagster.config.logging.LoggerOptions` :
+    `kedro_dagster.config.LoggerOptions` :
         Logger option model.
     """
 
@@ -469,7 +469,7 @@ class LoggerCreator:
 
         See Also
         --------
-        `kedro_dagster.config.logging.LoggerOptions` :
+        `kedro_dagster.config.LoggerOptions` :
             Logger option model used as input.
 
         Notes

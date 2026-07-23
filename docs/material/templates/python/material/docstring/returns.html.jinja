@@ -1,0 +1,4 @@
+{% extends "_base/docstring/returns.html.jinja" %}
+{#- Strip the redundant Returns title; see parameters.html.jinja for the why. -#}
+{% block table_style scoped %}{{ super() | replace('<p><span class="doc-section-title">Returns:</span></p>', "") }}{% endblock table_style %}
+{% block list_style scoped %}{{ super() | replace('<p><span class="doc-section-title">Returns:</span></p>', "") }}{% endblock list_style %}

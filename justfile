@@ -47,14 +47,16 @@ lint:
 fix:
     uv run prek run --all-files --show-diff-on-failure
 
-# Build documentation
+# Build documentation (prebuild generates API pages + notebooks; postbuild exports LLM markdown)
 build:
+    uv run python docs_build/build.py prebuild
     uv run mkdocs build --clean
+    uv run python docs_build/build.py postbuild site
 
-# Serve documentation locally
+# Serve documentation locally with live API regeneration on source edits
 serve:
     @echo "###### Starting local server. Press Control+C to stop server ######"
-    uv run mkdocs serve -a localhost:8080
+    uv run python docs_build/serve.py
 
 # Check built docs for dead links (build first with 'just build')
 link:

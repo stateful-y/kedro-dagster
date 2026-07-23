@@ -1,0 +1,17 @@
+{#- Render the Examples body without the shipped title (our dispatcher emits
+the heading, so the title would duplicate it).
+
+Unlike the table sections, this is a full override rather than super()+replace:
+the shipped template has no block around its body. Almost nothing is lost to
+inheritance, though -- the body is a trivial text/code loop, not a 56-line table
+-- so the cost the design worried about does not apply here. Keep this loop in
+sync with the shipped `_base/docstring/examples.html.jinja` if it ever changes. -#}
+{% block logs scoped %}{{ log.debug("Rendering examples section") }}{% endblock logs %}
+{% import "language.html.jinja" as lang with context %}
+{% for section_type, sub_section in section.value %}
+  {% if section_type.value == "text" %}
+    {{ sub_section|convert_markdown(heading_level, html_id, autoref_hook=autoref_hook) }}
+  {% elif section_type.value == "examples" %}
+    {{ sub_section|highlight(language="pycon") }}
+  {% endif %}
+{% endfor %}

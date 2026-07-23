@@ -15,11 +15,16 @@ hooks applied by string concatenation.
   {% if config.show_source %}
     {% filter heading(
          3 if heading_level == 2 else 5,
-         id="source-code" if heading_level == 2 else (obj.name ~ "-source-code"),
+         id=(obj.path ~ "-source-code"),
          toc_label="Source Code",
        ) %}
       <span class="doc-section-heading">Source Code</span>
     {% endfilter %}
+    {#- "View on GitHub", from the `_source_links` Griffe extension (see class.html.jinja). -#}
+    {% set _source_url = obj.extra.get("docs", {}).get("github_source_url") %}
+    {% if _source_url %}
+      <p class="github-source-link"><a href="{{ _source_url }}">View on GitHub</a></p>
+    {% endif %}
   {% endif %}
   {{ super() }}
 {% endblock source %}
