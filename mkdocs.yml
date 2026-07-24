@@ -7,6 +7,13 @@ edit_uri: edit/main/docs/
 
 theme:
   name: material
+  # Zensical defaults its theme to the "modern" variant, a fresh redesign with
+  # different fonts and colour treatment -- so the custom palette in
+  # stylesheets/theme.css renders as a different-looking site. "classic" is the
+  # variant that reproduces the Material for MkDocs look this palette was written
+  # for. MkDocs ignores this key (it is not a Material theme option); Zensical
+  # reads it. Without it, every generated site silently changes appearance.
+  variant: classic
   custom_dir: docs_theme/overrides
   favicon: assets/favicon.png
   logo: assets/logo.png

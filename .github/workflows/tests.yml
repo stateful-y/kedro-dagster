@@ -236,8 +236,14 @@ jobs:
           if grep -rlE '<!-- (API_TABLE|SUBPAGES|GALLERY|EXAMPLES_FOR|COMPANION_NOTEBOOKS)[^>]*-->' site --include='*.html'; then
             echo "::error::unresolved marker comment(s) in the built site -- a docs_build extension did not run"; exit 1
           fi
-          if find site \( -name '*.py' -o -name '*.jinja' \) -print | grep -q .; then
-            echo "::error::build tooling (.py/.jinja) leaked into the published site"; exit 1
+          # Assert the template's own build tooling did not leak. It lives outside
+          # docs_dir (docs_build/ and docs_theme/), so this guards the relocation:
+          # a botched theme merge would republish these. Deliberately NOT a blanket
+          # `*.py` check -- the successor engine ignores exclude_docs, so a project's
+          # OWN docs/*.py script (e.g. a dataset precache) now publishes as a static
+          # asset, and that is the project's file, not leaked tooling.
+          if find site \( -name '*.jinja' -o -name 'api-submodule.html' -o -path '*/material/*' -o -path '*/docs_theme/*' \) -print | grep -q .; then
+            echo "::error::build tooling (theme templates / API scaffold) leaked into the published site"; exit 1
           fi
           pages="$(find site/pages/api/generated -name index.html 2>/dev/null | wc -l)"
           if [ "$pages" -eq 0 ]; then
