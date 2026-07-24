@@ -109,27 +109,30 @@ class ReferencesExtension(Extension):
     def _split_entries(self, body: str) -> list[str]:
         """Group the block's lines into entries and strip each entry's marker.
 
-        numpydoc puts each reference at the section's base indent and indents any
-        wrapped continuation beneath it; entries may be separated by blank lines.
-        A line at (or below) the first entry's indent starts a new entry; a
-        more-indented line continues the one above. Each entry's leading list
-        marker and citation label are stripped, so the caller can re-number from 1
-        without doubling markers.
+        A new reference begins at a citation marker (`[1]`, `.. [1]`) or a list
+        marker (`1.`, `-`); every other line continues the entry above it. This is
+        keyed on the marker, NOT on indentation: numpydoc *recommends* indenting a
+        wrapped continuation, but many docstrings write the continuation flush with
+        the marker line, and splitting those by indent turned one citation into one
+        list item per physical line. Marker-keyed splitting folds a flush-left
+        multi-line citation into a single entry and still separates blank-line- or
+        indent-separated entries correctly. Each entry's leading marker is stripped
+        so the caller can re-number from 1 without doubling markers.
         """
         entries: list[list[str]] = []
-        base_indent: int | None = None
         for line in body.splitlines():
             if not line.strip():
                 continue
-            indent = len(line) - len(line.lstrip())
-            if base_indent is None:
-                base_indent = indent
             stripped = line.strip()
-            if not entries or indent <= base_indent:
+            if not entries or self._starts_entry(stripped):
                 entries.append([self._strip_marker(stripped)])
             else:
                 entries[-1].append(stripped)
         return [" ".join(parts).strip() for parts in entries]
+
+    def _starts_entry(self, line: str) -> bool:
+        """Whether a (stripped) line begins a new reference: it leads with a marker."""
+        return bool(_LIST_MARKER.match(line) or _CITATION.match(line))
 
     def _strip_marker(self, line: str) -> str:
         """Remove a leading list marker and citation label from an entry's first line."""
