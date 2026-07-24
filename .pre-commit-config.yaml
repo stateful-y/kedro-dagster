@@ -53,6 +53,21 @@ repos:
         exclude: .*_version\.py$
         require_serial: true
 
+      # Ban reStructuredText citation syntax in docstrings. numpydoc "References"
+      # sections must use a markdown ordered list with plain `[1]` prose citations,
+      # never RST (`.. [1]` definitions or `[1]_` references) -- griffe hands the
+      # section to mkdocstrings as raw text, so RST renders literally on the API
+      # page. The docs build normalizes it anyway, but catching it at author time
+      # keeps the source clean. `pygrep` is built into prek, so this adds no
+      # dependency; it fails when either form matches.
+      - id: no-rst-citations
+        name: no reStructuredText citation syntax in docstrings
+        description: Use a markdown ordered list and plain `[1]` citations, not RST `.. [1]` / `[1]_`.
+        language: pygrep
+        entry: '(^\s*\.\. \[|\[[^]]+\]_)'
+        types: [python]
+        files: ^src/
+
       # Ruff linter (autofix)
       - id: ruff
         name: ruff
