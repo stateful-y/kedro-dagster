@@ -407,13 +407,13 @@ Build documentation:
 === "uv run"
 
     ```bash
-    uv run mkdocs build
+    uv run python docs_build/build.py prebuild && uv run zensical build
     ```
 
 Serve documentation locally. `just serve` and `nox -s serve_docs` run the
 preview supervisor (`docs_build/serve.py`), which watches `src/` and regenerates
 the API pages when you add or change a public symbol, so it appears in the
-preview without a restart. Raw `mkdocs serve` still works but is a **static**
+preview without a restart. Raw `zensical serve` still works but is a **static**
 preview: it does not regenerate the API pages on a source edit, because that
 regeneration is not tied to the documentation engine.
 
@@ -432,8 +432,24 @@ regeneration is not tied to the documentation engine.
 === "uv run (static preview)"
 
     ```bash
-    uv run mkdocs serve
+    uv run zensical serve
     ```
+
+!!! warning "Empty site with no error? Check your inotify limits"
+
+    If `just build`/`just serve` finishes successfully but produces an **empty**
+    site (no pages, no error), the documentation engine could not register the
+    source files to watch: your machine's inotify instances are exhausted, which
+    is common on a desktop running an editor plus other file watchers. Raise the
+    limit and rebuild:
+
+    ```bash
+    sudo sysctl fs.inotify.max_user_instances=512
+    sudo sysctl fs.inotify.max_user_watches=524288
+    ```
+
+    Continuous integration and Read the Docs run in fresh environments and are
+    not affected; this only bites busy local machines.
 
 View all available commands:
 

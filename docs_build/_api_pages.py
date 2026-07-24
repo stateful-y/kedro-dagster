@@ -471,14 +471,19 @@ def _write_member_pages(generated_dir, page_template, module_name, members):
 def _generate_api_pages(project_root):
     """Generate per-submodule overview pages and per-class/function detail pages.
 
-    Reads ``docs/api-submodule.html`` and writes one ``.md`` overview page per
-    discovered submodule into ``docs/pages/api/``.  Each overview page uses
+    Reads ``docs_build/api-submodule.html`` and writes one ``.md`` overview page
+    per discovered submodule into ``docs/pages/api/``.  Each overview page uses
     ``### Classes`` / ``### Functions`` headings with markdown tables linking
     to dedicated per-member pages under ``docs/pages/api/generated/``.
+
+    The scaffold lives in ``docs_build/`` (with the other build tooling), not in
+    ``docs_dir``: the successor engine ignores ``exclude_docs``, so a template
+    kept under ``docs/`` would publish as a static asset. Location, not
+    configuration, is what keeps it out of the built site.
     """
-    template_file = project_root / "docs" / "api-submodule.html"
+    template_file = project_root / "docs_build" / "api-submodule.html"
     if not template_file.exists():
-        print("[docs] docs/api-submodule.html not found, skipping API page generation")
+        print("[docs] docs_build/api-submodule.html not found, skipping API page generation")
         return
 
     template = template_file.read_text(encoding="utf-8")

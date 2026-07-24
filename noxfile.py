@@ -301,7 +301,7 @@ def build_docs(session: nox.Session) -> None:
     # Generate the API pages and export the notebooks, build, then export the LLM
     # markdown -- the explicit steps that replaced the deleted mkdocs build hooks.
     session.run("python", "docs_build/build.py", "prebuild", external=True)
-    session.run("mkdocs", "build", "--clean", external=True)
+    session.run("zensical", "build", external=True)
     session.run("python", "docs_build/build.py", "postbuild", "site", external=True)
 
 
@@ -346,10 +346,9 @@ def check_docs(session: nox.Session) -> None:
         env={"MKDOCS_SKIP_NOTEBOOKS": "1"},
     )
     session.run(
-        "mkdocs",
+        "zensical",
         "build",
-        "--clean",
-        "--strict",
+        "-s",
         external=True,
         env={"MKDOCS_SKIP_NOTEBOOKS": "1"},
     )
@@ -387,8 +386,6 @@ def link_docs(session: nox.Session) -> None:
         str(site_dir / "index.html"),
         "--no-status",
         "--no-warnings",
-        "--ignore-url",
-        "material/overrides",
         *session.posargs,
         external=True,
     )

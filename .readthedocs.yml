@@ -7,40 +7,36 @@ build:
   os: ubuntu-24.04
   tools:
     python: "3.14"
-  jobs:
-    pre_create_environment:
-      # Install uv via asdf (or system package) before creating the venv
-      - asdf plugin add uv || true
-      - asdf install uv latest
-      - asdf global uv latest
-    create_environment:
-      # Create the virtual environment using uv
-      - uv venv "${READTHEDOCS_VIRTUALENV_PATH}"
-    install:
-      # Sync doc-dependencies (the group "docs") and install the project itself.
-      # The editable install is what puts the repo root on sys.path (via the
-      # wheel's `dev-mode-dirs`), so the build can load the `docs_build` markdown
-      # extensions by module name at config time.
-      - UV_PROJECT_ENVIRONMENT="${READTHEDOCS_VIRTUALENV_PATH}" uv sync --group docs
-    pre_build:
-      # Generate the API pages and export the notebooks before mkdocs builds --
-      # the explicit step that replaced the deleted on_pre_build hook, which the
-      # mkdocs integration no longer triggers.
-      #
-      # The value is an UNQUOTED (plain) scalar on purpose: a YAML list item that
-      # STARTS with a quote is a quoted scalar and may carry no trailing content,
-      # so `- "${VENV}/bin/python" docs_build/build.py prebuild` is a parse error
-      # (check-yaml and Read the Docs both reject it). The variable needs no
-      # quoting -- RTD's paths contain no spaces -- exactly like the `install:`
-      # line above.
-      - ${READTHEDOCS_VIRTUALENV_PATH}/bin/python docs_build/build.py prebuild
-    post_build:
-      # Export the cleaned markdown into the built site for LLM consumption --
-      # the explicit step that replaced the deleted on_post_build hook.
-      - ${READTHEDOCS_VIRTUALENV_PATH}/bin/python docs_build/build.py postbuild "${READTHEDOCS_OUTPUT}html"
-      # Check for broken links
-      - uvx linkchecker "${READTHEDOCS_OUTPUT}html/index.html" --no-status --no-warnings --ignore-url material/overrides
-
-# MkDocs configuration
-mkdocs:
-  configuration: mkdocs.yml
+  # Zensical is not one of Read the Docs' built-in builders (only `mkdocs:` and
+  # `sphinx:` exist), so the entire build runs as explicit commands. This
+  # replaces the former `mkdocs:` builder plus the `build.jobs` hooks, and is why
+  # there is no `mkdocs:` key below.
+  #
+  # VERIFY ON A LIVE READ THE DOCS BUILD BEFORE MERGE. Read the Docs rejects a
+  # malformed config outright, and a bad one has reddened the whole fleet before
+  # (a block-sequence item that starts with a quoted scalar carrying trailing
+  # content). Every item below is a plain, unquoted scalar for that reason, and
+  # this file cannot be validated locally against Read the Docs.
+  commands:
+    # Install uv, then sync the docs group and the project itself. `uv sync`
+    # creates `.venv` and installs the project editable, which puts the repo root
+    # on sys.path (via the wheel's `dev-mode-dirs`) so the build loads the
+    # `docs_build` markdown extensions by module name. `uv run` uses that venv.
+    - asdf plugin add uv || true
+    - asdf install uv latest
+    - asdf global uv latest
+    - uv sync --group docs
+    # Generate the API pages and export the notebooks -- the explicit step that
+    # replaced the deleted on_pre_build hook.
+    - uv run python docs_build/build.py prebuild
+    # Zensical has no site-dir flag: the site directory comes from config, so it
+    # builds to the default `site/`. Read the Docs publishes whatever is under
+    # $READTHEDOCS_OUTPUT/html, so copy the built site there.
+    - uv run zensical build
+    - mkdir -p $READTHEDOCS_OUTPUT/html
+    - cp -r site/. $READTHEDOCS_OUTPUT/html/
+    # Export the cleaned markdown into the published tree for LLM consumption --
+    # the explicit step that replaced the deleted on_post_build hook.
+    - uv run python docs_build/build.py postbuild $READTHEDOCS_OUTPUT/html
+    # Check for broken links.
+    - uvx linkchecker $READTHEDOCS_OUTPUT/html/index.html --no-status --no-warnings

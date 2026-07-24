@@ -248,3 +248,40 @@ jobs:
             echo "::error::only $anchors anchors in the built site -- content collapsed"; exit 1
           fi
           echo "content OK: $pages generated API pages, $anchors anchors, no leaked markers or tooling"
+
+  # Non-blocking comparison build under Material for MkDocs during the transition
+  # to Zensical (the primary engine, gated by check_docs above). Material reaches
+  # a hard EOL on 2026-11-05; this job exists only to surface engine drift while
+  # both build the same mkdocs.yml, and is expected to be removed once Zensical
+  # has proven itself across the fleet. It never blocks the PR (continue-on-error).
+  #
+  # Note: this whole workflows/ directory is generated only when include_actions
+  # is true, so a project built without CI has no Zensical safety net here at all
+  # and relies on a local build instead.
+  compare_docs_mkdocs:
+    name: Docs build (MkDocs comparison, non-blocking)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          lfs: true
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.10.0"
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Build docs under MkDocs (comparison only)
+        env:
+          MKDOCS_SKIP_NOTEBOOKS: "1"
+        run: |
+          uv run python docs_build/build.py prebuild
+          uv run --group docs mkdocs build --clean --strict
