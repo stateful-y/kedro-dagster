@@ -48,6 +48,7 @@ docs_build/_markdown_export.py       # build step imported by build.py; same tie
 docs_build/_notebooks.py             # build step imported by build.py; examples-only
 docs_build/serve.py                  # live-preview supervisor; watches src/ and regenerates API pages
 docs_build/_see_also.py              # griffe extension; rewrites numpydoc See Also into cross-references
+docs_build/_references.py            # griffe extension; normalizes numpydoc References into a markdown ordered list
 docs_build/_source_links.py           # griffe extension; attaches View-on-GitHub URLs for the Source Code heading
 docs_build/_markers.py               # python-markdown extension; resolves the docs markers (API_TABLE, SUBPAGES, gallery, companion)
 docs_build/_glossary.py              # python-markdown extension; links glossary terms to their definitions at markdown level

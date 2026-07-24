@@ -219,9 +219,13 @@ plugins:
             # Griffe extensions run during collection. `_see_also` rewrites
             # numpydoc "See Also" blocks into markdown cross-references before the
             # docstring is rendered, so autorefs links them -- replacing the HTML
-            # post-processing the docs hooks used to do.
+            # post-processing the docs hooks used to do. `_references` is its twin
+            # for the "References" section: it normalizes RST citation syntax
+            # (`.. [1]`) and bare-bracket entries into a markdown ordered list, so
+            # neither renders as literal text or a run-on paragraph.
             extensions:
               - docs_build/_see_also.py
+              - docs_build/_references.py
               - docs_build/_source_links.py
             docstring_style: numpy
             docstring_options:

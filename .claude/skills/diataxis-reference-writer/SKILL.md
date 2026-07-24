@@ -124,6 +124,25 @@ def process(data: list[float], *, normalize: bool = False) -> Result:
     """
 ```
 
+### References and Citations
+
+Write a `References` section as a **markdown ordered list with markdown links**, and cite it in prose with a plain `[1]`. Do **not** use reStructuredText/Sphinx citation syntax — `.. [1]` definitions or `[1]_` references. griffe hands the References section to mkdocstrings as raw text, so RST renders literally on the page (`.. [1]` appears verbatim) instead of as a citation. See `src/<package>/hello.py` for a worked example.
+
+```python
+def estimate(...):
+    """Estimate the thing.
+
+    The method follows the standard approach [1] with the correction from [2].
+
+    References
+    ----------
+    1. [Author, A. (2019). Title of the work.](https://doi.org/10.1000/xyz):
+        the method this implements.
+    2. [Author, B. (2023). A follow-up.](https://doi.org/10.1000/abc):
+        the correction applied here.
+    """
+```
+
 ### MkDocs Page Using mkdocstrings
 
 ```markdown
