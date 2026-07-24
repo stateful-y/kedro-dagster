@@ -32,10 +32,10 @@ cd kedro-dagster
 uv sync --group dev
 ```
 
-4. Install pre-commit hooks:
+4. Install the git hooks (required):
 
 ```bash
-uv run pre-commit install
+uv run prek install -f
 ```
 
 ## Development Workflow
@@ -99,7 +99,7 @@ git add .
 git commit -m "feat: add my feature"
 ```
 
-We follow [Conventional Commits](https://www.conventionalcommits.org/) for commit messages. The commit message format is enforced by commitizen pre-commit hooks, which will validate your commit messages automatically.
+We follow [Conventional Commits](https://www.conventionalcommits.org/) for commit messages. The format is enforced by a commitizen commit-msg hook, which validates your commit messages automatically.
 
 **Valid commit message examples:**
 
@@ -410,7 +410,12 @@ Build documentation:
     uv run mkdocs build
     ```
 
-Serve documentation locally:
+Serve documentation locally. `just serve` and `nox -s serve_docs` run the
+preview supervisor (`docs_build/serve.py`), which watches `src/` and regenerates
+the API pages when you add or change a public symbol, so it appears in the
+preview without a restart. Raw `mkdocs serve` still works but is a **static**
+preview: it does not regenerate the API pages on a source edit, because that
+regeneration is not tied to the documentation engine.
 
 === "just"
 
@@ -424,7 +429,7 @@ Serve documentation locally:
     uvx nox -s serve_docs
     ```
 
-=== "uv run"
+=== "uv run (static preview)"
 
     ```bash
     uv run mkdocs serve
@@ -497,7 +502,10 @@ git commit -m "feat!: redesign authentication system
 BREAKING CHANGE: authentication now requires API keys instead of passwords"
 ```
 
-The pre-commit hook will validate your commit messages and prevent commits that don't follow the convention.
+The commit-msg hook validates your commit messages and prevents commits that don't follow the
+convention. CI validates them again on single-commit PRs, which is the case where your commit
+message, not the PR title, becomes the squash commit and lands in the changelog. On a multi-commit
+PR the PR title ships instead, and the individual commit messages are free-form.
 
 ## Release Process
 

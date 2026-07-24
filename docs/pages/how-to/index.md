@@ -4,6 +4,7 @@ Practical directions for common tasks. Each guide addresses a specific goal and 
 
 - **[How to Configure Logging](configure-logging.md)**: Unify Kedro and Dagster logs and customize formatters.
 - **[How to Configure Custom Executors](configure-executors.md)**: Set up multiprocess, Docker, Kubernetes, Dask, or Celery executors.
+- **[How to Pass Database Credentials](pass-credentials.md)**: Get secrets into a deployment via `env_vars` and `credentials.yml`, without hardcoding them.
 - **[How to Use Job Factories](use-job-factories.md)**: Replace repeated per-namespace jobs with a single templated factory.
 - **[How to Use Dagster Partitions](use-partitions.md)**: Define partitioned datasets and map partitions across your pipeline.
 - **[How to Use MLflow](use-mlflow.md)**: Track experiments and artifacts with Kedro-MLflow and Dagster.

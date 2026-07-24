@@ -229,22 +229,60 @@ def lint(session: nox.Session) -> None:
     session.run("ty", "check", "--exit-zero-on-warning", "src", external=True)
 
 
-@nox.session(venv_backend="uv")
+# Unlike every other session, this one owns no environment. `uv run --locked` resolves
+# prek from uv.lock, and each local hook resolves its own tool from that same project
+# environment. A nox venv here would be a second environment that only ever holds the
+# runner -- which is the redundant install this session used to pay for on every run.
+@nox.session(venv_backend="none")
 def fix(session: nox.Session) -> None:
     """Format the code base to adhere to our styles, and complain about what we cannot do automatically."""
-    # Install dependencies. --locked pins the exact uv.lock versions so a stale lock
-    # fails loudly here and local matches CI.
+    # --locked pins the exact uv.lock versions, so a stale lock fails loudly here and
+    # local matches CI. It is also what keeps prek itself pinned -- never use `uvx prek`.
+    session.run(
+        "uv",
+        "run",
+        "--locked",
+        "prek",
+        "run",
+        "--all-files",
+        "--show-diff-on-failure",
+        *session.posargs,
+        external=True,
+    )
+
+
+@nox.session(python=PYTHON_VERSIONS[0], venv_backend="uv")
+def build_steps(session: nox.Session) -> None:
+    """Run the documentation build steps without building the site.
+
+    Pinned to the lowest supported Python for the same reason ``check_docs`` is:
+    an unpinned session takes whatever interpreter the caller happens to have,
+    which can sit outside ``requires-python`` and die in ``uv sync`` before any
+    step runs. Two projects in this fleet cap at 3.13, so on a machine defaulting
+    to 3.14 an unpinned session fails for a reason that has nothing to do with
+    the docs.
+
+    ``docs_build/build.py prebuild`` runs these before ``mkdocs build`` (and the
+    serve supervisor runs them on a source edit), the explicit commands that
+    replaced the mkdocs build hooks no engine but MkDocs executes. None of them
+    needs a theme, a server or a markdown renderer -- they read the filesystem and
+    write it. This session runs them on their own: to see the generated API pages,
+    to re-export the notebooks, or to get a stack trace not buried in a build.
+
+    ``_markdown_export`` (the ``postbuild`` step) is deliberately not run here: its
+    input is a site directory a previous build produced, so it has nothing to
+    convert until ``build_docs`` has run.
+    """
     session.run_install(
         "uv",
         "sync",
-        "--locked",
         "--no-default-groups",
         "--group",
-        "dev",
+        "docs",
         env={"UV_PROJECT_ENVIRONMENT": session.virtualenv.location},
     )
-    # Run pre-commit
-    session.run("pre-commit", "run", "--all-files", "--show-diff-on-failure", *session.posargs, external=True)
+
+    session.run("python", "docs_build/_api_pages.py", external=True)
 
 
 @nox.session(venv_backend="uv")
@@ -260,8 +298,11 @@ def build_docs(session: nox.Session) -> None:
         env={"UV_PROJECT_ENVIRONMENT": session.virtualenv.location},
     )
 
-    # Build the docs (hooks automatically export notebooks and prepare site)
+    # Generate the API pages and export the notebooks, build, then export the LLM
+    # markdown -- the explicit steps that replaced the deleted mkdocs build hooks.
+    session.run("python", "docs_build/build.py", "prebuild", external=True)
     session.run("mkdocs", "build", "--clean", external=True)
+    session.run("python", "docs_build/build.py", "postbuild", "site", external=True)
 
 
 @nox.session(python=PYTHON_VERSIONS[0], venv_backend="uv")
@@ -275,10 +316,10 @@ def check_docs(session: nox.Session) -> None:
     bumped past the ceiling would turn this red for a reason that has nothing to
     do with the docs.
 
-    docs/hooks.py warns when a marker resolves to nothing, because a placeholder
-    that renders nothing looks exactly like a page that never had one -- the
-    warning is the only signal that a page silently lost its content. That signal
-    is worthless unless something fails on it, which is what this session is for.
+    docs_build/_markers.py warns when a marker resolves to nothing, because a
+    placeholder that renders nothing looks exactly like a page that never had one
+    -- the warning is the only signal that a page silently lost its content. That
+    signal is worthless unless something fails on it, which is what this session is for.
 
     A full build is too slow to run on every PR: exporting the notebooks executes
     every one of them and dominates the time. MKDOCS_SKIP_NOTEBOOKS skips only the
@@ -295,6 +336,15 @@ def check_docs(session: nox.Session) -> None:
         env={"UV_PROJECT_ENVIRONMENT": session.virtualenv.location},
     )
 
+    # Generate the API pages first (skipping notebook execution) so the markers
+    # resolve, then run the strict build. This is what on_pre_build used to do.
+    session.run(
+        "python",
+        "docs_build/build.py",
+        "prebuild",
+        external=True,
+        env={"MKDOCS_SKIP_NOTEBOOKS": "1"},
+    )
     session.run(
         "mkdocs",
         "build",
@@ -318,9 +368,10 @@ def serve_docs(session: nox.Session) -> None:
         env={"UV_PROJECT_ENVIRONMENT": session.virtualenv.location},
     )
 
-    # Serve the docs (hooks automatically export notebooks and prepare site)
+    # Serve via the supervisor: it regenerates the API pages when src/ changes,
+    # so a new class appears without a restart, without relying on a hook.
     session.log("###### Starting local server. Press Control+C to stop server ######")
-    session.run("mkdocs", "serve", "-a", "localhost:8080", external=True)
+    session.run("python", "docs_build/serve.py", external=True)
 
 
 @nox.session(venv_backend="uv")

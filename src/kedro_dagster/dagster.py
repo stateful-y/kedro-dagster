@@ -14,15 +14,8 @@ from typing import TYPE_CHECKING, Any
 import dagster as dg
 
 from kedro_dagster.config import (
-    CeleryDockerExecutorOptions,
-    CeleryExecutorOptions,
-    CeleryK8sJobExecutorOptions,
-    DaskExecutorOptions,
-    DockerExecutorOptions,
+    EXECUTOR_MAP,
     ExecutorOptions,
-    InProcessExecutorOptions,
-    K8sJobExecutorOptions,
-    MultiprocessExecutorOptions,
 )
 
 if TYPE_CHECKING:
@@ -57,25 +50,16 @@ class ExecutorCreator:
     class, so it has no API page of its own; see the individual models above.
     """
 
-    _OPTION_EXECUTOR_MAP = {
-        InProcessExecutorOptions: dg.in_process_executor,
-        MultiprocessExecutorOptions: dg.multiprocess_executor,
-    }
-
-    _EXECUTOR_CONFIGS: list[tuple[type[ExecutorOptions], str, str]] = [
-        (CeleryExecutorOptions, "dagster_celery", "celery_executor"),
-        (CeleryDockerExecutorOptions, "dagster_celery_docker", "celery_docker_executor"),
-        (CeleryK8sJobExecutorOptions, "dagster_celery_k8s", "celery_k8s_job_executor"),
-        (DaskExecutorOptions, "dagster_dask", "dask_executor"),
-        (DockerExecutorOptions, "dagster_docker", "docker_executor"),
-        (K8sJobExecutorOptions, "dagster_k8s", "k8s_job_executor"),
-    ]
-
     def __init__(self, dagster_config: "KedroDagsterConfig"):
         self._dagster_config = dagster_config
+        # Instance-scoped: registrations must not leak between creators.
+        self._registered_executors: dict[type[ExecutorOptions], dg.ExecutorDefinition] = {}
 
     def register_executor(self, executor_option: type[ExecutorOptions], executor: dg.ExecutorDefinition) -> None:
         """Register a mapping between an options model and a Dagster executor factory.
+
+        Registrations take precedence over the executors resolved from
+        ``EXECUTOR_MAP`` and are scoped to this creator.
 
         Parameters
         ----------
@@ -89,7 +73,72 @@ class ExecutorCreator:
         `kedro_dagster.dagster.ExecutorCreator.create_executors` :
             Consumes registered executor mappings.
         """
-        self._OPTION_EXECUTOR_MAP[executor_option] = executor
+        self._registered_executors[executor_option] = executor
+
+    def _resolve_executors(
+        self,
+    ) -> tuple[dict[type[ExecutorOptions], dg.ExecutorDefinition], dict[type, tuple[str, str]]]:
+        """Resolve every ``EXECUTOR_MAP`` entry to a Dagster executor factory.
+
+        Returns
+        -------
+        tuple[dict, dict]
+            Resolved factories keyed by option model, and the entries whose
+            providing module is not installed, keyed by option model and holding
+            ``(yaml_key, module)``.
+        """
+        resolved: dict[type[ExecutorOptions], dg.ExecutorDefinition] = {}
+        unavailable: dict[type, tuple[str, str]] = {}
+
+        for yaml_key, registration in EXECUTOR_MAP.items():
+            try:
+                module = importlib.import_module(registration.module)
+            except ImportError:
+                unavailable[registration.options] = (yaml_key, registration.module)
+                continue
+            resolved[registration.options] = getattr(module, registration.symbol)
+
+        # Explicit registrations win over the built-in registry.
+        resolved.update(self._registered_executors)
+        return resolved, unavailable
+
+    @staticmethod
+    def _unsupported_executor_error(
+        name: str,
+        options_type: type,
+        unavailable: dict[type, tuple[str, str]],
+    ) -> str:
+        """Build the error for an executor that could not be resolved.
+
+        Distinguishes an uninstalled optional library from an unknown executor
+        type, so the two failures do not read alike.
+
+        Parameters
+        ----------
+        name : str
+            Name of the offending executor entry.
+        options_type : type
+            Option model type that failed to resolve.
+        unavailable : dict
+            Entries whose providing module is not installed.
+
+        Returns
+        -------
+        str
+            Message naming either the package to install or the valid YAML keys.
+        """
+        if options_type in unavailable:
+            yaml_key, module = unavailable[options_type]
+            package = module.replace("_", "-")
+            return (
+                f"Executor '{name}' uses '{yaml_key}', which is provided by the '{module}' module. "
+                f"That module is not installed. Install it with `pip install {package}`."
+            )
+
+        valid_keys = ", ".join(sorted(EXECUTOR_MAP))
+        return (
+            f"Executor '{name}' has unsupported type '{options_type.__name__}'. Valid executor types are: {valid_keys}."
+        )
 
     def create_executors(self) -> dict[str, dg.ExecutorDefinition]:
         """Instantiate executor definitions declared in the configuration.
@@ -105,14 +154,7 @@ class ExecutorCreator:
             Registers new executor types before creation.
         """
         LOGGER.info("Creating Dagster executors...")
-        # Register all available executors dynamically
-        for executor_option, module_name, executor_name in self._EXECUTOR_CONFIGS:
-            try:
-                module = __import__(module_name, fromlist=[executor_name])
-                executor = getattr(module, executor_name)
-                self.register_executor(executor_option, executor)
-            except ImportError:
-                pass
+        resolved_executors, unavailable_executors = self._resolve_executors()
 
         named_executors = {}
 
@@ -121,13 +163,9 @@ class ExecutorCreator:
             for executor_name, executor_config in self._dagster_config.executors.items():
                 LOGGER.debug(f"Creating executor '{executor_name}'...")
                 # Make use of the executor map to create the executor
-                executor = self._OPTION_EXECUTOR_MAP.get(type(executor_config), None)
+                executor = resolved_executors.get(type(executor_config), None)
                 if executor is None:
-                    msg = (
-                        f"Executor '{executor_name}' not supported. "
-                        f"Please use one of the following executors: "
-                        f"{', '.join([str(k) for k in self._OPTION_EXECUTOR_MAP])}"
-                    )
+                    msg = self._unsupported_executor_error(executor_name, type(executor_config), unavailable_executors)
                     LOGGER.error(msg)
                     raise ValueError(msg)
                 executor = executor.configured(executor_config.model_dump())
@@ -151,12 +189,12 @@ class ExecutorCreator:
                             raise ValueError(msg)
                     else:
                         # Inline executor configuration - create executor definition
-                        executor = self._OPTION_EXECUTOR_MAP.get(type(job_config.executor), None)
+                        executor = resolved_executors.get(type(job_config.executor), None)
                         if executor is None:
-                            msg = (
-                                f"Executor type `{type(job_config.executor)}` for job '{job_name}' not supported. "
-                                f"Please use one of the following executor types: "
-                                f"{', '.join([str(k) for k in self._OPTION_EXECUTOR_MAP])}"
+                            msg = self._unsupported_executor_error(
+                                f"<inline executor for job '{job_name}'>",
+                                type(job_config.executor),
+                                unavailable_executors,
                             )
                             LOGGER.error(msg)
                             raise ValueError(msg)
@@ -186,7 +224,7 @@ class ScheduleCreator:
         Creates executor definitions from configuration.
     `kedro_dagster.dagster.LoggerCreator` :
         Creates logger definitions from configuration.
-    `kedro_dagster.config.automation.ScheduleOptions` :
+    `kedro_dagster.config.ScheduleOptions` :
         Schedule option model.
     """
 
@@ -204,7 +242,7 @@ class ScheduleCreator:
 
         See Also
         --------
-        `kedro_dagster.config.automation.ScheduleOptions` :
+        `kedro_dagster.config.ScheduleOptions` :
             Schedule option model used as input.
         """
         LOGGER.info("Creating Dagster schedules...")
@@ -264,7 +302,7 @@ class LoggerCreator:
         Creates executor definitions from configuration.
     `kedro_dagster.dagster.ScheduleCreator` :
         Creates schedule definitions from configuration.
-    `kedro_dagster.config.logging.LoggerOptions` :
+    `kedro_dagster.config.LoggerOptions` :
         Logger option model.
     """
 
@@ -431,7 +469,7 @@ class LoggerCreator:
 
         See Also
         --------
-        `kedro_dagster.config.logging.LoggerOptions` :
+        `kedro_dagster.config.LoggerOptions` :
             Logger option model used as input.
 
         Notes

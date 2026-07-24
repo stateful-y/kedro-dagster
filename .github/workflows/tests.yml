@@ -160,7 +160,7 @@ jobs:
       - name: Set up Python
         run: uv python install
 
-      - name: Run pre-commit with nox
+      - name: Run hooks with nox
         run: |
           uvx nox -s fix
 
@@ -213,9 +213,32 @@ jobs:
       - name: Set up Python
         run: uv python install 3.11
 
-      # docs/hooks.py warns when a marker resolves to nothing. Nothing ran with
+      # docs_build/_markers.py warns when a marker resolves to nothing. Nothing ran with
       # warnings fatal, so those warnings went to a log nobody reads and pages
       # kept silently shipping blank space where a card grid or an index should
       # be. This is the job that makes them count.
       - name: Build docs with warnings fatal
         run: nox -s check_docs
+
+      # A green --strict build is not proof the pages have content: an unresolved
+      # marker ships as an invisible HTML comment, and a docs_build extension that
+      # failed to load leaves every marker blank while the build stays green. These
+      # assertions are the content gate --strict cannot be.
+      - name: Assert the build shipped content, not blank markers
+        run: |
+          set -euo pipefail
+          if grep -rlE '<!-- (API_TABLE|SUBPAGES|GALLERY|EXAMPLES_FOR|COMPANION_NOTEBOOKS)[^>]*-->' site --include='*.html'; then
+            echo "::error::unresolved marker comment(s) in the built site -- a docs_build extension did not run"; exit 1
+          fi
+          if find site \( -name '*.py' -o -name '*.jinja' \) -print | grep -q .; then
+            echo "::error::build tooling (.py/.jinja) leaked into the published site"; exit 1
+          fi
+          pages="$(find site/pages/api/generated -name index.html 2>/dev/null | wc -l)"
+          if [ "$pages" -eq 0 ]; then
+            echo "::error::no generated API pages -- the build.py prebuild step did not run"; exit 1
+          fi
+          anchors="$(grep -rohE 'id="[^"]+"' site --include='*.html' | wc -l)"
+          if [ "$anchors" -lt 100 ]; then
+            echo "::error::only $anchors anchors in the built site -- content collapsed"; exit 1
+          fi
+          echo "content OK: $pages generated API pages, $anchors anchors, no leaked markers or tooling"

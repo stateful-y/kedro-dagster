@@ -4,10 +4,14 @@
 default:
     @just --list
 
-# Install dependencies and pre-commit
+# Install dependencies and git hooks
 install:
     uv sync --group dev
-    uv run pre-commit install
+    # -f matters: without it prek finds a pre-v0.27.0 shim, moves it to
+    # `.git/hooks/pre-commit.legacy` and CHAINS it -- both hooks then run on
+    # every commit. `-f` overwrites instead. Measured; the migration notice
+    # prek prints names this flag, and this is the command people actually run.
+    uv run prek install -f
 
 # Run tests and doctests with parallel execution
 test:
@@ -39,18 +43,20 @@ lint:
     uv run --locked rumdl check .
     uv run --extra mlflow --locked ty check --exit-zero-on-warning src
 
-# Format and fix code (via pre-commit)
+# Format and fix code (via prek)
 fix:
-    uv run pre-commit run --all-files --show-diff-on-failure
+    uv run prek run --all-files --show-diff-on-failure
 
-# Build documentation
+# Build documentation (prebuild generates API pages + notebooks; postbuild exports LLM markdown)
 build:
+    uv run python docs_build/build.py prebuild
     uv run mkdocs build --clean
+    uv run python docs_build/build.py postbuild site
 
-# Serve documentation locally
+# Serve documentation locally with live API regeneration on source edits
 serve:
     @echo "###### Starting local server. Press Control+C to stop server ######"
-    uv run mkdocs serve -a localhost:8080
+    uv run python docs_build/serve.py
 
 # Check built docs for dead links (build first with 'just build')
 link:

@@ -8,9 +8,11 @@ from hypothesis import strategies as st
 from pydantic import ValidationError
 
 from kedro_dagster.config import (
+    EXECUTOR_MAP,
     CeleryDockerExecutorOptions,
     CeleryExecutorOptions,
     CeleryK8sJobExecutorOptions,
+    DaskExecutorOptions,
     DockerExecutorOptions,
     InProcessExecutorOptions,
     JobOptions,
@@ -92,21 +94,26 @@ def test_k8s_executor_defaults_subset():
     assert k.volumes == []
 
 
-def test_celery_and_combined_executors_construct():
-    """Celery-based executor option classes can be instantiated without arguments."""
-    CeleryExecutorOptions()
-    CeleryDockerExecutorOptions()
-    CeleryK8sJobExecutorOptions()
+@pytest.mark.parametrize("executor_key", sorted(EXECUTOR_MAP))
+def test_every_registered_executor_parses_from_config(executor_key):
+    """Every EXECUTOR_MAP entry is declarable in dagster.yml and yields its option model."""
+    cfg = KedroDagsterConfig(executors={"e": {executor_key: {}}})
+
+    assert isinstance(cfg.executors["e"], EXECUTOR_MAP[executor_key].options)
 
 
 def test_kedrodagster_config_parses_executors_map_happy_path():
-    """KedroDagsterConfig parses executors mapping into strongly-typed option classes."""
+    """KedroDagsterConfig parses an executors mapping into strongly-typed option classes."""
     cfg = KedroDagsterConfig(
         executors={
             "local": {"in_process": {}},
             "multi": {"multiprocess": {"max_concurrent": 3}},
             "dock": {"docker_executor": {"image": "alpine"}},
             "k8s": {"k8s_job_executor": {"job_namespace": "prod"}},
+            "dask": {"dask_executor": {}},
+            "celery": {"celery_executor": {"broker": "redis://localhost:6379"}},
+            "celery_dock": {"celery_docker_executor": {"image": "alpine"}},
+            "celery_k8s": {"celery_k8s_job_executor": {"job_namespace": "prod"}},
         }
     )
 
@@ -117,12 +124,71 @@ def test_kedrodagster_config_parses_executors_map_happy_path():
     assert cfg.executors["multi"].max_concurrent == MAX_CONCURRENCY
     assert isinstance(cfg.executors["dock"], DockerExecutorOptions)
     assert isinstance(cfg.executors["k8s"], K8sJobExecutorOptions)
+    assert isinstance(cfg.executors["dask"], DaskExecutorOptions)
+    assert isinstance(cfg.executors["celery"], CeleryExecutorOptions)
+    assert isinstance(cfg.executors["celery_dock"], CeleryDockerExecutorOptions)
+    assert isinstance(cfg.executors["celery_k8s"], CeleryK8sJobExecutorOptions)
 
 
 def test_kedrodagster_config_unknown_executor_raises():
-    """Unknown executor identifiers result in a ValueError during parsing."""
-    with pytest.raises(ValueError):
+    """Unknown executor identifiers result in a ValueError listing the valid YAML keys."""
+    with pytest.raises(ValidationError) as exc_info:
         KedroDagsterConfig(executors={"weird": {"unknown": {}}})
+
+    message = str(exc_info.value)
+    assert "does not declare a known executor type" in message
+    assert "docker_executor" in message
+
+
+def test_kedrodagster_config_documented_doc_keys_rejected():
+    """The suffix-free keys the docs once used are not valid; only EXECUTOR_MAP keys are."""
+    for stale_key in ("dask", "celery", "celery_docker", "celery_k8s", "k8s_job"):
+        assert stale_key not in EXECUTOR_MAP
+        with pytest.raises(ValidationError):
+            KedroDagsterConfig(executors={"e": {stale_key: {}}})
+
+
+def test_kedrodagster_config_empty_executor_entry_raises():
+    """An executor entry declaring no executor type is rejected."""
+    with pytest.raises(ValidationError) as exc_info:
+        KedroDagsterConfig(executors={"e": {}})
+
+    assert "does not declare a known executor type" in str(exc_info.value)
+
+
+def test_kedrodagster_config_multiple_executor_types_raises():
+    """An executor entry declaring more than one executor type is rejected."""
+    with pytest.raises(ValidationError) as exc_info:
+        KedroDagsterConfig(executors={"e": {"in_process": {}, "multiprocess": {}}})
+
+    message = str(exc_info.value)
+    assert "more than one executor type" in message
+    assert "in_process" in message
+    assert "multiprocess" in message
+
+
+def test_kedrodagster_config_non_mapping_executor_raises():
+    """An executor entry that is not a mapping is rejected rather than substring-matched."""
+    with pytest.raises(ValidationError) as exc_info:
+        KedroDagsterConfig(executors={"e": "in_process"})
+
+    assert "must be a mapping" in str(exc_info.value)
+
+
+@pytest.mark.parametrize("executor_key", sorted(EXECUTOR_MAP))
+def test_executor_options_reject_unknown_fields(executor_key):
+    """Executor option models forbid unknown fields instead of silently dropping them."""
+    with pytest.raises(ValidationError):
+        KedroDagsterConfig(executors={"e": {executor_key: {"definitely_not_a_field": "x"}}})
+
+
+def test_docker_executor_container_kwargs_remain_open_ended():
+    """extra="forbid" governs sibling fields, never the contents of container_kwargs."""
+    cfg = KedroDagsterConfig(
+        executors={"dock": {"docker_executor": {"container_kwargs": {"mem_limit": "2g", "labels": {"a": "b"}}}}}
+    )
+
+    assert cfg.executors["dock"].container_kwargs == {"mem_limit": "2g", "labels": {"a": "b"}}
 
 
 def test_logger_options_minimal_config():

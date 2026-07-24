@@ -160,10 +160,24 @@ grep -r '<<<<<<<' . --include='*.py' --include='*.yml' --include='*.yaml' --incl
 just test-fast 2>/dev/null || uv run pytest 2>/dev/null || echo "No test runner found"
 
 # Run linting if available
-just fix 2>/dev/null || uvx pre-commit run --all-files 2>/dev/null || echo "No linter found"
+just fix 2>/dev/null || uv run --locked prek run --all-files 2>/dev/null || echo "No linter found"
 ```
 
-Stage and commit:
+### Re-install the git hooks after this update
+
+`copier update` cannot touch `.git/hooks` — it works through git, and `.git/` is not part of
+the working tree. So an update that changes the hook runner leaves every existing clone
+running the old shim, silently, until each person re-installs by hand:
+
+```bash
+uv run prek install -f
+```
+
+`-f` is required: the existing shim was written by another tool and is not overwritten
+without it. Anyone who skips this keeps invoking a runner that can no longer parse
+`.pre-commit-config.yaml` (it declares `repo: builtin`, which only prek understands), so
+they get a confusing failure rather than a clean one. Tell every contributor, not just
+whoever ran the update.
 
 ```bash
 git add -A

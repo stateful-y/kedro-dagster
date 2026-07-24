@@ -63,15 +63,53 @@ lint = [
     "ty>=0.0.12",
 ]
 docs = [
+    # Griffe is imported directly by docs_build/_api_pages.py to discover the package's
+    # public surface -- the same analysis mkdocstrings renders the API pages from,
+    # so the two cannot disagree about what is public. Declaring it records a
+    # dependency that is real: relying on it arriving transitively is how a future
+    # mkdocstrings release breaks every generated project at once.
+    #
+    # It is NOT free, contrary to what this comment claimed until a fan-out
+    # measured it. Griffe 2.x is split across three distributions and
+    # mkdocstrings[python] pulls only `griffelib`, which is what actually provides
+    # the `griffe` module. Declaring `griffe` therefore adds two packages the docs
+    # build does not use -- the `griffe` metapackage and `griffecli` (~15 KB total).
+    # Kept anyway, and the reason is a file collision, not taste. `griffe` 1.x
+    # OWNS the `griffe/` module directory; `griffelib` 2.x provides that same
+    # path. Naming `griffelib` in a project whose mkdocstrings still resolves to
+    # the 1.x line would install two distributions owning one import path.
+    # Depending on `griffe` cannot do that: it resolves either to 1.x, which owns
+    # the module, or to the 2.x metapackage, which defers to griffelib. Exactly
+    # one distribution owns `griffe/` in both cases, and ~15 KB is a cheap price
+    # for that.
+    #
+    # Deliberately NOT pinned tighter than mkdocstrings pins it (`>=1.13`): two
+    # floors on one package is a resolver conflict waiting for a release.
+    "griffe>=1.0",
     "mkdocs>=1.6.0",
     "mkdocs-autorefs>=1.0",
     "mkdocs-material>=9.7",
     "mkdocstrings[python]>=0.26.0",
     "pymdown-extensions>=10.20.1",
     "mkdocs-glightbox>=0.5",
+    # Also a direct import of docs_build/_api_pages.py, which reads mkdocstrings'
+    # `preload_modules` out of mkdocs.yml so that list has one definition rather
+    # than two. Same argument as griffe above: it arrives via mkdocs anyway, but
+    # relying on a transitive dependency is how a future release breaks this.
+    "pyyaml>=6.0",
+    # Imported by docs_build/serve.py to watch src/ and regenerate the API pages
+    # during a live preview, so a new class appears without a restart. mkdocs
+    # already pulls watchdog transitively (its livereload uses it), so declaring
+    # it adds no install today -- but the preview watcher must keep working when
+    # the engine changes to one that does not bundle it, and an explicit
+    # declaration is what survives that. Same reasoning as griffe/pyyaml above.
+    "watchdog>=4.0",
 ]
 fix = [
-    "pre-commit-uv>=4.1",
+  # prek runs the hooks. Pinned here, never invoked via `uvx`: prek substitutes its
+  # own Rust implementations for the `repo: builtin` hooks, so an unpinned prek would
+  # mean unpinned hook code -- exactly what the config comment below rules out.
+  "prek>=0.4.10",
 ]
 
 # [ADDITION] Kedro CLI plugin registration
@@ -90,6 +128,20 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/kedro_dagster"]
+# Puts the repo root AND src/ on the EDITABLE install's sys.path (dev mode only,
+# nothing changes in the wheel). The repo root is the loading gate for
+# `docs_build/`-local markdown extensions: mkdocs and its successor load
+# `markdown_extensions` by module name at config time, before any hook runs, when
+# `docs_build/` is not otherwise importable -- with this, `docs_build._markers`
+# loads on a plain `mkdocs build` with no PYTHONPATH.
+#
+# `src` is NOT optional here: naming `dev-mode-dirs` at all REPLACES hatchling's
+# default editable path (which was `src/`), so listing only `["."]` silently stops
+# exposing the package itself -- `import kedro_dagster` then fails, which a
+# notebook cell (`from kedro_dagster... import ...`) and any runtime import
+# hit at build time, while a `--strict` docs build stays green because mkdocstrings
+# reads the source via `paths: [src]`, not by importing. Both dirs, always.
+dev-mode-dirs = [".", "src"]
 
 [tool.hatch.version]
 source = "vcs"
@@ -122,6 +174,7 @@ select = [
     "ARG", # flake8-unused-arguments
     "SIM", # flake8-simplify
     "PL",  # Pylint
+    "T10", # flake8-debugger
     "T201", # Print statement
 ]
 ignore = [
@@ -139,10 +192,17 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*" = ["ARG", "S101", "T201", "PLR2004"]  # Allow assert statements, prints, and magic values in tests
-# The hooks implement signatures they do not choose -- mkdocs' event hooks and
-# HTMLParser's handle_* methods -- so an unused parameter is the interface, not
-# an oversight. ARG002 is the method-level twin of ARG001.
-"docs/**/*" = ["T201", "ARG001", "ARG002", "PLW0603", "SIM105", "SIM108"]  # Allow prints, unused args, globals, and simplifiable patterns in documentation hooks
+# The template's documentation build tooling lives in docs_build/. Every script
+# there prints build progress and may hold per-build caches.
+#
+# Deliberately `docs_build/*.py`, NOT `docs_build/_*.py`: the narrower glob would
+# silently drop coverage for any un-underscored script, which is the failure
+# shape this fleet specialises in. The pattern matches what the directory is for.
+"docs_build/*.py" = ["T201", "PLW0603"]  # Allow prints and per-build cache globals in every build script
+# `docs/*.py` is kept too, for a project's OWN scripts under docs/ (yohou has
+# docs/precache_datasets.py) -- the template ships none there any more, but a
+# project script prints progress the same way and should not lose its exemption.
+"docs/*.py" = ["T201", "PLW0603"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["kedro_dagster"]
@@ -159,7 +219,7 @@ ignore-nested-functions = false
 ignore-nested-classes = true
 ignore-setters = false
 fail-under = 100
-exclude = ["setup.py", "docs", "build", "tests", "*_version.py"]
+exclude = ["setup.py", "docs", "docs_build", "build", "tests", "*_version.py"]
 ignore-regex = ["^get$", "^mock_.*", ".*BaseClass.*"]
 verbose = 0
 quiet = false
