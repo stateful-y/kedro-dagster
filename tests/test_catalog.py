@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import base64
+import datetime
 import importlib
 from pathlib import Path
+from typing import NewType
 
 import dagster as dg
 import pandas as pd
@@ -12,9 +15,143 @@ import yaml
 from kedro.framework.project import pipelines
 from kedro.framework.session import KedroSession
 from kedro.framework.startup import bootstrap_project
+from kedro.io import AbstractDataset, DataCatalog
+from kedro.pipeline import Pipeline, node
 
-from kedro_dagster.catalog import CatalogTranslator
+from kedro_dagster.catalog import CatalogTranslator, _get_dataset_preview_metadata
 from kedro_dagster.utils import format_dataset_name, get_dataset_from_catalog
+
+# Local mirrors of Kedro's preview NewType aliases (kedro_datasets._typing). Only
+# the annotation name matters for dispatch, so we avoid importing a private module.
+TablePreview = NewType("TablePreview", dict)
+ImagePreview = NewType("ImagePreview", str)
+JSONPreview = NewType("JSONPreview", str)
+
+
+class PreviewDataset(AbstractDataset):
+    """Dataset test double exposing Kedro's preview interface."""
+
+    def __init__(self):
+        self._data = None
+
+    def _load(self):
+        return self._data
+
+    def _save(self, data):
+        self._data = data
+
+    def _describe(self):
+        return {}
+
+    def preview(self) -> TablePreview:
+        return self._data.head(2).to_dict(orient="split")
+
+
+class _TypedPreviewDataset(AbstractDataset):
+    """Preview test double with a configurable value, type annotation and metadata."""
+
+    _return_type = None
+
+    def __init__(self, value, metadata=None, raise_on_preview=False):
+        self._value = value
+        self.metadata = metadata
+        self._raise_on_preview = raise_on_preview
+
+    def _load(self):
+        return self._value
+
+    def _save(self, data):
+        self._value = data
+
+    def _describe(self):
+        return {}
+
+    def preview(self, **kwargs):
+        if self._raise_on_preview:
+            raise AssertionError("preview() should not be called when disabled")
+        return self._value
+
+
+class _ImagePreviewDataset(_TypedPreviewDataset):
+    def preview(self, **kwargs) -> ImagePreview:
+        return super().preview(**kwargs)
+
+
+class _JSONPreviewDataset(_TypedPreviewDataset):
+    def preview(self, **kwargs) -> JSONPreview:
+        return super().preview(**kwargs)
+
+
+class _TablePreviewDataset(_TypedPreviewDataset):
+    def preview(self, **kwargs) -> TablePreview:
+        return super().preview(**kwargs)
+
+
+class TestDatasetPreviewMetadata:
+    """Unit tests for preview-type dispatch and the large-dataset opt-out."""
+
+    def test_image_preview_renders_as_data_uri(self):
+        value = "aGVsbG8="  # base64 payload
+        metadata = _get_dataset_preview_metadata(_ImagePreviewDataset(value))
+        md = metadata["kedro_dataset_preview"]
+        assert isinstance(md, dg.MarkdownMetadataValue)
+        assert f"data:image/png;base64,{value}" in md.md_str
+
+    @pytest.mark.parametrize(
+        ("header", "expected"),
+        [
+            (b"\x89PNG\r\n\x1a\n\x00\x00", "![preview](data:image/png;base64,"),
+            (b"\xff\xd8\xff\xe0\x00\x10JFIF", "![preview](data:image/jpeg;base64,"),
+            (b"GIF89a\x01\x00", "![preview](data:image/gif;base64,"),
+            (b"RIFF\x00\x00\x00\x00WEBPVP8 ", "![preview](data:image/webp;base64,"),
+            (b"<svg xmlns='http://www.w3.org/2000/svg'>", "![preview](data:image/svg+xml;base64,"),
+            (b"<?xml version='1.0'?>\n<svg>", "![preview](data:image/svg+xml;base64,"),
+        ],
+    )
+    def test_image_preview_sniffs_non_png_formats(self, header, expected):
+        """MatplotlibDataset.preview() encodes whatever format was saved (svg/pdf/jpg/...),
+        so the data URI media type must follow the real magic bytes, not a hardcoded PNG."""
+        payload = base64.b64encode(header + b"\x00" * 16).decode()
+        metadata = _get_dataset_preview_metadata(_ImagePreviewDataset(payload))
+        md = metadata["kedro_dataset_preview"]
+        assert isinstance(md, dg.MarkdownMetadataValue)
+        assert md.md_str == f"{expected}{payload})"
+
+    def test_image_preview_pdf_renders_as_link_not_broken_image(self):
+        payload = base64.b64encode(b"%PDF-1.7\n%\xe2\xe3\xcf\xd3").decode()
+        metadata = _get_dataset_preview_metadata(_ImagePreviewDataset(payload))
+        md = metadata["kedro_dataset_preview"]
+        assert isinstance(md, dg.MarkdownMetadataValue)
+        assert md.md_str == f"[preview.pdf](data:application/pdf;base64,{payload})"
+
+    def test_json_preview_is_parsed_into_structured_metadata(self):
+        metadata = _get_dataset_preview_metadata(_JSONPreviewDataset('{"a": 1, "b": [2, 3]}'))
+        md = metadata["kedro_dataset_preview"]
+        assert isinstance(md, dg.JsonMetadataValue)
+        assert md.data == {"a": 1, "b": [2, 3]}
+
+    def test_table_preview_coerces_non_serialisable_values(self):
+        table = {"columns": ["d"], "data": [[datetime.date(2026, 7, 12)]]}
+        metadata = _get_dataset_preview_metadata(_TablePreviewDataset(table))
+        md = metadata["kedro_dataset_preview"]
+        assert isinstance(md, dg.JsonMetadataValue)
+        assert md.data["data"] == [["2026-07-12"]]
+
+    def test_preview_can_be_disabled_via_metadata(self):
+        dataset = _ImagePreviewDataset("x", metadata={"kedro-viz": {"preview": False}}, raise_on_preview=True)
+        assert _get_dataset_preview_metadata(dataset) == {}
+
+    def test_preview_args_are_forwarded(self):
+        captured = {}
+
+        class _Dataset(_TypedPreviewDataset):
+            def preview(self, **kwargs) -> TablePreview:
+                captured.update(kwargs)
+                return {"columns": ["a"], "data": [[1]]}
+
+        dataset = _Dataset({}, metadata={"kedro-viz": {"preview_args": {"nrows": 3}}})
+        _get_dataset_preview_metadata(dataset)
+        assert captured == {"nrows": 3}
 
 
 class TestCatalogTranslatorScenarios:
@@ -131,6 +268,38 @@ class TestCatalogTranslatorIOManagers:
                 assert io_fp.replace("\\", "/") in {rel_fp.replace("\\", "/"), abs_fp.replace("\\", "/")}
 
             assert ds_name in (getattr(io_manager.__class__, "__doc__", "") or "")
+
+    def test_handle_output_attaches_dataset_preview_metadata(self, mocker):
+        """Datasets exposing preview() should add preview metadata to Dagster outputs."""
+
+        def make_output():
+            return pd.DataFrame({"value": [1, 2, 3]})
+
+        dataset = PreviewDataset()
+        catalog = DataCatalog(datasets={"preview_data": dataset})
+        pipeline = Pipeline([node(make_output, None, "preview_data", name="make_output")])
+        translator = CatalogTranslator(
+            catalog=catalog,
+            pipelines=[pipeline],
+            hook_manager=mocker.Mock(),
+            env="base",
+        )
+
+        named_io_managers, _ = translator.to_dagster()
+        io_manager = named_io_managers["base__preview_data_io_manager"]
+
+        context = mocker.Mock()
+        context.op_def.name = "unmapped_op"
+        context.op_def.tags = {}
+        context.has_asset_partitions = False
+        context.has_partition_key = False
+
+        io_manager.handle_output(context, make_output())
+
+        context.add_output_metadata.assert_called_once()
+        metadata = context.add_output_metadata.call_args.args[0]
+        assert set(metadata) == {"kedro_dataset_preview"}
+        assert isinstance(metadata["kedro_dataset_preview"], dg.MetadataValue)
 
     @pytest.mark.parametrize(
         "kedro_project_scenario_env",

@@ -12,6 +12,8 @@ See Also
     Translates Kedro pipelines into Dagster jobs.
 """
 
+import base64
+import json
 from logging import getLogger
 from os import PathLike
 from pathlib import PurePosixPath
@@ -37,6 +39,134 @@ if TYPE_CHECKING:
     from pluggy import PluginManager
 
 LOGGER = getLogger(__name__)
+
+
+def _json_safe(value: Any) -> Any:
+    """Best-effort conversion of ``value`` into a JSON-serialisable structure.
+
+    Kedro table previews are ``dict`` payloads that may hold non-serialisable
+    objects (e.g. ``datetime``/``Timestamp`` values), so we coerce those to
+    strings rather than letting Dagster fail when it stores the metadata.
+    """
+    return json.loads(json.dumps(value, default=str))
+
+
+def _resolve_preview_type(preview_method: Any) -> "str | None":
+    """Return the Kedro preview type name declared by a ``preview()`` method.
+
+    Kedro's preview types are ``NewType`` aliases, so the concrete value is only
+    ever a ``str`` or ``dict`` at runtime and cannot be told apart by type. The
+    intended rendering is carried by the ``preview()`` return annotation instead
+    (``TablePreview``, ``ImagePreview``, ``JSONPreview``, ``PlotlyPreview``,
+    ``HTMLPreview``), matching how Kedro-Viz dispatches previews.
+    """
+    annotation = getattr(preview_method, "__annotations__", {}).get("return")
+    if annotation is None:
+        return None
+    name = getattr(annotation, "__name__", None) or str(annotation)
+    return name.rsplit(".", 1)[-1]
+
+
+def _json_metadata(preview: Any) -> dg.MetadataValue:
+    """Render a structured preview as JSON metadata, coercing awkward values."""
+    try:
+        return dg.MetadataValue.json(_json_safe(preview))
+    except (TypeError, ValueError):
+        return dg.MetadataValue.text(str(preview))
+
+
+def _image_preview_metadata(preview: str) -> dg.MetadataValue:
+    """Render a Kedro ``ImagePreview`` (base64 of the saved file) as Dagster metadata.
+
+    ``MatplotlibDataset.preview()`` base64-encodes the raw saved bytes, so the format
+    follows ``save_args["format"]``/the filepath suffix and may be PNG, JPEG, GIF, WEBP,
+    SVG or PDF rather than always PNG. Sniff the decoded magic bytes to pick the right
+    media type instead of assuming PNG (which would corrupt every non-PNG image). PDF
+    cannot be inlined as a markdown image, so surface it as a data-URI link; anything we
+    cannot identify falls back to the historical PNG assumption.
+    """
+    try:
+        header = base64.b64decode(preview[:48], validate=False)
+    except (ValueError, TypeError):
+        return dg.MetadataValue.md(f"![preview](data:image/png;base64,{preview})")
+
+    stripped = header.lstrip()
+    if header.startswith(b"\x89PNG\r\n\x1a\n"):
+        media_type = "image/png"
+    elif header.startswith(b"\xff\xd8\xff"):
+        media_type = "image/jpeg"
+    elif header.startswith((b"GIF87a", b"GIF89a")):
+        media_type = "image/gif"
+    elif header[:4] == b"RIFF" and header[8:12] == b"WEBP":
+        media_type = "image/webp"
+    elif stripped.startswith((b"<?xml", b"<svg")):
+        media_type = "image/svg+xml"
+    elif header.startswith(b"%PDF"):
+        return dg.MetadataValue.md(f"[preview.pdf](data:application/pdf;base64,{preview})")
+    else:
+        media_type = "image/png"
+
+    return dg.MetadataValue.md(f"![preview](data:{media_type};base64,{preview})")
+
+
+def _metadata_value_from_preview(preview: Any, preview_type: "str | None") -> dg.MetadataValue:
+    """Convert a Kedro dataset preview into a Dagster metadata value.
+
+    Dispatches on the declared ``preview_type`` (see :func:`_resolve_preview_type`)
+    so images, raw JSON and tables each render correctly in Dagit, falling back to
+    a structural check when no annotation is available.
+    """
+    if preview_type == "ImagePreview" and isinstance(preview, str):
+        return _image_preview_metadata(preview)
+
+    if preview_type == "HTMLPreview" and isinstance(preview, str):
+        return dg.MetadataValue.md(preview)
+
+    if preview_type == "JSONPreview" and isinstance(preview, str):
+        # Raw JSON text; parse it so Dagit shows a structured, collapsible view.
+        try:
+            return dg.MetadataValue.json(json.loads(preview))
+        except (TypeError, ValueError):
+            return dg.MetadataValue.md(f"```json\n{preview}\n```")
+
+    if isinstance(preview, str) and preview_type not in ("TablePreview", "PlotlyPreview"):
+        return dg.MetadataValue.md(preview)
+
+    return _json_metadata(preview)
+
+
+def _get_dataset_preview_metadata(dataset: "AbstractDataset") -> dict[str, dg.MetadataValue]:
+    """Return Dagster metadata containing a Kedro dataset preview when available.
+
+    ``preview()`` re-reads the dataset from storage, which runs on every save, so
+    previewing large datasets can be expensive. This honours the same per-dataset
+    ``kedro-viz`` metadata convention used by Kedro-Viz to let users opt out or
+    tune previews without touching pipeline code::
+
+        my_dataset:
+          type: pandas.CSVDataset
+          filepath: ...
+          metadata:
+            kedro-viz:
+              preview: false          # skip preview entirely (e.g. large data)
+              preview_args:
+                nrows: 5              # forwarded to preview()
+    """
+    preview = getattr(dataset, "preview", None)
+    if not callable(preview):
+        return {}
+
+    viz_metadata = (getattr(dataset, "metadata", None) or {}).get("kedro-viz", {}) or {}
+    if viz_metadata.get("preview") is False:
+        return {}
+    preview_args = viz_metadata.get("preview_args") or {}
+
+    preview_value = preview(**preview_args)
+    if preview_value is None:
+        return {}
+
+    preview_type = _resolve_preview_type(preview)
+    return {"kedro_dataset_preview": _metadata_value_from_preview(preview_value, preview_type)}
 
 
 class CatalogTranslator:
@@ -191,6 +321,14 @@ class CatalogTranslator:
                     )
 
                 dataset.save(obj)
+
+                try:
+                    preview_metadata = _get_dataset_preview_metadata(dataset)
+                except Exception as exc:
+                    context.log.warning(f"Could not attach dataset preview metadata for `{dataset_name}`: {exc}")
+                else:
+                    if preview_metadata and hasattr(context, "add_output_metadata"):
+                        context.add_output_metadata(preview_metadata)
 
                 if is_node_op:
                     context.log.info("Executing `after_dataset_saved` Kedro hook.")
