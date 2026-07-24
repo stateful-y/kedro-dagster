@@ -179,6 +179,26 @@ without it. Anyone who skips this keeps invoking a runner that can no longer par
 they get a confusing failure rather than a clean one. Tell every contributor, not just
 whoever ran the update.
 
+### Pin uv in workflows the template does not own
+
+`copier update` only touches files the template generates. The templated workflows
+(`tests.yml`, `changelog.yml`, `nightly.yml`, `commit-message.yml`) pin an exact uv
+version on every `astral-sh/setup-uv` step:
+
+```yaml
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.10.0"   # exact X.Y.Z, not "latest" or a range
+          # ...existing enable-cache / cache-dependency-glob stay as they are
+```
+
+An unpinned step resolves "latest" over the network on every run, and a transient
+blip there fails the job in a fraction of a second with `##[error]fetch failed`,
+before any real work. **Any workflow you added yourself** (anything not in the list
+above) keeps its own `astral-sh/setup-uv` steps, and the update leaves them untouched.
+After syncing, add the same exact `version:` pin to those steps by hand, matching the
+value the templated workflows now use, so the flake cannot reach your bespoke CI either.
+
 ```bash
 git add -A
 git commit -m "chore: update from template <version>"
