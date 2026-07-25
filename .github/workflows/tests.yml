@@ -304,3 +304,30 @@ jobs:
         run: |
           uv run python docs_build/build.py prebuild
           uv run --group docs mkdocs build --clean --strict
+
+
+  # Single required status check. The branch ruleset requires this one job, not the
+  # individual jobs above: test-fast is a matrix (its check-run names vary by OS/Python and
+  # differ between draft and ready PRs) and test-full is skipped on draft PRs, so neither
+  # can be named directly in a ruleset. This job depends on every blocking job and passes
+  # only when they all succeeded or were legitimately skipped, giving the ruleset one stable
+  # name that survives matrix and conditional changes. Validate PR Title and Validate Commit
+  # Message live in their own workflows and are required alongside this check.
+  ci-passed:
+    name: CI passed
+    if: always()
+    needs:
+      - test-fast
+      - test-full
+      - lint
+      - test_docstrings
+      - check_docs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail if any required job did not pass
+        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+        run: |
+          echo "::error::a required CI job failed or was cancelled"
+          exit 1
+      - name: All required jobs passed
+        run: echo "All required CI jobs passed or were legitimately skipped."

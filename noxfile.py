@@ -236,8 +236,13 @@ def lint(session: nox.Session) -> None:
 @nox.session(venv_backend="none")
 def fix(session: nox.Session) -> None:
     """Format the code base to adhere to our styles, and complain about what we cannot do automatically."""
-    # --locked pins the exact uv.lock versions, so a stale lock fails loudly here and
-    # local matches CI. It is also what keeps prek itself pinned -- never use `uvx prek`.
+    # Run at the pre-push stage. A hook with no `stages:` key runs at every stage, so this
+    # one pass covers the full suite: the autofixing formatters AND the pre-push gates (ty,
+    # interrogate, no-rst-citations), while excluding commitizen (pinned to commit-msg). A
+    # plain `prek run` uses the pre-commit stage, which since those gates moved to pre-push
+    # would silently skip them -- here and in the CI lint job that runs this session, a
+    # green check measuring nothing. --locked pins the exact uv.lock versions, so a stale
+    # lock fails loudly and local matches CI, and it keeps prek pinned -- never `uvx prek`.
     session.run(
         "uv",
         "run",
@@ -246,6 +251,8 @@ def fix(session: nox.Session) -> None:
         "run",
         "--all-files",
         "--show-diff-on-failure",
+        "--stage",
+        "pre-push",
         *session.posargs,
         external=True,
     )

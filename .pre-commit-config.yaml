@@ -1,8 +1,9 @@
-# `install` creates only the pre-commit hook unless told otherwise, so commitizen's
-# `stages: [commit-msg]` hook was declared but never installed -- the gate existed on
-# paper and never once ran. Naming both types here is what makes `prek install` wire up
-# the commit-msg hook that validates the message a single-commit PR ships.
-default_install_hook_types: [pre-commit, commit-msg]
+# `install` creates only the pre-commit hook unless told otherwise, so any hook pinned to
+# another stage would be declared but never installed -- the gate would exist on paper and
+# never run (as commitizen's `commit-msg` hook once did). Naming every stage here is what
+# makes `prek install` wire up the commit-msg hook that validates a single-commit PR's
+# message and the pre-push hooks (ty, interrogate, no-rst-citations) that gate before a push.
+default_install_hook_types: [pre-commit, commit-msg, pre-push]
 
 repos:
   # prek's built-in Rust implementations, declared explicitly. Pointing these at
@@ -43,7 +44,10 @@ repos:
   # than every contributor paying 16 packages for it.
   - repo: local
     hooks:
-      # Docstring coverage
+      # Docstring coverage. Runs at pre-push, not pre-commit: it scores a pooled
+      # average across the whole package rather than the staged files, so it gives
+      # no per-commit signal, and running it on every commit only refuses commits
+      # and fires on old code during a rebase. pre-push runs it once before sharing.
       - id: interrogate
         name: interrogate
         entry: uv run --locked interrogate
@@ -52,6 +56,7 @@ repos:
         files: ^src/
         exclude: .*_version\.py$
         require_serial: true
+        stages: [pre-push]
 
       # Ban reStructuredText citation syntax in docstrings. numpydoc "References"
       # sections must use a markdown ordered list with plain `[1]` prose citations,
@@ -60,6 +65,7 @@ repos:
       # page. The docs build normalizes it anyway, but catching it at author time
       # keeps the source clean. `pygrep` is built into prek, so this adds no
       # dependency; it fails when either form matches.
+      # A whole-source docstring gate like interrogate/ty, so it runs at pre-push too.
       - id: no-rst-citations
         name: no reStructuredText citation syntax in docstrings
         description: Use a markdown ordered list and plain `[1]` citations, not RST `.. [1]` / `[1]_`.
@@ -67,6 +73,7 @@ repos:
         entry: '(^\s*\.\. \[|\[[^]]+\]_)'
         types: [python]
         files: ^src/
+        stages: [pre-push]
 
       # Ruff linter (autofix)
       - id: ruff
@@ -104,6 +111,7 @@ repos:
 
       # Type checking with ty. --extra mlflow so ty resolves the optional
       # mlflow code paths (utils.py, nodes.py) instead of emitting warnings.
+      # A whole-project, non-autofixing gate, so it runs at pre-push, not on every commit.
       - id: ty
         name: ty
         entry: uv run --extra mlflow --locked ty check --exit-zero-on-warning src
@@ -112,3 +120,4 @@ repos:
         files: ^src/
         pass_filenames: false
         require_serial: true
+        stages: [pre-push]
