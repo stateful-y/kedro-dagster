@@ -337,7 +337,7 @@ exclude = ["CHANGELOG.md", "site", "htmlcov", ".nox", ".venv", "openspec"]
 # first.children when the first heading is level 1, an empty ToC on the one
 # page that most needs one.
 "docs/pages/reference/changelog.md" = ["MD041"]
-"docs/index.md" = ["MD041"]  # Landing page starts with logo, not heading
+"docs/index.md" = ["MD041", "MD026"]  # + welcome H1 intentionally ends with "!"
 "CONTRIBUTING.md" = ["MD057"]  # Relative link to docs/ is valid at project level
 "docs/pages/tutorials/*.md" = ["MD057"]  # Links to auto-generated API docs (docs/pages/api/ is gitignored)
 "docs/pages/how-to/*.md" = ["MD057"]  # Links to auto-generated API docs (docs/pages/api/ is gitignored)
