@@ -63,3 +63,17 @@ jobs:
           nox -s "test_versions-${{ matrix.python-version }}(with_mlflow=True, dagster_spec='${{ matrix.dagster_spec }}', kedro_spec='${{ matrix.kedro_spec }}')"
         env:
           PYTEST_XDIST_AUTO_NUM_WORKERS: 0
+
+  versions-passed:
+    name: Versions passed
+    if: always()
+    needs: [versions]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail if the version matrix did not pass
+        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+        run: |
+          echo "::error::the version-compatibility matrix failed or was cancelled"
+          exit 1
+      - name: Version matrix passed
+        run: echo "All version-compatibility jobs passed or were legitimately skipped."
