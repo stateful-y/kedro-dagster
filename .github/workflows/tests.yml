@@ -313,11 +313,16 @@ jobs:
   # only when they all succeeded or were legitimately skipped, giving the ruleset one stable
   # name that survives matrix and conditional changes. Validate PR Title and Validate Commit
   # Message live in their own workflows and are required alongside this check.
+  #
+  # `test-compat` is listed even though it ships disabled (`if: false`): a skipped dependency
+  # does not fail an `if: always()` roll-up, so this is a harmless no-op until a project
+  # enables compat pins, at which point that job is gated automatically without touching this.
   ci-passed:
     name: CI passed
     if: always()
     needs:
       - test-fast
+      - test-compat
       - test-full
       - lint
       - test_docstrings
