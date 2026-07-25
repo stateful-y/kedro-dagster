@@ -62,7 +62,7 @@ docs_theme/overrides/api-submodule.html
 docs_theme/overrides/main.html
 docs/stylesheets/gallery.css       # conditional: include_examples
 docs/stylesheets/theme.css
-.github/dependabot.yml
+renovate.json
 .github/ISSUE_TEMPLATE/bug_report.yml
 .github/ISSUE_TEMPLATE/config.yml
 .github/ISSUE_TEMPLATE/feature_request.yml

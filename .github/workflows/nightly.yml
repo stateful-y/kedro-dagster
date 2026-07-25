@@ -20,6 +20,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v7
         with:
+          # renovate: datasource=github-releases depName=astral-sh/uv
           version: "0.10.0"
           enable-cache: true
           cache-dependency-glob: "pyproject.toml"
@@ -28,7 +29,8 @@ jobs:
         run: uv python install ${{ matrix.python-version }}
 
       - name: Install nox
-        run: uv tool install nox
+        # renovate: datasource=pypi depName=nox
+        run: uv tool install nox==2026.7.11
 
       - name: Run tests with coverage
         run: nox -s test_coverage

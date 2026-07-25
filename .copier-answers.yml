@@ -1,7 +1,7 @@
 # This file is used by Copier to track the template version
 # and enable template updates in generated projects
 
-_commit: bf4c3471ccce890de3cb7ab7b852f68cfd13e1ef
+_commit: 9f3aeacf02910bb8fa1d1dce087f5077b4f0925e
 _src_path: gh:stateful-y/python-package-copier
 author_email: gtauzin@stateful-y.io
 author_name: Guillaume Tauzin
@@ -15,4 +15,5 @@ min_python_version: '3.11'
 package_name: kedro_dagster
 project_name: Kedro-Dagster
 project_slug: kedro-dagster
+renovate_preset: 'stateful-y/renovate-config'
 uv_version: '0.10.0'
