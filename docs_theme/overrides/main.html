@@ -1,5 +1,21 @@
 {% extends "base.html" %}
 
+{# Zensical's base.html gates the bare-site_name homepage title on `page.is_homepage`,
+   but that flag is never populated by the Zensical core -- so every page, the home
+   included, falls through to "{{ page.title }} - {{ site_name }}". On a home page with
+   no H1 (a logo-led landing page) `page.title` is the filename, yielding "Index - Site".
+   MkDocs Material set is_homepage and showed the bare site_name; we restore that by
+   detecting the home page as the one whose url matches nav.homepage.url. #}
+{% block htmltitle %}
+  {% if page.meta and page.meta.title %}
+    <title>{{ page.meta.title }} - {{ config.site_name }}</title>
+  {% elif page.title and not (page.url == nav.homepage.url) %}
+    <title>{{ page.title | striptags }} - {{ config.site_name }}</title>
+  {% else %}
+    <title>{{ config.site_name }}</title>
+  {% endif %}
+{% endblock %}
+
 {% block outdated %}
   You're not viewing the latest version.
   <a href="{{ '../' ~ base_url }}">
