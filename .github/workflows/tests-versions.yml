@@ -50,7 +50,8 @@ jobs:
           cache-dependency-glob: "pyproject.toml"
 
       - name: Install nox
-        run: uv tool install --python-preference only-managed nox
+        # renovate: datasource=pypi depName=nox
+        run: uv tool install --python-preference only-managed nox==2026.7.11
 
       - name: Install Python ${{ matrix.python-version }}
         run: uv python install --python-preference only-managed ${{ matrix.python-version }}
