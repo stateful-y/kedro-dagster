@@ -10,7 +10,13 @@ jobs:
     name: Validate Commit Message
     runs-on: ubuntu-latest
 
-    # Only single-commit PRs. GitHub's `squash_merge_commit_title` defaults to
+    # This job always runs so it can be a *required* status check. A job gated off at the
+    # job level is skipped and reports no conclusion, which leaves a required check stuck
+    # "waiting" and blocks the PR. Instead the single-commit gate lives on each step: on a
+    # multi-commit PR the steps skip and the job still reports success, so the ruleset can
+    # require it unconditionally.
+    #
+    # Why single-commit only: GitHub's `squash_merge_commit_title` defaults to
     # COMMIT_OR_PR_TITLE, which takes the squash title from the commit when a PR has
     # exactly one commit and from the PR title otherwise. So this is precisely the case
     # where the commit message -- not the PR title -- is what git-cliff reads into the
@@ -18,12 +24,11 @@ jobs:
     # ship their title, so their intermediate commits stay free-form on purpose:
     # requiring conventional WIP messages that get squashed away is pure friction.
     #
-    # `commits` is the PR's commit count, which is the same input GitHub uses to make
-    # that choice. Counting changed files or diff hunks instead would gate the wrong PRs.
-    if: ${{ github.event.pull_request.commits == 1 }}
+    # `commits` is the PR's commit count, the same input GitHub uses to make that choice.
 
     steps:
       - name: Checkout the commit that will ship
+        if: ${{ github.event.pull_request.commits == 1 }}
         uses: actions/checkout@v7
         with:
           # The PR head itself, not the merge commit checkout/@v7 defaults to -- the
@@ -32,15 +37,18 @@ jobs:
           fetch-depth: 1
 
       - name: Install uv
+        if: ${{ github.event.pull_request.commits == 1 }}
         uses: astral-sh/setup-uv@v7
         with:
           # renovate: datasource=github-releases depName=astral-sh/uv
           version: "0.10.0"
 
       - name: Set up Python
+        if: ${{ github.event.pull_request.commits == 1 }}
         run: uv python install
 
       - name: Validate the commit message that becomes the squash title
+        if: ${{ github.event.pull_request.commits == 1 }}
         run: |
           git log -1 --format=%B HEAD > "$RUNNER_TEMP/commit-msg"
           echo "Validating the message that will become the squash commit title:"
