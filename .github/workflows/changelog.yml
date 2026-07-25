@@ -23,7 +23,8 @@ jobs:
       - name: Install git-cliff
         uses: taiki-e/install-action@v2
         with:
-          tool: git-cliff
+          # renovate: datasource=github-releases depName=orhun/git-cliff
+          tool: git-cliff@2.13.1
 
       - name: Generate changelog
         id: changelog
@@ -47,6 +48,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v7
         with:
+          # renovate: datasource=github-releases depName=astral-sh/uv
           version: "0.10.0"
 
       - name: Run hooks on generated CHANGELOG
@@ -102,6 +104,7 @@ jobs:
       - name: Install the latest version of uv
         uses: astral-sh/setup-uv@v7
         with:
+          # renovate: datasource=github-releases depName=astral-sh/uv
           version: "0.10.0"
           enable-cache: true
           cache-dependency-glob: "pyproject.toml"

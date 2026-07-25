@@ -144,7 +144,7 @@ For files copier updated cleanly (no `.rej`) that were classified as **customize
 #### 5c: Handle new and deleted files
 
 - **New template files** (exist after update but not before): Accept
-- **Files deleted by template** (existed before, removed after): Report to user, do not auto-delete
+- **Files deleted by template** (existed before, removed after): Report to user, do not auto-delete — **except a dropped config another tool still acts on.** `copier update` does not reliably delete a file the template stopped shipping, and a leftover config keeps running. This template replaced `.github/dependabot.yml` with `renovate.json`; a surviving `dependabot.yml` means Dependabot and Renovate both run and open duplicate PRs. Delete it explicitly (`git rm .github/dependabot.yml`) and confirm it is gone — the update is not complete while it remains.
 - **Locally-added files** (Tier 3, not in template): Verify untouched
 
 ### Step 6: Verify & Commit
@@ -155,6 +155,9 @@ find . -name '*.rej' -not -path './.git/*'
 
 # Ensure no conflict markers
 grep -r '<<<<<<<' . --include='*.py' --include='*.yml' --include='*.yaml' --include='*.toml' --include='*.md' --include='*.cfg' || true
+
+# A dropped config that would activate a second bot must be gone (Renovate replaced Dependabot)
+test ! -f .github/dependabot.yml || echo "ERROR: .github/dependabot.yml still present -- run: git rm .github/dependabot.yml"
 
 # Run tests if available
 just test-fast 2>/dev/null || uv run pytest 2>/dev/null || echo "No test runner found"
@@ -198,6 +201,16 @@ before any real work. **Any workflow you added yourself** (anything not in the l
 above) keeps its own `astral-sh/setup-uv` steps, and the update leaves them untouched.
 After syncing, add the same exact `version:` pin to those steps by hand, matching the
 value the templated workflows now use, so the flake cannot reach your bespoke CI either.
+
+### Version pins (uv, nox, git-cliff) are Renovate-owned
+
+Renovate, not the template, keeps the `uv`, `nox` and `git-cliff` versions current in your
+repo. The template only *seeds* them, so once Renovate has advanced a pin, a later
+`copier update` must not roll it back. Usually there is nothing to do: when the template's
+seed is unchanged, copier keeps your value automatically. If a template update *also* moved
+a seed, copier raises a conflict on that version line. **Keep your repo's value** (the one
+Renovate advanced) and discard the template's older seed — taking the template version here
+silently downgrades a tool you already upgraded.
 
 ```bash
 git add -A

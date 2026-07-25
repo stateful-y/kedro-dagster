@@ -250,6 +250,7 @@ Files that exist in the new template version but not in the project (template ad
 Files that existed in the previous template version but are removed in the new version:
 - **Flag for user review** — do NOT auto-delete
 - Report: "Template removed `<file>`. Review whether to delete locally."
+- **Exception — a dropped config another tool still reads:** delete it explicitly and confirm it is gone, do not just flag it. `copier update` does not reliably remove such a file, and the leftover keeps working. When `renovate.json` replaced `.github/dependabot.yml`, a surviving `dependabot.yml` runs Dependabot alongside Renovate and opens duplicate PRs. Run `git rm .github/dependabot.yml`; the update is not complete while it remains.
 
 ### Conditional files changing state
 
