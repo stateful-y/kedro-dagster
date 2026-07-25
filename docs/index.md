@@ -1,7 +1,7 @@
 ![](assets/logo_dark.png#only-dark){width=800}
 ![](assets/logo_light.png#only-light){width=800}
 
-# Welcome to Kedro-Dagster's documentation
+# Welcome to Kedro-Dagster's documentation!
 
 Kedro-Dagster is an integration plugin that lets you deploy
 [Kedro](https://docs.kedro.org/) data pipelines on

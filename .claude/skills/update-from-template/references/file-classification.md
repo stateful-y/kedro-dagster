@@ -37,11 +37,11 @@ Files where the template is the source of truth. Local edits are rare and should
 LICENSE
 CODE_OF_CONDUCT.md
 CONTRIBUTING.md
-docs/api-submodule.html
 docs/assets/.gitkeep
 docs/assets/made_by_stateful-y.png   # the "made by stateful-y" mark is template branding
 docs/assets/README.md
 docs_build/build.py                  # explicit pre/post-build steps; lives outside docs_dir so it cannot be published
+docs_build/api-submodule.html        # api-page generation scaffold read by _api_pages.py; outside docs_dir so it cannot be published
 docs_build/_git_ref.py               # single git-ref definition shared by the marker and source-link extensions
 docs_build/_api_pages.py             # build step imported by build.py; same tier as its caller
 docs_build/_markdown_export.py       # build step imported by build.py; same tier as its caller
@@ -55,11 +55,11 @@ docs_build/_glossary.py              # python-markdown extension; links glossary
 docs/pages/reference/changelog.md   # one-line include of the root CHANGELOG.md
 docs/javascripts/mathjax.js
 docs/javascripts/readthedocs.js
-docs/material/templates/**                  # mkdocstrings template overrides; thin extends over the shipped _base/
-docs/material/overrides/api-index.html
-docs/material/overrides/api-page.html
-docs/material/overrides/api-submodule.html
-docs/material/overrides/main.html
+docs_theme/templates/**                     # mkdocstrings template overrides; thin extends over the shipped _base/
+docs_theme/overrides/api-index.html
+docs_theme/overrides/api-page.html
+docs_theme/overrides/api-submodule.html
+docs_theme/overrides/main.html
 docs/stylesheets/gallery.css       # conditional: include_examples
 docs/stylesheets/theme.css
 .github/dependabot.yml

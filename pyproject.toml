@@ -90,7 +90,18 @@ docs = [
     "mkdocs-autorefs>=1.0",
     "mkdocs-material>=9.7",
     "mkdocstrings[python]>=0.26.0",
-    "pymdown-extensions>=10.20.1",
+    # The documentation engine. Zensical is the maintained successor to Material
+    # for MkDocs (which reaches a hard EOL on 2026-11-05); it reads this project's
+    # mkdocs.yml natively and forwards the API reference to the real mkdocstrings
+    # package. `mkdocs`/`mkdocs-material` above are kept so CI can still run a
+    # MkDocs build as a comparison during the engine transition.
+    "zensical>=0.0.51",
+    # Floor matches Zensical's own requirement (pymdown-extensions>=10.21.3).
+    # Do NOT pin to >=11: the examples group's notebook runtime caps
+    # pymdown-extensions at <11, so a project with examples must resolve it in
+    # [10.21.3, 11). Zensical works with either major; forcing 11 makes the
+    # docs-plus-examples sync unsatisfiable.
+    "pymdown-extensions>=10.21.3",
     "mkdocs-glightbox>=0.5",
     # Also a direct import of docs_build/_api_pages.py, which reads mkdocstrings'
     # `preload_modules` out of mkdocs.yml so that list has one definition rather
@@ -326,7 +337,7 @@ exclude = ["CHANGELOG.md", "site", "htmlcov", ".nox", ".venv", "openspec"]
 # first.children when the first heading is level 1, an empty ToC on the one
 # page that most needs one.
 "docs/pages/reference/changelog.md" = ["MD041"]
-"docs/index.md" = ["MD041"]  # Landing page starts with logo, not heading
+"docs/index.md" = ["MD041", "MD026"]  # + welcome H1 intentionally ends with "!"
 "CONTRIBUTING.md" = ["MD057"]  # Relative link to docs/ is valid at project level
 "docs/pages/tutorials/*.md" = ["MD057"]  # Links to auto-generated API docs (docs/pages/api/ is gitignored)
 "docs/pages/how-to/*.md" = ["MD057"]  # Links to auto-generated API docs (docs/pages/api/ is gitignored)

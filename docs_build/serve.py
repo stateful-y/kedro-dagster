@@ -45,9 +45,10 @@ SRC = PROJECT_ROOT / "src"
 _DEBOUNCE_SECONDS = 0.5
 _POLL_SECONDS = 0.2
 
-# The one line that knows which engine renders the docs. Under the successor
-# engine this becomes its own serve command; nothing else here changes.
-_SERVE_COMMAND = ["mkdocs", "serve", "-a", "localhost:8080"]
+# The one line that knows which engine renders the docs. This project builds
+# with Zensical (the maintained successor to Material for MkDocs); its serve
+# command watches ``docs`` and live-reloads, while the watcher below owns ``src``.
+_SERVE_COMMAND = ["zensical", "serve", "-a", "localhost:8080"]
 
 
 def regenerate():

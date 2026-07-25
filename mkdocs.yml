@@ -7,7 +7,14 @@ edit_uri: edit/main/docs/
 
 theme:
   name: material
-  custom_dir: docs/material/overrides
+  # Zensical defaults its theme to the "modern" variant, a fresh redesign with
+  # different fonts and colour treatment -- so the custom palette in
+  # stylesheets/theme.css renders as a different-looking site. "classic" is the
+  # variant that reproduces the Material for MkDocs look this palette was written
+  # for. MkDocs ignores this key (it is not a Material theme option); Zensical
+  # reads it. Without it, every generated site silently changes appearance.
+  variant: classic
+  custom_dir: docs_theme/overrides
   favicon: assets/favicon.png
   logo: assets/logo.png
 
@@ -141,25 +148,20 @@ extra_css:
   - https://cdn.datatables.net/2.2.2/css/dataTables.dataTables.min.css
 
 exclude_docs: |
-  api-submodule.html
-  # The template's build tooling (hooks.py and its siblings) no longer lives
-  # under docs_dir -- it moved to docs_build/, so mkdocs cannot see it to publish
-  # it, and none of the entries here are what protects it. Deleting them would
-  # not leak the build tooling; the location does that.
+  # No build tooling is listed here any more, and that is deliberate. The theme
+  # overrides and mkdocstrings templates moved out of docs_dir to docs_theme/,
+  # and the api-submodule scaffold to docs_build/, so nothing under docs/ is
+  # build tooling. The successor engine (Zensical) ignores exclude_docs entirely,
+  # so location -- not this key -- is what keeps tooling out of the built site,
+  # under either engine.
   #
-  # `*.py` and `__pycache__/` remain for a different reason: a project may keep
-  # its OWN script under docs/ (yohou has docs/precache_datasets.py), and mkdocs
-  # would publish it as a static asset. These entries cover that case.
+  # What remains is content exclusion mkdocs still needs: a project may keep its
+  # OWN script under docs/ (e.g. docs/precache_datasets.py), which mkdocs would
+  # otherwise publish as a static asset. `__pycache__/` is the compiled form of
+  # the same. (Zensical ignores these too, so such a script leaks under Zensical;
+  # move it to docs_build/ if that matters.)
   *.py
   __pycache__/
-  # Same reason, one directory over: `docs/material/templates/` holds
-  # mkdocstrings template overrides, which are build tooling, not pages. Without
-  # this they are published as static assets -- confirmed live, `class.html.jinja`
-  # served 200 from the docs site. `material/overrides/*.html` leaks the same way
-  # and is excluded here too; `api-submodule.html` above was the one instance of
-  # this that had been noticed before, handled one file at a time.
-  *.jinja
-  material/overrides/*.html
 
 not_in_nav: |
   assets/README.md
@@ -185,7 +187,6 @@ plugins:
       touchNavigation: true
       loop: false
       effect: zoom
-      slide_effect: slide
       width: 100%
       height: auto
       zoomable: true
@@ -198,8 +199,8 @@ plugins:
       shadow: true
       manual: false
   - mkdocstrings:
-      custom_templates: docs/material/templates
-      # Overrides live in docs/material/templates/python/material/. Each one is a
+      custom_templates: docs_theme/templates
+      # Overrides live in docs_theme/templates/python/material/. Each one is a
       # thin `{% extends %}` over the shipped `_base/` template, so upstream
       # fixes keep arriving -- see the header comments in those files for why the
       # dispatcher is overridden rather than the nine section templates.

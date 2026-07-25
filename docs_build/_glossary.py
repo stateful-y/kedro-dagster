@@ -35,7 +35,7 @@ from markdown.preprocessors import Preprocessor
 # codebase avoids. ``docs_build`` is put on the path the same way hooks.py does.
 sys.path.insert(0, str(Path(__file__).parent))
 
-from _markers import _current_page  # noqa: E402
+from _markers import _current_page, _page_src_path  # noqa: E402
 
 _PROJECT_ROOT = Path(__file__).parent.parent
 
@@ -146,7 +146,7 @@ def _linkify(lines, page):
     """
     if page is None:
         return lines
-    src = page.file.src_path
+    src = _page_src_path(page)
     if src == _GLOSSARY_SRC_PATH or not src.startswith("pages/"):
         return lines
 

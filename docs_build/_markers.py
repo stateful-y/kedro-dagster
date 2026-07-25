@@ -72,14 +72,20 @@ def reset_caches():
 def _current_page(md):
     """Return the page being rendered, or ``None`` if it cannot be found.
 
-    Under Zensical the page provider is registered on the ``Markdown`` instance
-    as ``zensical_current_page``. Under MkDocs there is no such seam, so reach the
-    ``mkdocs-autorefs`` plugin's ``current_page`` through the processors it
-    registered on this md instance -- exactly how mkdocstrings gets the page.
+    Under Zensical the page provider is the preprocessor registered as
+    ``rendering_context`` (``zensical.extensions.context.ContextPreprocessor``),
+    which exposes ``.page`` -- a ``Page`` with ``url``/``path``/``title``/``meta``.
+    An earlier version of this function probed a ``zensical_current_page`` key that
+    does not exist in Zensical, so every page-context marker silently rendered
+    empty at a green ``--strict`` build; read ``.page`` off ``rendering_context``
+    instead. Under MkDocs there is no such seam, so reach the ``mkdocs-autorefs``
+    plugin's ``current_page`` through the processors it registered on this md
+    instance -- exactly how mkdocstrings gets the page.
     """
-    with contextlib.suppress(KeyError, TypeError):
-        if "zensical_current_page" in md.preprocessors:
-            return md.preprocessors["zensical_current_page"]
+    with contextlib.suppress(KeyError, TypeError, AttributeError):
+        rc = md.preprocessors["rendering_context"]
+        if getattr(rc, "page", None) is not None:
+            return rc.page
 
     for registry in (md.treeprocessors, md.inlinePatterns, md.preprocessors):
         for proc in registry:
@@ -87,6 +93,20 @@ def _current_page(md):
             if plugin is not None and hasattr(plugin, "current_page"):
                 return plugin.current_page
     return None
+
+
+def _page_src_path(page):
+    """Source path of ``page`` under either documentation engine.
+
+    MkDocs pages carry ``page.file.src_path``; Zensical's ``Page`` has
+    ``page.path``. Every marker that lists a page's siblings or resolves a
+    page-relative link needs this identity, so it must read whichever shape the
+    engine in use provides.
+    """
+    file = getattr(page, "file", None)
+    if file is not None and getattr(file, "src_path", None) is not None:
+        return file.src_path
+    return page.path
 
 
 def _mkdocs_config():
@@ -112,18 +132,45 @@ def _mkdocs_config():
         return {}
 
 
+def _output_url_prefix(page):
+    """Relative path from `page`'s rendered OUTPUT url back to the site root.
+
+    This is the plain, engine-independent depth: `use_directory_urls` gives a
+    non-index page its own directory, so the prefix is the number of path
+    segments in the rendered url. Use this for links that reach the page through
+    a *template* (the `module_toc` sidebar, rendered by the theme), which neither
+    engine rewrites -- so it must already be correct for the output location.
+    """
+    parts = _page_src_path(page).split("/")
+    return "../" * (len(parts) if parts[-1] != "index.md" else len(parts) - 1)
+
+
 def _site_root_prefix(page):
-    """Relative path from `page`'s rendered URL back to the site root.
+    """Relative path back to the site root for links injected into CONTENT.
 
     Every link injected is relative, because the site may be served under a
     subpath and `use_directory_urls` makes each page its own directory. A
     hardcoded `../../` only works if the page never moves: a project is free to
     put its API index at `pages/api/index.md` rather than the template's
     `pages/reference/api.md`, and a fixed prefix silently 404s every link on it.
+
+    Engine-aware, and ONLY for links injected into page CONTENT (the API table,
+    marker URL rewrites) -- not template-rendered links, which use
+    `_output_url_prefix`. The two engines treat a relative link injected into
+    content differently: MkDocs leaves it untouched, so it must be relative to the
+    rendered OUTPUT url (a non-index page sits one dir deeper than its source).
+    Zensical REWRITES a content link while rendering, resolving it against the
+    page's SOURCE directory, so the prefix it needs is the source-directory depth.
+    Using the MkDocs depth under Zensical adds one `../` to every injected link and
+    404s every API-table row -- a break `--strict` never sees, because it does not
+    validate injected HTML. (Zensical does NOT rewrite template-rendered links,
+    which is why the sidebar keeps the plain output prefix.)
     """
-    parts = page.file.src_path.split("/")
-    depth = len(parts) if parts[-1] != "index.md" else len(parts) - 1
-    return "../" * depth
+    parts = _page_src_path(page).split("/")
+    if getattr(page, "file", None) is None:
+        # Zensical rewrites content links against the source directory.
+        return "../" * (len(parts) - 1)
+    return _output_url_prefix(page)
 
 
 def _build_api_table_html(project_root, prefix):
@@ -381,7 +428,7 @@ def _build_subpages_list(config, page, project_root):
     own index -- and reads each sibling's title and summary out of its own
     source, so there is no second copy of either to drift.
     """
-    src = page.file.src_path
+    src = _page_src_path(page)
     directory = posixpath.dirname(src)
     dir_path = project_root / "docs" / directory
 
@@ -503,8 +550,13 @@ def _set_module_toc(page):
     if not isinstance(meta, dict):
         return
     if meta.get("template") in ("api-index.html", "api-submodule.html"):
+        # The sidebar is rendered by the theme template, which neither engine
+        # rewrites, so it uses the plain OUTPUT prefix -- not the content prefix,
+        # which is source-relative under Zensical for the API table.
         meta["module_toc"] = _build_module_toc(
-            _PROJECT_ROOT, current_src_path=page.file.src_path, prefix=_site_root_prefix(page)
+            _PROJECT_ROOT,
+            current_src_path=_page_src_path(page),
+            prefix=_output_url_prefix(page),
         )
 
 
@@ -532,7 +584,7 @@ def _inject(markdown, page, config=None):
     # Strip EXAMPLES_FOR placeholders when examples are disabled
     markdown = re.sub(r"<!-- EXAMPLES_FOR:[\w.]+ -->\n?", "", markdown)
 
-    _warn_on_unhandled_markers(markdown, page.file.src_path)
+    _warn_on_unhandled_markers(markdown, _page_src_path(page))
 
     return markdown
 
