@@ -95,13 +95,10 @@ docs/pages/api/
 # Worktrees
 .worktrees/
 
-# AI Assistant Instructions
-CLAUDE.md
-CLAUDE_INSTRUCTIONS.md
-.claude.md
-claude-instructions.md
-claude-config.md
-claude-prompt.md
+# AI assistant instructions are NOT ignored. CLAUDE.md is project content: it is
+# where a project records what a newcomer cannot derive from the code, and ignoring
+# it meant no generated project could keep that anywhere the repo could see. The
+# template seeds it once (see _skip_if_exists in copier.yml) and never overwrites it.
 
 # GitHub Copilot
 COPILOT.md
