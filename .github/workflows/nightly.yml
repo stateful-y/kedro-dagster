@@ -16,8 +16,10 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.11", "3.12", "3.13", "3.14"]
-    env:
-      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+    # Codecov upload authenticates via GitHub OIDC (tokenless) -- no stored CODECOV_TOKEN.
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v7
 
@@ -44,9 +46,9 @@ jobs:
 
       - name: Upload coverage reports
         uses: codecov/codecov-action@v7
-        if: ${{ matrix.python-version == '3.12' && env.CODECOV_TOKEN != '' }}
+        if: ${{ matrix.python-version == '3.12' }}
         with:
-          token: ${{ env.CODECOV_TOKEN }}
+          use_oidc: true
 
   # [ADDITION] Run versioned tests nightly
   test-versions:
