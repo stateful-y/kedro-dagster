@@ -547,12 +547,22 @@ graph LR
 
 ### How It Works
 
-1. **Tag a release:**
+1. **Tag a release** (signed with [gitsign](https://github.com/sigstore/gitsign) keyless Sigstore signing):
 
     ```bash
-   git tag v0.2.0 -m "Release v0.2.0"
+   git tag -s v0.2.0 -m "Release v0.2.0"
    git push origin v0.2.0
     ```
+
+    One-time gitsign setup so `git tag -s` signs via Sigstore, with no long-lived GPG key to manage:
+
+    ```bash
+   git config --local gpg.x509.program gitsign
+   git config --local gpg.format x509
+   git config --local tag.gpgSign true
+    ```
+
+    The first signing authenticates via your identity provider in a browser; verify a tag with `gitsign verify-tag`. Signed tags complement the PEP 740 artifact attestations the publish workflow already produces, so both the tag and the published artifacts are verifiable.
 
 2. **Automated changelog workflow** (`changelog.yml`):
     - Generates changelog from conventional commits using git-cliff
