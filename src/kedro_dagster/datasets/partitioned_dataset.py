@@ -410,7 +410,7 @@ class DagsterPartitionedDataset(PartitionedDataset):
                     if self._filesystem.exists(candidate_str):
                         partitions.append(candidate_str)
                         break
-                except Exception:
+                except Exception:  # noqa: S112
                     # Ignore errors for individual candidates and continue checking others
                     continue
 

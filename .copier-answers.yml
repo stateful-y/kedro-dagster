@@ -1,13 +1,15 @@
 # This file is used by Copier to track the template version
 # and enable template updates in generated projects
 
-_commit: 96769caeb3394e1e3e13a8cde94b3caf5a92b277
+_commit: e748f5c10c0fdd611bbbdae3783c130a82da87bd
 _src_path: gh:stateful-y/python-package-copier
 author_email: gtauzin@stateful-y.io
 author_name: Guillaume Tauzin
+code_owner: '@gtauzin'
 description: Kedro-Dagster makes it easy to deploy Kedro projects to Dagster
 github_username: stateful-y
 include_actions: True
+include_codecov: True
 include_examples: False
 license: Apache-2.0
 max_python_version: '3.14'
@@ -16,4 +18,5 @@ package_name: kedro_dagster
 project_name: Kedro-Dagster
 project_slug: kedro-dagster
 renovate_preset: 'stateful-y/renovate-config'
+repo_visibility: public
 uv_version: '0.10.0'

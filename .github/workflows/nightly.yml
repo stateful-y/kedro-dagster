@@ -6,6 +6,10 @@ on:
     - cron: "30 2 * * *"
   workflow_dispatch: # Allow manual triggering
 
+# Least-privilege default: read-only token; create-issue-on-failure widens to issues:write.
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest

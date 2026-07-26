@@ -6,23 +6,26 @@ on:
     branches:
       - main
 
+# Least-privilege default: read-only token unless a job widens it explicitly.
+permissions:
+  contents: read
+
 env:
   dists-artifact-name: python-package-distributions
+  sbom-artifact-name: sbom
 
 jobs:
-  create-release:
+  # Build at the release tag, so hatch-vcs resolves the exact version, and hand the
+  # artifacts to the release/publish jobs natively within this one workflow run. The
+  # build previously lived in changelog.yml and was fetched across workflows with a
+  # third-party action; keeping it here removes that third party from the release path.
+  build:
     # Only run if PR was merged and has the changelog label
     if: github.event.pull_request.merged == true && contains(github.event.pull_request.labels.*.name, 'changelog')
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    outputs:
+      version: ${{ steps.find_tag.outputs.version }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-          ref: main
-
       - name: Find release tag
         id: find_tag
         run: |
@@ -37,20 +40,70 @@ jobs:
 
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
+      - name: Checkout the release tag
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: ${{ steps.find_tag.outputs.version }}
+          lfs: true
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          # renovate: datasource=github-releases depName=astral-sh/uv
+          version: "0.10.0"
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
+
+      - name: Build package
+        run: uv build --python 3.11 --python-preference only-managed --sdist --wheel . --out-dir dist
+
+      - name: Check distributions
+        run: uvx twine check dist/*
+
+      # Software bill of materials (CycloneDX) for the release, generated from the
+      # locked dependency set so it enumerates exactly what this release resolves.
+      - name: Generate SBOM (CycloneDX)
+        run: |
+          uv export --frozen --no-emit-project --format requirements-txt -o sbom-requirements.txt
+          uvx --from cyclonedx-bom cyclonedx-py requirements sbom-requirements.txt \
+            --output-format JSON --outfile sbom.cdx.json
+
+      - name: Store the distribution packages
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.dists-artifact-name }}
+          path: dist/*
+
+      - name: Store the SBOM
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.sbom-artifact-name }}
+          path: sbom.cdx.json
+
+  create-release:
+    needs:
+      - build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      # Check out main (not the tag): main carries the CHANGELOG entry the merged
+      # changelog PR just added, which the tag does not yet have.
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: main
+
       - name: Extract release notes from CHANGELOG
         id: release_notes
         run: |
-          VERSION="${{ steps.find_tag.outputs.version }}"
+          VERSION="${{ needs.build.outputs.version }}"
           # Strip the 'v' prefix for CHANGELOG lookup (e.g., v0.4.0 -> 0.4.0)
           VERSION_NO_V="${VERSION#v}"
 
-          # Debug: Show what we're working with
-          echo "Looking for version: $VERSION_NO_V (from tag: $VERSION)"
-          echo "First 100 lines of CHANGELOG.md:"
-          head -n 100 CHANGELOG.md
-
           # Extract the section for this version from CHANGELOG.md
-          # This uses awk to get content between the version header and the next version header
           RELEASE_NOTES=$(awk -v ver="$VERSION_NO_V" '
             /^## \[.*\]/ {
               if (found) exit;
@@ -73,27 +126,32 @@ jobs:
           echo "$RELEASE_NOTES" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Download release artifacts
-        uses: dawidd6/action-download-artifact@v21
+      - name: Download the distribution packages
+        uses: actions/download-artifact@v7
         with:
-          workflow: changelog.yml
           name: ${{ env.dists-artifact-name }}
           path: dist/
-          search_artifacts: true
+
+      - name: Download the SBOM
+        uses: actions/download-artifact@v7
+        with:
+          name: ${{ env.sbom-artifact-name }}
+          path: sbom/
 
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION="${{ steps.find_tag.outputs.version }}"
+          VERSION="${{ needs.build.outputs.version }}"
           gh release create "$VERSION" \
             --title "$VERSION" \
             --notes "${{ steps.release_notes.outputs.notes }}" \
-            dist/*
+            dist/* sbom/sbom.cdx.json
 
   pypi-publish:
     name: Publish to PyPI
     needs:
+      - build
       - create-release
     runs-on: ubuntu-latest
     environment:
@@ -102,37 +160,15 @@ jobs:
     permissions:
       id-token: write
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
+      - name: Download the distribution packages
+        uses: actions/download-artifact@v7
         with:
-          fetch-depth: 0
-          ref: main
-
-      - name: Find release tag
-        id: find_tag
-        run: |
-          # Extract version from PR title (e.g., "chore(release): update CHANGELOG.md for v0.2.0" or "v0.1.0-alpha.1")
-          PR_TITLE="${{ github.event.pull_request.title }}"
-          VERSION=$(echo "$PR_TITLE" | grep -oP 'v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+(\.[0-9]+)?)?' || echo "")
-
-          if [ -z "$VERSION" ]; then
-            echo "No version found in PR title"
-            exit 1
-          fi
-
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-
-      - name: Download release artifacts
-        uses: dawidd6/action-download-artifact@v21
-        with:
-          workflow: changelog.yml
           name: ${{ env.dists-artifact-name }}
           path: dist/
-          search_artifacts: true
-          workflow_conclusion: success
 
       - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+        # renovate: datasource=github-releases depName=pypa/gh-action-pypi-publish
+        uses: pypa/gh-action-pypi-publish@v1.13.0
         with:
           attestations: true
           verify-metadata: false

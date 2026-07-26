@@ -1,0 +1,6 @@
+# Code owners for Kedro-Dagster.
+#
+# Each line maps a path pattern to the owner(s) requested for review on changes.
+# `code_owner` is a GitHub username (@user) or a team (@org/team); a bare
+# organization name is not a valid code owner.
+* @gtauzin

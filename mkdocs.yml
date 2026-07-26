@@ -270,6 +270,7 @@ nav:
     - Architecture: pages/explanation/architecture.md
     - Data Flow: pages/explanation/data-flow.md
     - Hook Lifecycle: pages/explanation/hook-lifecycle.md
+    - Security: pages/explanation/security.md
   - Reference:
     - pages/reference/index.md
     - Configuration: pages/reference/configuration.md

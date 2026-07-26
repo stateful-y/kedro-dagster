@@ -169,7 +169,7 @@ if DAGSTER_VERSION >= (1, 10, 6):
                             rows.append(rec)
                 if rows:
                     formatter.write_dl(rows)
-            except Exception:  # pragma: no cover
+            except Exception:  # pragma: no cover  # noqa: S110
                 # If the underlying command structure changes, don't break help output
                 pass
 
@@ -206,8 +206,10 @@ if DAGSTER_VERSION >= (1, 10, 6):
                     # Set Kedro env vars so child process can pick them up if needed
                     env_vars["KEDRO_ENV"] = env
 
-                    # Execute the original 'dg' command, forwarding all extra args
-                    subprocess.call(["dg", name, *args], cwd=str(project_path), env=env_vars)
+                    # Execute the original 'dg' command, forwarding all extra args.
+                    # Fixed executable name and a resolved PATH lookup are intentional
+                    # for this CLI passthrough; args are the user's own shell input.
+                    subprocess.call(["dg", name, *args], cwd=str(project_path), env=env_vars)  # noqa: S603, S607
 
                 return _callback
 
@@ -322,9 +324,11 @@ else:
         # Set Kedro env vars so child process can pick them up if needed
         env_vars["KEDRO_ENV"] = env
 
-        # call dagster dev with specific options
-        subprocess.call(
-            [
+        # call dagster dev with specific options.
+        # Fixed executable name and a resolved PATH lookup are intentional for
+        # launching the local Dagster dev server; no untrusted input is executed.
+        subprocess.call(  # noqa: S603
+            [  # noqa: S607
                 "dagster",
                 "dev",
                 "--python-file",

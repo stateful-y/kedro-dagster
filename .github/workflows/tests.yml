@@ -8,6 +8,10 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
 
+# Least-privilege default: read-only token. No job here writes.
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -306,6 +310,29 @@ jobs:
           uv run --group docs mkdocs build --clean --strict
 
 
+  # Secret scanning. Runs the gitleaks binary directly (not gitleaks-action, which
+  # requires a paid license for private org repos) so it works identically on public
+  # and private repos. This is the CI backstop to the pre-commit gitleaks hook: it
+  # cannot be bypassed with --no-verify, and it is a dependency of the ci-passed
+  # roll-up below, so a detected secret fails the single required merge check.
+  secret-scan:
+    name: Secret scanning (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Install gitleaks
+        run: |
+          # renovate: datasource=github-releases depName=gitleaks/gitleaks
+          GITLEAKS_VERSION=8.24.3
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" | tar -xz -C /usr/local/bin gitleaks
+
+      - name: Scan for secrets
+        run: gitleaks detect --source . --redact --verbose
+
   # Single required status check. The branch ruleset requires this one job, not the
   # individual jobs above: test-fast is a matrix (its check-run names vary by OS/Python and
   # differ between draft and ready PRs) and test-full is skipped on draft PRs, so neither
@@ -327,6 +354,7 @@ jobs:
       - lint
       - test_docstrings
       - check_docs
+      - secret-scan
     runs-on: ubuntu-latest
     steps:
       - name: Fail if any required job did not pass
