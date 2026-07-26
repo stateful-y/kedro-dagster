@@ -67,6 +67,7 @@ renovate.json
 .github/ISSUE_TEMPLATE/config.yml
 .github/ISSUE_TEMPLATE/feature_request.yml
 .github/PULL_REQUEST_TEMPLATE.md
+SECURITY.md
 .claude/skills/**                   # Skill files managed by template (the tracked copy)
 .github/skills/**                   # Byte-identical Copilot mirror; gitignored, so an
                                     # update never delivers it -- copier works through
@@ -89,12 +90,16 @@ justfile
 docs/index.md
 docs/pages/reference/api.md
 docs/pages/how-to/contribute.md
+docs/pages/explanation/security.md
 .github/workflows/tests.yml        # conditional: include_actions
 .github/workflows/pr-title.yml     # conditional: include_actions
 .github/workflows/publish-release.yml  # conditional: include_actions
 .github/workflows/nightly.yml      # conditional: include_actions
 .github/workflows/changelog.yml    # conditional: include_actions
 .github/workflows/commit-message.yml   # conditional: include_actions
+.github/workflows/codeql.yml       # conditional: include_actions + public repo_visibility
+.github/workflows/scorecard.yml    # conditional: include_actions + public repo_visibility
+CODEOWNERS
 ```
 
 ---

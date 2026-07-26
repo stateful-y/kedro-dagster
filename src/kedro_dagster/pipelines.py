@@ -617,7 +617,7 @@ class PipelineTranslator:
                             raise ValueError(msg)
 
                         # If logger_config exists in _named_loggers, then loggers must exist - we assert for mypy
-                        assert self._dagster_config.loggers is not None
+                        assert self._dagster_config.loggers is not None  # noqa: S101
                         logger_configs[logger_config] = self._dagster_config.loggers[logger_config]
 
                     else:

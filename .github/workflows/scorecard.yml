@@ -1,0 +1,41 @@
+name: OpenSSF Scorecard
+
+on:
+  branch_protection_rule:
+  schedule:
+    # Weekly independent grade of the repo's security posture.
+    - cron: "21 4 * * 2"
+  push:
+    branches: [main]
+
+# Least-privilege default: read-only token; the analysis job widens as needed.
+permissions:
+  contents: read
+
+jobs:
+  analysis:
+    name: Scorecard analysis
+    runs-on: ubuntu-latest
+    permissions:
+      # Upload the results to the Security tab and publish to the OpenSSF API.
+      security-events: write
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Run analysis
+        uses: ossf/scorecard-action@v2
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          repo_token: ${{ github.token }}
+          # Publish results to the OpenSSF Scorecard API (public repos only).
+          publish_results: true
+
+      - name: Upload SARIF to code scanning
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: results.sarif

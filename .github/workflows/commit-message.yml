@@ -5,6 +5,10 @@ on:
     types: [opened, edited, synchronize, reopened]
     branches: [main]
 
+# Least-privilege default: read-only token.
+permissions:
+  contents: read
+
 jobs:
   validate-commit-message:
     name: Validate Commit Message

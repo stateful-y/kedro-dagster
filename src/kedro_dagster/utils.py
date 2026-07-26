@@ -137,7 +137,9 @@ def render_jinja_template(src: str | Path, is_cookiecutter: bool = False, **kwar
     template_loader = FileSystemLoader(searchpath=str(src.parent))
     # the keep_trailing_new_line option is mandatory to
     # make sure that black formatting will be preserved
-    template_env = Environment(loader=template_loader, keep_trailing_newline=True)
+    # autoescape stays off: this renders code/config file templates, not HTML,
+    # so HTML-escaping would corrupt the generated output.
+    template_env = Environment(loader=template_loader, keep_trailing_newline=True)  # noqa: S701
     template = template_env.get_template(src.name)
     if is_cookiecutter:
         # we need to match tags from a cookiecutter object
@@ -468,7 +470,7 @@ def format_node_name(name: str) -> str:
     dagster_name = name.replace(".", KEDRO_DAGSTER_SEPARATOR)
 
     if not DAGSTER_ALLOWED_PATTERN.match(dagster_name):
-        dagster_name = f"unnamed_node_{hashlib.md5(name.encode('utf-8')).hexdigest()}"
+        dagster_name = f"unnamed_node_{hashlib.md5(name.encode('utf-8'), usedforsecurity=False).hexdigest()}"
         LOGGER.warning(
             "Node is either unnamed or not in regex ^[A-Za-z0-9_]+$. "
             "Prefer naming your Kedro nodes directly using a `name`. "

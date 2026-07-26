@@ -32,6 +32,15 @@ repos:
         stages: [commit-msg]
 
 
+  # Secret scanning: block secrets before they enter history. prek runs the official
+  # gitleaks hook (its golang language is supported). The gitleaks CI job is the
+  # un-bypassable backstop; this hook is the earliest catch, so it stays at pre-commit
+  # even though the refusing whole-project hooks (ty) run at pre-push.
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.24.3
+    hooks:
+      - id: gitleaks
+
   # Version-sensitive linters run from the project environment so their single
   # source of truth is uv.lock. --locked makes a stale uv.lock fail loudly
   # instead of silently diverging from CI. (Dependabot's "uv" ecosystem then

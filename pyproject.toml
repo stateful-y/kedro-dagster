@@ -185,6 +185,7 @@ select = [
     "ARG", # flake8-unused-arguments
     "SIM", # flake8-simplify
     "PL",  # Pylint
+    "S",   # flake8-bandit (security)
     "T10", # flake8-debugger
     "T201", # Print statement
 ]
@@ -202,18 +203,18 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*" = ["ARG", "S101", "T201", "PLR2004"]  # Allow assert statements, prints, and magic values in tests
+"tests/**/*" = ["ARG", "S101", "S104", "S108", "S110", "S112", "S301", "S311", "S603", "S607", "T201", "PLR2004"]  # Allow asserts, bind-all-interfaces, hardcoded /tmp paths, try/except/pass, try/except/continue, pickle, non-crypto random, subprocess, prints, and magic values in tests
 # The template's documentation build tooling lives in docs_build/. Every script
 # there prints build progress and may hold per-build caches.
 #
 # Deliberately `docs_build/*.py`, NOT `docs_build/_*.py`: the narrower glob would
 # silently drop coverage for any un-underscored script, which is the failure
 # shape this fleet specialises in. The pattern matches what the directory is for.
-"docs_build/*.py" = ["T201", "PLW0603"]  # Allow prints and per-build cache globals in every build script
+"docs_build/*.py" = ["T201", "PLW0603", "S506", "S603", "S112"]  # Build tooling: prints, per-build cache globals, mkdocs.yml full-loader, subprocess to run notebooks, and skip-on-error loops over controlled input
 # `docs/*.py` is kept too, for a project's OWN scripts under docs/ (yohou has
 # docs/precache_datasets.py) -- the template ships none there any more, but a
 # project script prints progress the same way and should not lose its exemption.
-"docs/*.py" = ["T201", "PLW0603"]
+"docs/*.py" = ["T201", "PLW0603", "S506", "S603", "S112"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["kedro_dagster"]

@@ -5,6 +5,10 @@ on:
     types: [opened, edited, synchronize, reopened]
     branches: [main]
 
+# Least-privilege default: read-only token; the job below widens to pull-requests:read.
+permissions:
+  contents: read
+
 jobs:
   validate-pr-title:
     name: Validate PR Title
