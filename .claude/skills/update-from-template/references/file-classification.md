@@ -109,6 +109,14 @@ CODEOWNERS
 Project-specific files where the template only provides initial scaffolding. Never overwrite with template content after initial generation.
 
 ```text
+CLAUDE.md                          # Project instructions for AI assistants. Seeded
+                                   # once, then owned entirely by the project: it
+                                   # records what is true about *this* project, so
+                                   # the template's version survives nowhere.
+                                   # Enforced by _skip_if_exists in copier.yml, not
+                                   # by this classification -- copier ignores tiers,
+                                   # and a page it keeps re-delivering gets reverted
+                                   # by one shifted line (v0.22.0, five projects).
 src/<package_name>/**              # All source code
 tests/**                           # All test files
 examples/**                        # conditional: include_examples
