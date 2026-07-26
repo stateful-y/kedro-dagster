@@ -104,8 +104,10 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ["3.11", "3.12", "3.13", "3.14"]
-    env:
-      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+    # Codecov upload authenticates via GitHub OIDC (tokenless) -- no stored CODECOV_TOKEN.
+    permissions:
+      contents: read
+      id-token: write
 
     steps:
       - name: Checkout code
@@ -137,17 +139,17 @@ jobs:
         run: nox -s test --python ${{ matrix.python-version }}
 
       - name: Upload test results to Codecov
-        if: ${{ !cancelled() && matrix.python-version == '3.11' && env.CODECOV_TOKEN != '' }}
+        if: ${{ !cancelled() && matrix.python-version == '3.11' }}
         uses: codecov/test-results-action@v1
         with:
-          token: ${{ env.CODECOV_TOKEN }}
+          use_oidc: true
           file: '${{ github.workspace }}/junit.${{ matrix.python-version }}.xml'
 
       - name: Upload coverage report to Codecov
         uses: codecov/codecov-action@v7
-        if: ${{ matrix.python-version == '3.11' && env.CODECOV_TOKEN != '' }}
+        if: ${{ matrix.python-version == '3.11' }}
         with:
-          token: ${{ env.CODECOV_TOKEN }}
+          use_oidc: true
           files: '${{ github.workspace }}/coverage.${{ matrix.python-version }}.xml'
           env_vars: OS,PYTHON
           fail_ci_if_error: true
