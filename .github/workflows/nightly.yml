@@ -54,8 +54,68 @@ jobs:
   test-versions:
     uses: ./.github/workflows/tests-versions.yml
 
+  # The release path's tools, exercised where a failure is cheap.
+  #
+  # `publish-release.yml` only ever runs on a merged, `changelog`-labelled PR, so
+  # nothing touches these tools until a real publish is already in flight. Three
+  # defects were once found in that file at once, and one of them -- an SBOM flag
+  # removed by a major version of an unpinned tool -- broke every generated
+  # project's release on the day it shipped, with no change in any of them.
+  #
+  # Those tools are pinned now, which turns silent drift into a Renovate PR. That
+  # is the fix and it creates this gap: nothing runs the SBOM step, so such a PR
+  # goes green on evidence that says nothing about whether the release still
+  # works. This job is what makes those PRs mean something. It builds, checks and
+  # generates exactly as the release does, and publishes nothing.
+  release-smoke:
+    name: Release path (build + SBOM, no publish)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          # renovate: datasource=github-releases depName=astral-sh/uv
+          version: "0.10.0"
+
+      - name: Build package
+        run: uv build --python 3.11 --python-preference only-managed --sdist --wheel . --out-dir dist
+
+      - name: Check distributions
+        # renovate: datasource=pypi depName=twine
+        run: uvx twine==7.0.0 check dist/*
+
+      - name: Generate SBOM (CycloneDX)
+        run: |
+          uv export --frozen --no-emit-project --format requirements-txt -o sbom-requirements.txt
+          # The annotation must sit directly above the line carrying the version; see
+          # publish-release.yml for what happens when it does not.
+          # renovate: datasource=pypi depName=cyclonedx-bom
+          uvx --from cyclonedx-bom==7.3.1 cyclonedx-py requirements sbom-requirements.txt \
+            --output-format JSON --output-file sbom.cdx.json
+
+      # Producing a file is not evidence it is usable: the step that broke exited 2
+      # and left nothing behind, but a step that writes an empty or malformed
+      # document would pass a mere existence check.
+      - name: Verify the SBOM is a valid CycloneDX document
+        run: |
+          python3 - <<'EOF'
+          import json, sys
+          with open("sbom.cdx.json") as fh:
+              doc = json.load(fh)
+          assert doc.get("bomFormat") == "CycloneDX", f"not a CycloneDX document: {doc.get('bomFormat')!r}"
+          assert doc.get("specVersion"), "no specVersion"
+          n = len(doc.get("components") or [])
+          assert n > 0, "SBOM lists no components, so it describes nothing"
+          print(f"CycloneDX {doc['specVersion']}, {n} components")
+          EOF
+
   create-issue-on-failure:
-    needs: [test, test-versions]
+    needs: [test, test-versions, release-smoke]
     if: ${{ failure() }}
     runs-on: ubuntu-latest
     permissions:
@@ -68,7 +128,7 @@ jobs:
         with:
           script: |
             const title = '🔴 Nightly build failed';
-            const body = `The nightly build failed on ${{ github.sha }}.
+            const body = `A nightly job failed on ${{ github.sha }}.
 
             **Workflow run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
             **Branch:** ${{ github.ref_name }}
