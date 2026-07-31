@@ -59,15 +59,17 @@ jobs:
         run: uv build --python 3.11 --python-preference only-managed --sdist --wheel . --out-dir dist
 
       - name: Check distributions
-        run: uvx twine check dist/*
+        # renovate: datasource=pypi depName=twine
+        run: uvx twine==7.0.0 check dist/*
 
       # Software bill of materials (CycloneDX) for the release, generated from the
       # locked dependency set so it enumerates exactly what this release resolves.
       - name: Generate SBOM (CycloneDX)
+        # renovate: datasource=pypi depName=cyclonedx-bom
         run: |
           uv export --frozen --no-emit-project --format requirements-txt -o sbom-requirements.txt
-          uvx --from cyclonedx-bom cyclonedx-py requirements sbom-requirements.txt \
-            --output-format JSON --outfile sbom.cdx.json
+          uvx --from cyclonedx-bom==7.3.1 cyclonedx-py requirements sbom-requirements.txt \
+            --output-format JSON --output-file sbom.cdx.json
 
       - name: Store the distribution packages
         uses: actions/upload-artifact@v7
@@ -138,12 +140,17 @@ jobs:
           name: ${{ env.sbom-artifact-name }}
           path: sbom/
 
-      - name: Create GitHub Release
+      # Created as a draft: a draft release is visible to maintainers only, so nothing
+      # is public until the `pypi` environment gate has been approved and the upload
+      # has succeeded. `finalize-release` undrafts it. If the gate is rejected or the
+      # upload fails, the draft is all that exists and can simply be deleted.
+      - name: Create draft GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION="${{ needs.build.outputs.version }}"
           gh release create "$VERSION" \
+            --draft \
             --title "$VERSION" \
             --notes "${{ steps.release_notes.outputs.notes }}" \
             dist/* sbom/sbom.cdx.json
@@ -172,3 +179,20 @@ jobs:
         with:
           attestations: true
           verify-metadata: false
+
+  # Last step in the chain: make the release public only once the artifacts are
+  # actually on PyPI, so the GitHub Release and the PyPI record cannot disagree.
+  finalize-release:
+    name: Publish the GitHub Release
+    needs:
+      - build
+      - pypi-publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Undraft the GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: gh release edit "${{ needs.build.outputs.version }}" --draft=false

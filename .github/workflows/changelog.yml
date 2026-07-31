@@ -7,8 +7,12 @@ on:
 
 # Least-privilege default: read-only token unless a job widens it explicitly. The PR
 # is opened with a GitHub App token (below), not GITHUB_TOKEN, so no job needs write.
+# `pull-requests: read` is for git-cliff, which reads merged PRs to attribute entries;
+# it stays on GITHUB_TOKEN rather than borrowing the App token, whose write scope this
+# job needs only for opening the PR.
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
   changelog:
@@ -38,6 +42,15 @@ jobs:
 
       - name: Generate changelog
         id: changelog
+        env:
+          # `.git-cliff.toml` sets `[remote.github]`, so git-cliff calls the GitHub API
+          # to attach PR links and @usernames to each entry. Without a token those calls
+          # are anonymous, and anonymous means 60 requests/hour shared across every job
+          # on the runner's IP -- so this step used to succeed or 403 depending on who
+          # else was building at the time. git-cliff panics on that 403 (exit 101) rather
+          # than falling back to plain entries, which turned a rate limit into a failed
+          # release. Authenticated, the ceiling is 5000/hour and the flake goes away.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Get the tag name
           TAG_NAME="${GITHUB_REF#refs/tags/}"
