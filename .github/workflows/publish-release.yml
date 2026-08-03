@@ -41,14 +41,14 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Checkout the release tag
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
           ref: ${{ steps.find_tag.outputs.version }}
           lfs: true
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
         with:
           # renovate: datasource=github-releases depName=astral-sh/uv
           version: "0.10.0"
@@ -77,13 +77,13 @@ jobs:
             --output-format JSON --output-file sbom.cdx.json
 
       - name: Store the distribution packages
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ${{ env.dists-artifact-name }}
           path: dist/*
 
       - name: Store the SBOM
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ${{ env.sbom-artifact-name }}
           path: sbom.cdx.json
@@ -98,7 +98,7 @@ jobs:
       # Check out main (not the tag): main carries the CHANGELOG entry the merged
       # changelog PR just added, which the tag does not yet have.
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
           ref: main
@@ -134,13 +134,13 @@ jobs:
           echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Download the distribution packages
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
           name: ${{ env.dists-artifact-name }}
           path: dist/
 
       - name: Download the SBOM
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
           name: ${{ env.sbom-artifact-name }}
           path: sbom/
@@ -173,14 +173,14 @@ jobs:
       id-token: write
     steps:
       - name: Download the distribution packages
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
           name: ${{ env.dists-artifact-name }}
           path: dist/
 
       - name: Publish to PyPI
         # renovate: datasource=github-releases depName=pypa/gh-action-pypi-publish
-        uses: pypa/gh-action-pypi-publish@v1.13.0
+        uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e # v1.13.0
         with:
           attestations: true
           verify-metadata: false
