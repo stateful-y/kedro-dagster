@@ -28,6 +28,10 @@ jobs:
         uses: github/codeql-action/init@a2983b8bed1923f44751c5c43237f479442827b3 # v3
         with:
           languages: python
+          # Scopes the scan to shipped code. Without it the default suite reads test
+          # assertions and example notebooks as production code paths; see the config
+          # file for which queries that trips and why excluding beats dismissing.
+          config-file: ./.github/codeql/codeql-config.yml
 
       - name: Perform CodeQL analysis
         uses: github/codeql-action/analyze@a2983b8bed1923f44751c5c43237f479442827b3 # v3
