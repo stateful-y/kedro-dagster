@@ -1922,7 +1922,7 @@ requires-dist = [
     { name = "kedro", specifier = ">=1.0.0" },
     { name = "kedro-datasets", specifier = ">=1.0.0" },
     { name = "kedro-mlflow", marker = "extra == 'mlflow'", specifier = ">=0.13" },
-    { name = "mlflow", marker = "extra == 'mlflow'", specifier = ">=2.20" },
+    { name = "mlflow", marker = "extra == 'mlflow'", specifier = ">=3.13" },
     { name = "pydantic", specifier = ">=2.0.0" },
 ]
 provides-extras = ["mlflow"]
