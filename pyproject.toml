@@ -101,12 +101,18 @@ docs = [
     # package. `mkdocs`/`mkdocs-material` above are kept so CI can still run a
     # MkDocs build as a comparison during the engine transition.
     "zensical>=0.0.51",
-    # Floor matches Zensical's own requirement (pymdown-extensions>=10.21.3).
-    # Do NOT pin to >=11: the examples group's notebook runtime caps
-    # pymdown-extensions at <11, so a project with examples must resolve it in
-    # [10.21.3, 11). Zensical works with either major; forcing 11 makes the
-    # docs-plus-examples sync unsatisfiable.
-    "pymdown-extensions>=10.21.3",
+    # Floor is a security floor: 10.x carries a path traversal in the b64 extension
+    # (GHSA-9xwg-3r6f-jcx2, fixed in 11.0.0) and 11.0.0 carries a ReDoS in four inline
+    # processors (GHSA-gm37-52c6-37mw, fixed in 11.0.1). Zensical works with either
+    # major, so nothing here argues for staying on 10.
+    #
+    # This floor used to read >=10.21.3 with a comment forbidding >=11, because the
+    # examples group's notebook runtime capped it at <11 and a project with examples
+    # could not resolve otherwise. That is what let a known-vulnerable version sit in
+    # five repositories: the cap was real, the CVEs landed behind it, and nothing
+    # rechecked the cap afterwards. That runtime has since relaxed its cap, and the
+    # examples group floors at the first release that did -- the two must move together.
+    "pymdown-extensions>=11.0.1",
     "mkdocs-glightbox>=0.5",
     # Also a direct import of docs_build/_api_pages.py, which reads mkdocstrings'
     # `preload_modules` out of mkdocs.yml so that list has one definition rather

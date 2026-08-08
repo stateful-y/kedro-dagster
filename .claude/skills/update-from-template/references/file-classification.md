@@ -99,6 +99,9 @@ docs/pages/explanation/security.md
 .github/workflows/commit-message.yml   # conditional: include_actions
 .github/workflows/codeql.yml       # conditional: include_actions + public repo_visibility
 .github/workflows/scorecard.yml    # conditional: include_actions + public repo_visibility
+.github/codeql/codeql-config.yml   # conditional: include_actions + public repo_visibility.
+                                   # Scopes the CodeQL scan; a project may add its own
+                                   # exclusions, so merge rather than overwrite.
 CODEOWNERS
 ```
 

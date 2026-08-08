@@ -1,0 +1,23 @@
+# CodeQL scans the package, not the harness that exercises it.
+#
+# Without this file, `init` runs the default query suite over the whole checkout. The
+# security queries then read test assertions and example notebooks as if they were
+# production code paths, and report on them: `py/incomplete-url-substring-sanitization`
+# fires on `assert "docs.python.org" in url` (an assertion that config content is
+# present, not a trust decision), and `py/clear-text-logging-sensitive-data` fires on any
+# variable whose name contains "secret" or "trusted" -- including an allowlist of public
+# package names printed by an example.
+#
+# Every such alert is a false positive, and dismissing them one by one does not hold:
+# the shapes recur every time a test asserts on a URL. Excluding the directories is the
+# fix that stays fixed.
+#
+# The cost is real and deliberate: CodeQL no longer analyses test or example code. That
+# code does not run in production, has no untrusted input, and is already covered by
+# ruff's flake8-bandit (`S`) ruleset, which runs over the whole repository on every
+# change. `src/` and `docs_build/` -- the code that ships and the code that builds the
+# site -- stay in scope.
+name: "kedro_dagster (source only)"
+
+paths-ignore:
+  - tests
