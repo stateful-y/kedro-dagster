@@ -13,6 +13,12 @@ on:
     branches: ["main"]
     types: [opened, synchronize, reopened, ready_for_review]
 
+# Without this, the job inherits the repository's default token scope, which can be
+# read-write. `workflow_call` also lets a caller's scope flow in, so the floor has to
+# be declared here rather than assumed from whoever invokes it. Running tests reads.
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
