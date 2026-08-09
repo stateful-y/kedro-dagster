@@ -48,6 +48,10 @@ docs_build/_markdown_export.py       # build step imported by build.py; same tie
 docs_build/_notebooks.py             # build step imported by build.py; examples-only
 docs_build/serve.py                  # live-preview supervisor; watches src/ and regenerates API pages
 docs_build/_see_also.py              # griffe extension; rewrites numpydoc See Also into cross-references
+tests/test_artifact_paths.py     # template-owned gate: asserts every throwaway path has one
+                                 # definition. THE EXCEPTION to `tests/**` (Tier 3) below --
+                                 # more specific wins. A project owning this file would keep a
+                                 # stale copy of a check the template maintains.
 docs_build/_references.py            # griffe extension; normalizes numpydoc References into a markdown ordered list
 docs_build/_source_links.py           # griffe extension; attaches View-on-GitHub URLs for the Source Code heading
 docs_build/_markers.py               # python-markdown extension; resolves the docs markers (API_TABLE, SUBPAGES, gallery, companion)
@@ -55,14 +59,14 @@ docs_build/_glossary.py              # python-markdown extension; links glossary
 docs/pages/reference/changelog.md   # one-line include of the root CHANGELOG.md
 docs/javascripts/mathjax.js
 docs/javascripts/readthedocs.js
-docs_theme/templates/**                     # mkdocstrings template overrides; thin extends over the shipped _base/
-docs_theme/overrides/api-index.html
-docs_theme/overrides/api-page.html
-docs_theme/overrides/api-submodule.html
-docs_theme/overrides/main.html
+docs_build/templates/**                     # mkdocstrings template overrides; thin extends over the shipped _base/
+docs_build/overrides/api-index.html
+docs_build/overrides/api-page.html
+docs_build/overrides/api-submodule.html
+docs_build/overrides/main.html
 docs/stylesheets/gallery.css       # conditional: include_examples
 docs/stylesheets/theme.css
-renovate.json
+.github/renovate.json
 .github/ISSUE_TEMPLATE/bug_report.yml
 .github/ISSUE_TEMPLATE/config.yml
 .github/ISSUE_TEMPLATE/feature_request.yml
@@ -102,7 +106,7 @@ docs/pages/explanation/security.md
 .github/codeql/codeql-config.yml   # conditional: include_actions + public repo_visibility.
                                    # Scopes the CodeQL scan; a project may add its own
                                    # exclusions, so merge rather than overwrite.
-CODEOWNERS
+.github/CODEOWNERS
 ```
 
 ---

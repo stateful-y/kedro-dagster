@@ -372,9 +372,16 @@ def export(site_dir, docs_dir, project_root=None):
 
 
 def main():
-    """Export Markdown for the project this file lives in, using default dirs."""
+    """Export Markdown for the project this file lives in, using default dirs.
+
+    The site directory is read from mkdocs.yml rather than assumed: this entry point
+    is only used by hand, so a stale default here would write into a directory no
+    build produced and report success.
+    """
+    import build
+
     project_root = Path(__file__).parent.parent
-    export(project_root / "site", project_root / "docs", project_root)
+    export(project_root / build._default_site_dir(), project_root / "docs", project_root)
 
 
 if __name__ == "__main__":

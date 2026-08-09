@@ -30,6 +30,27 @@ def prebuild():
     _api_pages.generate(_PROJECT_ROOT)
 
 
+def _default_site_dir():
+    """Return the site directory mkdocs.yml configures, read rather than assumed.
+
+    This used to be a hardcoded literal, with a comment saying it matched mkdocs'
+    default. It stopped matching the moment the project set `site_dir`, and nothing
+    would have reported it: every caller passes the path explicitly, so a wrong
+    default only surfaces when someone runs this by hand and it silently writes
+    into a directory no build produced.
+    """
+    import yaml
+
+    class _Loader(yaml.SafeLoader):
+        pass
+
+    _Loader.add_multi_constructor("tag:yaml.org,2002:python/name:", lambda _l, suffix, _n: suffix)
+    _Loader.add_constructor("!ENV", lambda _l, _n: None)
+
+    config = yaml.load((_PROJECT_ROOT / "mkdocs.yml").read_text(encoding="utf-8"), Loader=_Loader)
+    return config.get("site_dir", "site")
+
+
 def postbuild(site_dir):
     """Copy the cleaned markdown into the built site, for LLM consumption."""
     _markdown_export.export(site_dir, str(_PROJECT_ROOT / "docs"), _PROJECT_ROOT)
@@ -40,7 +61,8 @@ if __name__ == "__main__":
     if _command == "prebuild":
         prebuild()
     elif _command == "postbuild":
-        # Default matches mkdocs' default site_dir; callers (RTD) pass their own.
-        postbuild(sys.argv[2] if len(sys.argv) > 2 else "site")
+        # Callers (RTD, the justfile, the noxfile) pass their own; the fallback is
+        # read from mkdocs.yml so it cannot drift from where the build actually writes.
+        postbuild(sys.argv[2] if len(sys.argv) > 2 else _default_site_dir())
     else:
         raise SystemExit(f"unknown build step: {_command!r} (use 'prebuild' or 'postbuild')")

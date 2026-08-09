@@ -143,16 +143,23 @@ jobs:
         uses: codecov/test-results-action@0fa95f0e1eeaafde2c782583b36b28ad0d8c77d3 # v1
         with:
           use_oidc: true
-          file: '${{ github.workspace }}/junit.${{ matrix.python-version }}.xml'
+          file: '${{ github.workspace }}/.artifacts/junit.xml'
 
       - name: Upload coverage report to Codecov
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7
         if: ${{ matrix.python-version == '3.11' }}
         with:
           use_oidc: true
-          files: '${{ github.workspace }}/coverage.${{ matrix.python-version }}.xml'
+          files: '${{ github.workspace }}/.artifacts/coverage.xml'
           env_vars: OS,PYTHON
           fail_ci_if_error: true
+          # Without this the uploader falls back to searching the workspace when
+          # `files` names nothing, and reports success on whatever it finds. That is
+          # not hypothetical: this step pointed at a `coverage.<version>.xml` that no
+          # config had written since the report paths moved into `addopts`, and it
+          # stayed green for releases because the search kept finding `coverage.xml`.
+          # `fail_ci_if_error` above only means something with the fallback off.
+          disable_search: true
 
   lint:
     name: Lint and format
@@ -249,25 +256,31 @@ jobs:
       # failed to load leaves every marker blank while the build stays green. These
       # assertions are the content gate --strict cannot be.
       - name: Assert the build shipped content, not blank markers
+        env:
+          # Must equal `site_dir` in mkdocs.yml, which is what actually decides
+          # where the build writes. Declared once here so the assertions below read
+          # it instead of each spelling the path out again;
+          # `tests/test_artifact_paths.py` asserts the two agree.
+          SITE_DIR: .artifacts/site
         run: |
           set -euo pipefail
-          if grep -rlE '<!-- (API_TABLE|SUBPAGES|GALLERY|EXAMPLES_FOR|COMPANION_NOTEBOOKS)[^>]*-->' site --include='*.html'; then
+          if grep -rlE '<!-- (API_TABLE|SUBPAGES|GALLERY|EXAMPLES_FOR|COMPANION_NOTEBOOKS)[^>]*-->' "$SITE_DIR" --include='*.html'; then
             echo "::error::unresolved marker comment(s) in the built site -- a docs_build extension did not run"; exit 1
           fi
           # Assert the template's own build tooling did not leak. It lives outside
-          # docs_dir (docs_build/ and docs_theme/), so this guards the relocation:
+          # docs_dir (all of it in docs_build/), so this guards the relocation:
           # a botched theme merge would republish these. Deliberately NOT a blanket
           # `*.py` check -- the successor engine ignores exclude_docs, so a project's
           # OWN docs/*.py script (e.g. a dataset precache) now publishes as a static
           # asset, and that is the project's file, not leaked tooling.
-          if find site \( -name '*.jinja' -o -name 'api-submodule.html' -o -path '*/material/*' -o -path '*/docs_theme/*' \) -print | grep -q .; then
+          if find "$SITE_DIR" \( -name '*.jinja' -o -name 'api-submodule.html' -o -path '*/material/*' -o -path '*/overrides/*' \) -print | grep -q .; then
             echo "::error::build tooling (theme templates / API scaffold) leaked into the published site"; exit 1
           fi
-          pages="$(find site/pages/api/generated -name index.html 2>/dev/null | wc -l)"
+          pages="$(find "$SITE_DIR/pages/api/generated" -name index.html 2>/dev/null | wc -l)"
           if [ "$pages" -eq 0 ]; then
             echo "::error::no generated API pages -- the build.py prebuild step did not run"; exit 1
           fi
-          anchors="$(grep -rohE 'id="[^"]+"' site --include='*.html' | wc -l)"
+          anchors="$(grep -rohE 'id="[^"]+"' "$SITE_DIR" --include='*.html' | wc -l)"
           if [ "$anchors" -lt 100 ]; then
             echo "::error::only $anchors anchors in the built site -- content collapsed"; exit 1
           fi

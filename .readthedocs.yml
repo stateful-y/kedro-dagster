@@ -29,12 +29,14 @@ build:
     # Generate the API pages and export the notebooks -- the explicit step that
     # replaced the deleted on_pre_build hook.
     - uv run python docs_build/build.py prebuild
-    # Zensical has no site-dir flag: the site directory comes from config, so it
-    # builds to the default `site/`. Read the Docs publishes whatever is under
-    # $READTHEDOCS_OUTPUT/html, so copy the built site there.
+    # Zensical has no site-dir flag: the site directory comes from config. That is
+    # `site_dir` in mkdocs.yml, and this copy MUST match it -- there is no discovery
+    # and no error if it does not, only an empty publish or a failed copy. Read the
+    # Docs publishes whatever is under $READTHEDOCS_OUTPUT/html, so copy it there.
+    # `tests/test_artifact_paths.py` asserts this path equals mkdocs.yml's `site_dir`.
     - uv run zensical build
     - mkdir -p $READTHEDOCS_OUTPUT/html
-    - cp -r site/. $READTHEDOCS_OUTPUT/html/
+    - cp -r .artifacts/site/. $READTHEDOCS_OUTPUT/html/
     # Export the cleaned markdown into the published tree for LLM consumption --
     # the explicit step that replaced the deleted on_post_build hook.
     - uv run python docs_build/build.py postbuild $READTHEDOCS_OUTPUT/html

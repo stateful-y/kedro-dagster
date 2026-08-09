@@ -13,6 +13,18 @@ nox.options.default_venv_backend = "uv|virtualenv"
 # Default sessions to run when nox is called without arguments
 nox.options.sessions = ["fix", "test_fast", "serve_docs"]
 
+# Keep the session virtualenvs under `.artifacts/` with every other piece of
+# throwaway output, instead of dropping a `.nox/` at the repo root.
+nox.options.envdir = ".artifacts/nox"
+
+# The single definition of where build output goes. Anything that writes or reads
+# a throwaway path derives it from here rather than spelling it out again: a path
+# written in one place and read in another is how the coverage upload came to name
+# a file nothing produced. `tests/test_artifact_paths.py` enforces that.
+ARTIFACTS_DIR = Path(".artifacts")
+JUNIT_XML = ARTIFACTS_DIR / "junit.xml"
+SITE_DIR = ARTIFACTS_DIR / "site"
+
 # Generate list of Python versions from minimum to maximum
 ALL_VERSIONS = ["3.11", "3.12", "3.13", "3.14"]
 MIN_VERSION = "3.11"
@@ -43,7 +55,7 @@ def test_coverage(session: nox.Session) -> None:
         "tests",
         "-n",
         "auto",
-        f"--junitxml=junit.{session.python}.xml",
+        f"--junitxml={JUNIT_XML}",
         *session.posargs,
     )
 
@@ -309,7 +321,7 @@ def build_docs(session: nox.Session) -> None:
     # markdown -- the explicit steps that replaced the deleted mkdocs build hooks.
     session.run("python", "docs_build/build.py", "prebuild", external=True)
     session.run("zensical", "build", external=True)
-    session.run("python", "docs_build/build.py", "postbuild", "site", external=True)
+    session.run("python", "docs_build/build.py", "postbuild", str(SITE_DIR), external=True)
 
 
 @nox.session(python=PYTHON_VERSIONS[0], venv_backend="uv")
@@ -383,9 +395,9 @@ def serve_docs(session: nox.Session) -> None:
 @nox.session(venv_backend="uv")
 def link_docs(session: nox.Session) -> None:
     """Check the built documentation for dead links."""
-    site_dir = Path("site")
+    site_dir = SITE_DIR
     if not site_dir.exists():
-        session.error("site/ directory not found. Run 'just build' or 'nox -s build_docs' first.")
+        session.error(f"{site_dir}/ not found. Run 'just build' or 'nox -s build_docs' first.")
 
     session.run(
         "uvx",

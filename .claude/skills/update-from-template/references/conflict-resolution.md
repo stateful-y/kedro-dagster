@@ -250,7 +250,40 @@ Files that exist in the new template version but not in the project (template ad
 Files that existed in the previous template version but are removed in the new version:
 - **Flag for user review** — do NOT auto-delete
 - Report: "Template removed `<file>`. Review whether to delete locally."
+- **Exception — a file the template MOVED:** see below.
 - **Exception — a dropped config another tool still reads:** delete it explicitly and confirm it is gone, do not just flag it. `copier update` does not reliably remove such a file, and the leftover keeps working. When `renovate.json` replaced `.github/dependabot.yml`, a surviving `dependabot.yml` runs Dependabot alongside Renovate and opens duplicate PRs. Run `git rm .github/dependabot.yml`; the update is not complete while it remains.
+
+
+#### Old build output stops being ignored
+
+The `.gitignore` entries for `site/`, `htmlcov/`, `coverage.xml`, `.coverage`, `.nox/`, `.pytest_cache/` and `.ruff_cache/` are replaced by a single `.artifacts/`. Anything a previous build already left at the project root therefore stops being ignored and appears as untracked the moment the update lands.
+
+That is the intended behaviour, not a defect: the point is that stale output becomes visible instead of sitting ignored forever. Delete it (`rm -rf site htmlcov coverage.xml .coverage .nox .pytest_cache .ruff_cache`) rather than re-adding ignore entries. New runs write under `.artifacts/`.
+
+Watch for it when staging: a plain `git add -A` immediately after the update will otherwise commit a whole built site.
+
+#### A relocated file destroys local content, silently
+
+When the template moves a file it ships, `copier update` writes it at the new path **and deletes the old one for you** — no conflict, no `.rej`, no prompt. Any local edits the old copy carried are gone from the working tree at that moment.
+
+Measured on a real update: a project's two curated prose edits in `CONTRIBUTING.md` were destroyed by the move and had to be recovered with `git show HEAD:CONTRIBUTING.md`. Nothing in the update's output mentioned it.
+
+So the instruction is **not** "carry the content over before deleting" — there is no delete of yours to precede. It is:
+
+1. After the update, diff the new path against the old file's pre-update content: `git show HEAD:<old-path> | diff - <new-path>`.
+2. Re-apply anything local that the template's copy does not carry.
+3. Only then stage the move.
+
+Copier does not always delete, either — an earlier release left both copies in place. Verify which happened rather than assuming, and if the old copy survived, remove it: for these files the consuming tool reads exactly one of the two and ignores the other without a word.
+
+| Moved to | Read by | The ignored copy |
+|---|---|---|
+| `.github/CODEOWNERS` | GitHub code-owner review | a root `CODEOWNERS` is never consulted |
+| `.github/renovate.json` | Renovate | only one config is loaded |
+
+Both are Tier 1 (template-managed), but do not assume a project's copy matches the template's — verify before discarding anything. The danger is that everything looks right: the new file is present, the tool is configured, CI is green, and the copy the maintainer keeps editing is the one nothing reads.
+
+Do not trust `git status` to reveal a leftover. If an unresolved `.gitignore` conflict still lists a path, git omits the file from status entirely and copier exits 0 with no `.rej` — the delivery looks clean while the stale file sits there. Grep for the content instead.
 
 ### Conditional files changing state
 
