@@ -80,11 +80,13 @@ examples/__marimo__/
 # database, which the generated conftest.py points under `.artifacts/`.
 #
 # Recent Hypothesis drops a self-ignoring `.gitignore` inside it, and this entry was
-# removed on the strength of that. It is version-dependent: 6.165.2 writes the file,
-# 6.151.9 does not, and the project floors at `hypothesis>=6.100`. A repo resolving
-# below the cutoff gets ~26 untracked files at its root -- the exact mess the
-# `.artifacts/` layout exists to prevent, reintroduced by trusting a library's
-# internal behaviour across a range it does not promise.
+# removed on the strength of that. It is version-dependent, and the project floors at
+# `hypothesis>=6.100`. Measured across the fleet: 6.151.9 does NOT write the file;
+# 6.156.9, 6.158.0, 6.161.2 and 6.165.2 all do -- so the cutoff sits between 6.151.9
+# and 6.156.9, and every repo measured happened to resolve above it. One did not, and
+# got ~26 untracked files at its root: the exact mess the `.artifacts/` layout exists to
+# prevent, reintroduced by trusting a library's internal behaviour across a range it
+# does not promise. Nothing pins the resolution, so the entry stays.
 .hypothesis/
 
 # Markdown linter cache. rumdl has no cache-path option, so unlike the caches

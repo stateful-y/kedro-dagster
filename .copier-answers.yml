@@ -1,7 +1,7 @@
 # This file is used by Copier to track the template version
 # and enable template updates in generated projects
 
-_commit: 2ef4acdac177596054e95a53c88406f215bc038a
+_commit: 10e9f41542bbcf96855ec8049cb1e0802572a610
 _src_path: gh:stateful-y/python-package-copier
 author_email: gtauzin@stateful-y.io
 author_name: Guillaume Tauzin
