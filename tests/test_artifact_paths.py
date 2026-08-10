@@ -208,36 +208,61 @@ def test_every_reader_of_the_built_site_agrees_with_mkdocs():
         assert site_dir in text, f"{name} reads the built site but not at {site_dir!r} from mkdocs.yml `site_dir`"
 
 
-def test_coverage_upload_names_the_file_coverage_writes():
-    """The Codecov `files:` input must name the file the coverage config produces.
+def _workflows_uploading_coverage():
+    """Every workflow file containing a Codecov upload step.
+
+    Deliberately discovered, not listed. The first version of these checks named
+    `tests.yml` and nothing else, so a second upload in `nightly.yml` -- with no
+    `files:` and no `disable_search:`, relying entirely on the fallback -- sat
+    unnoticed through the release that removed exactly that pattern from `tests.yml`.
+    A check that names its own scope cannot see the instance it was not told about.
+    """
+    workflows = _PROJECT / ".github/workflows"
+    if not workflows.is_dir():
+        return []
+
+    return [
+        path for path in sorted(workflows.glob("*.yml")) if "codecov/codecov-action" in path.read_text(encoding="utf-8")
+    ]
+
+
+def test_a_coverage_upload_exists_to_check():
+    """Guard the input set, so the two checks below cannot pass over nothing."""
+    assert _workflows_uploading_coverage(), (
+        "no workflow uploads coverage, so the assertions about upload paths measure nothing"
+    )
+
+
+def test_every_coverage_upload_names_the_file_coverage_writes():
+    """Each Codecov `files:` input must name the file the coverage config produces.
 
     These drifted apart once before and nothing noticed, because the uploader's
-    fallback search found the real report and reported success.
+    fallback search found the real report and reported success anyway.
     """
     pyproject = (_PROJECT / "pyproject.toml").read_text(encoding="utf-8")
     written = re.search(r"\[tool\.coverage\.xml\][^\[]*?output\s*=\s*\"([^\"]+)\"", pyproject, re.S)
     assert written, "pyproject.toml does not set [tool.coverage.xml] output; the report path is undefined"
 
-    workflow = (_PROJECT / ".github/workflows/tests.yml").read_text(encoding="utf-8")
-    uploaded = re.search(r"files:\s*'\$\{\{ github\.workspace \}\}/([^']+)'", workflow)
-    assert uploaded, "the coverage upload step does not name a file"
+    for path in _workflows_uploading_coverage():
+        text = path.read_text(encoding="utf-8")
+        uploaded = re.search(r"files:\s*'?\$\{\{ github\.workspace \}\}/([^'\s]+)'?", text)
 
-    assert uploaded.group(1) == written.group(1), (
-        f"coverage upload reads {uploaded.group(1)!r} but the coverage config writes {written.group(1)!r}"
-    )
+        assert uploaded, f"{path.name} uploads coverage without naming a file, so it relies on the fallback search"
+        assert uploaded.group(1) == written.group(1), (
+            f"{path.name} reads {uploaded.group(1)!r} but the coverage config writes {written.group(1)!r}"
+        )
 
 
-def test_coverage_upload_does_not_fall_back_to_searching():
+def test_no_coverage_upload_falls_back_to_searching():
     """`fail_ci_if_error` only means something with the uploader's search disabled.
 
     With search on, a `files:` input naming nothing is not an error: the CLI scans
     the workspace, uploads whatever it finds, and the step passes.
     """
-    workflow = (_PROJECT / ".github/workflows/tests.yml").read_text(encoding="utf-8")
-
-    assert "disable_search: true" in workflow, (
-        "the coverage upload leaves search enabled, so a wrong `files:` path cannot fail the build"
-    )
+    for path in _workflows_uploading_coverage():
+        assert "disable_search: true" in path.read_text(encoding="utf-8"), (
+            f"{path.name} leaves the uploader's search enabled, so a wrong `files:` path cannot fail the build"
+        )
 
 
 def test_the_scan_can_fail(tmp_path):
