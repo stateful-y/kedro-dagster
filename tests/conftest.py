@@ -40,7 +40,9 @@ from .scenarios.project_factory import KedroProjectOptions, build_kedro_project_
 #
 # This moves the example database ONLY. Hypothesis also writes a `.hypothesis/`
 # storage directory for its own constants and unicode caches, which no setting
-# relocates; it self-ignores via a `.gitignore` Hypothesis writes inside it.
+# relocates. Newer versions drop a self-ignoring `.gitignore` inside it and older
+# ones do not, so `.gitignore` lists it explicitly rather than depending on which
+# version resolved.
 settings.register_profile("default", database=DirectoryBasedExampleDatabase(".artifacts/hypothesis"))
 settings.load_profile("default")
 

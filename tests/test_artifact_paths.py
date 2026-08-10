@@ -186,9 +186,25 @@ def test_every_reader_of_the_built_site_agrees_with_mkdocs():
         path = _PROJECT / name
         if not path.is_file():
             continue
+
         text = path.read_text(encoding="utf-8")
-        if "site" not in text:
+
+        # Judge a file only if it reads the built site at all -- either correctly (it
+        # names `site_dir`) or stalely (it names a bare `site/` path). A project may
+        # publish some other way and legitimately reference neither.
+        #
+        # Both halves are load-bearing. The guard was `if "site" not in text`, and a
+        # real project failed on it: its `.readthedocs.yml` downloads a prebuilt tarball
+        # rather than building, so it genuinely does not read the built site, but the
+        # word "site" appears in its prose and in a release name. `_RELOCATED` carries a
+        # trailing slash for exactly that reason, six lines above where the guard did not.
+        # Testing only for the stale form would be worse still: a correct file names
+        # `.artifacts/site/`, which the path pattern deliberately does not match, so the
+        # assertion would never once run on a healthy repo.
+        reads_built_site = site_dir in text or re.search(_pattern_for("site/"), text)
+        if not reads_built_site:
             continue
+
         assert site_dir in text, f"{name} reads the built site but not at {site_dir!r} from mkdocs.yml `site_dir`"
 
 
