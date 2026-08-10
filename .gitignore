@@ -37,19 +37,18 @@ env/
 *~
 .DS_Store
 
-# Testing
-.pytest_cache/
-.coverage
-.coverage.*
-htmlcov/
+# Throwaway build output. Every tool that writes one is configured to write it
+# here instead of at the repo root: coverage data/HTML/XML and the JUnit report
+# (pyproject.toml), the pytest and ruff caches (pyproject.toml), the nox
+# environments (noxfile.py), the Hypothesis database (tests/conftest.py) and the
+# built site (mkdocs.yml). One entry replaces the nine that used to be listed.
+.artifacts/
+
+# Testing. `.tox/` is not something this template configures, and the bare
+# patterns below catch output from a tool run outside the project's own config.
 .tox/
-.nox/
 *.cover
 *.log
-.hypothesis/
-junit.*.xml
-coverage.*.xml
-coverage.xml
 
 # Type checking
 .ty_cache/
@@ -58,7 +57,6 @@ coverage.xml
 
 # Documentation
 docs/_build/
-site/
 .mkdocs_cache/
 docs/tmp-build-artifacts
 docs/build
@@ -77,10 +75,20 @@ examples/__marimo__/
 .env
 .env.local
 
-# Ruff
-.ruff_cache/
+# Hypothesis writes a `.hypothesis/` storage directory for its own constants and
+# unicode caches. No setting relocates it -- `database=` moves only the example
+# database, which the generated conftest.py points under `.artifacts/`.
+#
+# Recent Hypothesis drops a self-ignoring `.gitignore` inside it, and this entry was
+# removed on the strength of that. It is version-dependent: 6.165.2 writes the file,
+# 6.151.9 does not, and the project floors at `hypothesis>=6.100`. A repo resolving
+# below the cutoff gets ~26 untracked files at its root -- the exact mess the
+# `.artifacts/` layout exists to prevent, reintroduced by trusting a library's
+# internal behaviour across a range it does not promise.
+.hypothesis/
 
-# Markdown linter cache
+# Markdown linter cache. rumdl has no cache-path option, so unlike the caches
+# above this one cannot be moved under `.artifacts/`.
 .rumdl_cache/
 
 # OpenSpec (local working artifacts, not tracked)

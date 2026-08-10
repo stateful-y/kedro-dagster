@@ -1,6 +1,18 @@
 site_name: Kedro-Dagster
 site_description: Seamless integration between Kedro and Dagster
 site_url: https://kedro-dagster.readthedocs.io/
+# The built site is throwaway output, so it goes under `.artifacts/` with the
+# caches and coverage reports instead of dropping a `site/` at the repo root.
+#
+# This must stay `.artifacts/site` and never `.artifacts` itself: the build empties
+# site_dir before writing, so pointing it at the parent would delete the nox
+# environments and every cache on each docs build.
+#
+# Zensical has no site-dir flag, so this key is the ONLY thing that decides where
+# the site lands. Everything that reads the built site derives its path from here
+# (`.readthedocs.yml`, the justfile `link` recipe, the noxfile's `SITE_DIR`, and the
+# API-page count in tests.yml); `tests/test_artifact_paths.py` enforces that.
+site_dir: .artifacts/site
 repo_url: https://github.com/stateful-y/kedro-dagster
 repo_name: stateful-y/kedro-dagster
 edit_uri: edit/main/docs/
@@ -14,7 +26,7 @@ theme:
   # for. MkDocs ignores this key (it is not a Material theme option); Zensical
   # reads it. Without it, every generated site silently changes appearance.
   variant: classic
-  custom_dir: docs_theme/overrides
+  custom_dir: docs_build/overrides
   favicon: assets/favicon.png
   logo: assets/logo.png
 
@@ -149,8 +161,8 @@ extra_css:
 
 exclude_docs: |
   # No build tooling is listed here any more, and that is deliberate. The theme
-  # overrides and mkdocstrings templates moved out of docs_dir to docs_theme/,
-  # and the api-submodule scaffold to docs_build/, so nothing under docs/ is
+  # overrides, the mkdocstrings templates and the api-submodule scaffold all
+  # live in docs_build/, a single directory outside docs_dir, so nothing under docs/ is
   # build tooling. The successor engine (Zensical) ignores exclude_docs entirely,
   # so location -- not this key -- is what keeps tooling out of the built site,
   # under either engine.
@@ -199,8 +211,8 @@ plugins:
       shadow: true
       manual: false
   - mkdocstrings:
-      custom_templates: docs_theme/templates
-      # Overrides live in docs_theme/templates/python/material/. Each one is a
+      custom_templates: docs_build/templates
+      # Overrides live in docs_build/templates/python/material/. Each one is a
       # thin `{% extends %}` over the shipped `_base/` template, so upstream
       # fixes keep arriving -- see the header comments in those files for why the
       # dispatcher is overridden rather than the nine section templates.

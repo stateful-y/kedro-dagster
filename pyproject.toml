@@ -177,6 +177,10 @@ line-length = 120
 target-version = "py311"
 src = ["src", "tests"]
 show-fixes = true
+# Every tool that writes throwaway output writes it under `.artifacts/` rather
+# than dropping a directory at the repo root. See the same key in the pytest and
+# coverage sections, `envdir` in the noxfile, and `site_dir` in mkdocs.yml.
+cache-dir = ".artifacts/ruff"
 exclude = ["src/kedro_dagster/_version.py"]
 
 [tool.ruff.format]
@@ -268,6 +272,7 @@ invalid-type-form = "warn"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+cache_dir = ".artifacts/pytest"
 addopts = [
     "--strict-markers",
     "--strict-config",
@@ -301,6 +306,10 @@ source = ["src/kedro_dagster"]
 
 [tool.coverage.run]
 source = ["kedro_dagster"]
+# `parallel = true` writes `<data_file>.<host>.<pid>.<random>` siblings, so this
+# keeps the whole family under `.artifacts/` rather than scattering `.coverage.*`
+# across the repo root.
+data_file = ".artifacts/.coverage"
 branch = true
 parallel = true
 sigterm = true
@@ -321,6 +330,15 @@ fail_under = 1
 include_namespace_packages = true
 
 [tool.coverage.html]
+directory = ".artifacts/htmlcov"
+
+[tool.coverage.xml]
+# The ONLY place the coverage XML path is written. `addopts` carries a bare
+# `--cov-report=xml`, which defers to this key; an explicit `--cov-report=xml:PATH`
+# on a command line would override it instead, which is how the CI upload path and
+# the produced filename silently drifted apart before. Nothing else names this file
+# except the Codecov upload step, and a test asserts the two agree.
+output = ".artifacts/coverage.xml"
 
 [tool.rumdl]
 flavor = "mkdocs"
@@ -337,7 +355,7 @@ disable = [
     "MD046",  # Code block style (indented blocks required inside MkDocs tabs)
     "MD051",  # Link fragments (cross-doc references resolved at MkDocs build time)
 ]
-exclude = ["CHANGELOG.md", "site", "htmlcov", ".nox", ".venv", "openspec"]
+exclude = ["CHANGELOG.md", ".artifacts", ".venv", "openspec"]
 
 [tool.rumdl.per-file-ignores]
 ".claude/skills/**" = ["MD007"]  # Nested lists in skill files use variable indent

@@ -70,5 +70,5 @@ The result is public, so the posture is verifiable rather than merely asserted.
 [security policy](https://github.com/stateful-y/kedro-dagster/security/policy)
 explains how to report it privately, before any public disclosure.
 
-**Reviewed changes.** Code ownership is declared in `CODEOWNERS`, so changes are reviewed
+**Reviewed changes.** Code ownership is declared in `.github/CODEOWNERS`, so changes are reviewed
 before they merge.
