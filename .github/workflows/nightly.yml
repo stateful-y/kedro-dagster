@@ -14,6 +14,10 @@ jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
+      # A nightly exists to report, not to fail fast. Cancelling the other
+      # interpreters on the first failure turns one bad minute into a run that
+      # says nothing about the versions it never reached.
+      fail-fast: false
       matrix:
         python-version: ["3.11", "3.12", "3.13", "3.14"]
     # Codecov upload authenticates via GitHub OIDC (tokenless) -- no stored CODECOV_TOKEN.
@@ -38,15 +42,28 @@ jobs:
         # renovate: datasource=pypi depName=nox
         run: uv tool install nox==2026.7.11
 
+      # `test_coverage` is pinned to the minimum Python, so `nox -s test_coverage`
+      # runs that interpreter whatever the matrix entry says. Asking for it on every
+      # entry ran the same suite once per version and exercised no other interpreter;
+      # the split mirrors the full/coverage split in tests.yml.
       - name: Run tests with coverage
+        if: matrix.python-version == '3.11'
         run: nox -s test_coverage
+
+      - name: Run tests
+        if: matrix.python-version != '3.11'
+        run: nox -s test --python ${{ matrix.python-version }}
 
       - name: Run docstring tests
         run: nox -s test_docstrings
 
       - name: Upload coverage reports
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7
-        if: ${{ matrix.python-version == '3.12' }}
+        # Gated on the entry that PRODUCES the report. This was a hardcoded '3.12'
+        # while `test_coverage` is pinned to the minimum Python, so it uploaded that
+        # run's coverage under a 3.12 label -- and in a project whose matrix has no
+        # 3.12 entry at all it uploaded nothing, silently and forever.
+        if: ${{ matrix.python-version == '3.11' }}
         with:
           use_oidc: true
           # Named explicitly, with the uploader's search off. This step had

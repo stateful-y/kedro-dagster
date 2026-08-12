@@ -184,7 +184,16 @@ jobs:
           path: dist/
 
       - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e # v1.13.0
+        # Must stay recent enough for the twine it bundles to accept the core
+        # metadata version `hatchling` emits. v1.13.0 bundled twine < 7, which
+        # rejects `Metadata-Version: 2.5` with `InvalidDistribution` -- and since
+        # `[build-system] requires` leaves hatchling unpinned, every project broke
+        # here the day hatchling started emitting 2.5, with no change of its own.
+        # v1.14.2 moved to twine v7. Renovate keeps this current, but its updates
+        # are rate-limited: this one sat on the dependency dashboard for two weeks
+        # while noisier digest bumps took the weekly slots, so a release-blocking
+        # bump can be queued and invisible. Check the dashboard before releasing.
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
         with:
           attestations: true
           verify-metadata: false

@@ -56,7 +56,7 @@ gh pr list --state open --json number,headRefName,title \
 # or match the branch prefix:
 gh pr list --state open --json number,headRefName --jq '.[] | select(.headRefName | startswith("changelog-v"))'
 gh pr checkout <number>
-```text
+```
 
 ### 2. Isolate the new section
 
@@ -74,7 +74,7 @@ For each bullet, get the real context from its linked PR (the subject line rarel
 
 ```bash
 gh pr view <N> --json title,body,files --jq '{title, body, files: [.files[].path]}'
-```text
+```
 
 Rewrite the description from that evidence, following the style contract below. **If the PR's title/body/diff does not support a clearer wording that is still accurate, keep the original subject unchanged.** A plausible-but-wrong rewrite reads clean and can claim behavior the code does not have — abstaining is the correct default under uncertainty. Never assert an effect you cannot see in the PR.
 
@@ -87,6 +87,7 @@ Each description is:
 - **No trailing period.**
 - **The user-visible effect over the internal mechanism**, when they differ.
 - **Self-contained** — no repo-internal codenames ("the fan-out"), no undefined invariants, nothing that needs `git log` to understand.
+- **Never provenance alone.** See the rule below.
 
 | Before (git-cliff, verbatim subject) | After |
 |---|---|
@@ -94,6 +95,26 @@ Each description is:
 | Correct three v0.29.0 rendering bugs the fan-out surfaced | Fix three docs-rendering regressions from v0.29.0 |
 | Drop the stale 'yohou documents pre-commit' claim | Remove an outdated note about pre-commit from the docs |
 | Render numpydoc References sections as a markdown list | *(already clear — leave unchanged)* |
+
+#### A description must name a change, never just a version
+
+`Update from template v0.39.0` is not a changelog entry. It names a *source* and a *version number* and says nothing about what the release did to this package — a reader learns strictly less than from the version header they are already looking at. The same failure wears other clothes: `Sync to v0.36.0`, `Bump the pinned toolchain`, `Apply the fan-out`, `Update dependencies`.
+
+**The rule:** the description says what landed *in this package*. Where the source matters for traceability, it goes at the end in parentheses as provenance — never as the subject.
+
+| Before | After |
+|---|---|
+| Update from template v0.39.0 | Fix three release-pipeline defects (template v0.39.0) |
+| Update from template v0.38.0 | Add a CLAUDE.md project-instructions file for AI assistants (template v0.38.0) |
+| Sync to v0.35.0 | Restrict workflow permissions and add secret scanning (template v0.35.0) |
+| Update from template v0.40.1 | Fix a shell injection in the release publish job (template v0.40.1) |
+
+Two traps this rule closes:
+
+- **Normalising toward the uninformative.** When several template-update bullets appear together it is tempting to give them one consistent phrasing — and the phrasing they already share is the empty one. Consistency is worth having in the *shape* (effect first, provenance in parens), never in the content.
+- **A parenthetical is not a description.** `Update from template v0.36.0 (Codecov OIDC + scorecard pin)` looks polished because it carries real information, but it still leads with the non-event. Promote the parenthetical to the subject and demote the version.
+
+If the linked PR genuinely does not say what changed for this package, that is a grounding failure, not a licence to write the version number: say what the diff shows (`Update pinned CI action digests`) and no more.
 
 ### 5. Self-verify, then deliver
 
@@ -108,7 +129,7 @@ Then commit and push to the PR branch — **do not merge**:
 ```bash
 git commit -am "chore(changelog): polish release notes for vX.Y.Z"
 git push
-```text
+```
 
 The maintainer reviews the polished diff on the PR and merges it.
 
