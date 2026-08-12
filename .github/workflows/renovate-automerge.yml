@@ -1,0 +1,72 @@
+name: Renovate Automerge
+
+# Renovate cannot approve its own pull request, so a branch ruleset that requires an
+# approving review blocks every unattended dependency update no matter what
+# `automerge` is set to in renovate.json. This workflow supplies that approval for the
+# update classes renovate.json already marked as safe to merge unattended, then hands
+# the PR to GitHub's own auto-merge queue. The required status checks still gate the
+# merge: auto-merge waits for them, so a red CI run means the PR sits unmerged.
+
+on:
+  pull_request:
+    # `labeled` matters as much as `opened`: Renovate creates the PR first and applies
+    # labels in a second API call, so the `opened` payload can arrive with an empty
+    # label list and the guard below would reject a PR that is in fact eligible.
+    types: [opened, reopened, synchronize, labeled]
+    branches: [main]
+
+# Least-privilege default: read-only token; the job below widens only what it needs.
+permissions:
+  contents: read
+
+jobs:
+  automerge:
+    name: Approve and enable automerge
+    # Three independent conditions, all required.
+    #
+    # Deliberately NOT keyed on a literal bot login. The account name is the GitHub
+    # App's slug, which differs per installation: a self-hosted App shows up as
+    # `<app-slug>[bot]` (this fleet's is `stateful-y-renovate[bot]`), not the
+    # `renovate[bot]` of the hosted Mend app. Hardcoding either one gives a workflow
+    # that passes its own syntax checks and then silently never fires.
+    #
+    # The `automerge` label is the authorization signal. renovate.json applies it on
+    # exactly the rules that also set `automerge: true`, and nowhere else, so major
+    # bumps and the grouped runtime dependency PR carry no label and stay fully
+    # manual. Applying a label needs write access, so an outside contributor cannot
+    # forge the signal, and the branch-prefix and Bot-author checks keep a human PR
+    # from ever being auto-approved.
+    if: >-
+      github.event.pull_request.user.type == 'Bot'
+      && startsWith(github.event.pull_request.head.ref, 'renovate/')
+      && contains(github.event.pull_request.labels.*.name, 'automerge')
+    runs-on: ubuntu-latest
+    permissions:
+      # `gh pr merge --auto` writes the auto-merge setting on the PR.
+      contents: write
+      # `gh pr review --approve` needs write, and the org or repository setting
+      # "Allow GitHub Actions to create and approve pull requests" must be enabled
+      # or this step fails with a 403.
+      pull-requests: write
+    steps:
+      - name: Approve the update
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          # Idempotent: re-approving an already-approved PR is not an error, which
+          # matters because `synchronize` fires again on every Renovate rebase.
+          gh pr review --approve "$PR_URL" \
+            --body "Approved automatically: this update is in the automerge scope set by .github/renovate.json. The required status checks still gate the merge."
+
+      - name: Hand the PR to GitHub auto-merge
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          # Renovate's `platformAutomerge` normally does this at creation time. Doing
+          # it here too covers the case where that call failed, and fails loudly if
+          # the repository has "Allow auto-merge" switched off, rather than leaving
+          # the PR to sit unexplained. Squash is the only merge method the ruleset
+          # permits.
+          gh pr merge --auto --squash "$PR_URL"
