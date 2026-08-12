@@ -6,6 +6,67 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.8.0] - 2026-08-12
+
+This **minor release** includes 39 commits.
+
+
+### Features
+- Make uv.lock the single source of truth for lint tooling  ([#118](https://github.com/stateful-y/kedro-dagster/pull/118)) by @gtauzin
+- Add job factory deriving jobs from pipeline namespaces  ([#122](https://github.com/stateful-y/kedro-dagster/pull/122)) by @gtauzin
+- Map Kedro namespaces to hierarchical Dagster asset groups  ([#120](https://github.com/stateful-y/kedro-dagster/pull/120)) by @gtauzin
+- Add Kedro dataset preview output metadata  ([#117](https://github.com/stateful-y/kedro-dagster/pull/117)) by @Muhtasim-Munif-Fahim
+
+### Bug Fixes
+- Resolve executor types from a single registry, document credential passing  ([#131](https://github.com/stateful-y/kedro-dagster/pull/131)) by @gtauzin
+- Pin exact uv version in setup-uv steps (template v0.29.6)  ([#137](https://github.com/stateful-y/kedro-dagster/pull/137)) by @gtauzin
+- Pin ossf/scorecard-action to v2.4.4 (@v2 tag does not exist) by @gtauzin
+- Raise mlflow floor to >=3.13 to keep pyarrow cp314-capable  ([#155](https://github.com/stateful-y/kedro-dagster/pull/155)) by @gtauzin
+- Declare a read-only token for tests-versions  ([#157](https://github.com/stateful-y/kedro-dagster/pull/157)) by @gtauzin
+- Stop a PR title reaching the release shell as code  ([#158](https://github.com/stateful-y/kedro-dagster/pull/158)) by @gtauzin
+- Name the nightly coverage upload and discover every Codecov step  ([#160](https://github.com/stateful-y/kedro-dagster/pull/160)) by @gtauzin
+- Unblock PyPI publishing and split the nightly matrix by version  ([#163](https://github.com/stateful-y/kedro-dagster/pull/163)) by @gtauzin
+
+### Refactoring
+- Move throwaway build output to .artifacts/ and CODEOWNERS to .github/  ([#159](https://github.com/stateful-y/kedro-dagster/pull/159)) by @gtauzin
+
+### Miscellaneous Tasks
+- Update from template v0.26.1  ([#123](https://github.com/stateful-y/kedro-dagster/pull/123)) by @gtauzin
+- Update from template v0.27.0  ([#124](https://github.com/stateful-y/kedro-dagster/pull/124)) by @gtauzin
+- Update from python-package-copier v0.27.0 to v0.27.3  ([#129](https://github.com/stateful-y/kedro-dagster/pull/129)) by @gtauzin
+- Update from python-package-copier v0.27.3 to v0.28.1  ([#130](https://github.com/stateful-y/kedro-dagster/pull/130)) by @gtauzin
+- Update from python-package-copier v0.28.1 to v0.28.3  ([#132](https://github.com/stateful-y/kedro-dagster/pull/132)) by @gtauzin
+- Update from python-package-copier v0.28.3 to v0.28.4  ([#133](https://github.com/stateful-y/kedro-dagster/pull/133)) by @gtauzin
+- Update from python-package-copier v0.28.4 to v0.29.3  ([#134](https://github.com/stateful-y/kedro-dagster/pull/134)) by @gtauzin
+- Update from template v0.31.1 (Renovate replaces Dependabot)  by @gtauzin
+- Update to v0.32.1 (pre-push gates + CI roll-up)  ([#141](https://github.com/stateful-y/kedro-dagster/pull/141)) by @gtauzin
+- Add Versions passed roll-up to gate the version matrix  ([#142](https://github.com/stateful-y/kedro-dagster/pull/142)) by @gtauzin
+- Sync to v0.35.0  ([#143](https://github.com/stateful-y/kedro-dagster/pull/143)) by @gtauzin
+- Sync to v0.36.0 (Codecov OIDC + scorecard pin)  ([#144](https://github.com/stateful-y/kedro-dagster/pull/144)) by @gtauzin
+- Sync to v0.37.0 (gitsign tag-signing docs)  ([#145](https://github.com/stateful-y/kedro-dagster/pull/145)) by @gtauzin
+- Update from python-package-copier v0.38.0  ([#146](https://github.com/stateful-y/kedro-dagster/pull/146)) by @gtauzin
+- Update from template v0.39.0  ([#148](https://github.com/stateful-y/kedro-dagster/pull/148)) by @gtauzin
+- Update from template v0.39.1  ([#149](https://github.com/stateful-y/kedro-dagster/pull/149)) by @gtauzin
+- Update from template v0.40.0  ([#150](https://github.com/stateful-y/kedro-dagster/pull/150)) by @gtauzin
+
+### Build
+- Bump codecov/codecov-action from 6 to 7  ([#115](https://github.com/stateful-y/kedro-dagster/pull/115)) by @dependabot[bot]
+- Bump actions/checkout from 6 to 7  ([#116](https://github.com/stateful-y/kedro-dagster/pull/116)) by @dependabot[bot]
+- Bump the lint-tools group with 2 updates  ([#125](https://github.com/stateful-y/kedro-dagster/pull/125)) by @dependabot[bot]
+- Bump the python-dependencies group with 5 updates  ([#126](https://github.com/stateful-y/kedro-dagster/pull/126)) by @dependabot[bot]
+- Bump the lint-tools group with 2 updates  ([#127](https://github.com/stateful-y/kedro-dagster/pull/127)) by @dependabot[bot]
+- Bump hypothesis in the python-dependencies group  ([#128](https://github.com/stateful-y/kedro-dagster/pull/128)) by @dependabot[bot]
+- Bump gitpython from 3.1.51 to 3.1.55  ([#135](https://github.com/stateful-y/kedro-dagster/pull/135)) by @gtauzin
+- Bump aiohttp in the uv group across 1 directory  ([#153](https://github.com/stateful-y/kedro-dagster/pull/153)) by @dependabot[bot]
+- Bump gitpython from 3.1.55 to 3.1.58  ([#156](https://github.com/stateful-y/kedro-dagster/pull/156)) by @gtauzin
+
+### Contributors
+
+Thanks to all contributors for this release:
+- @dependabot[bot]
+- @gtauzin
+- @Muhtasim-Munif-Fahim
+
 ## [0.7.0] - 2026-06-02
 
 This **minor release** includes 6 commits.
