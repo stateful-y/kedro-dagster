@@ -20,7 +20,7 @@ This **minor release** includes 39 commits.
 ### Bug Fixes
 - Resolve executor types from a single registry, document credential passing  ([#131](https://github.com/stateful-y/kedro-dagster/pull/131)) by @gtauzin
 - Pin exact uv version in setup-uv steps (template v0.29.6)  ([#137](https://github.com/stateful-y/kedro-dagster/pull/137)) by @gtauzin
-- Pin ossf/scorecard-action to v2.4.4 (@v2 tag does not exist) by @gtauzin
+- Pin ossf/scorecard-action to the existing v2.4.4 tag by @gtauzin
 - Raise mlflow floor to >=3.13 to keep pyarrow cp314-capable  ([#155](https://github.com/stateful-y/kedro-dagster/pull/155)) by @gtauzin
 - Declare a read-only token for tests-versions  ([#157](https://github.com/stateful-y/kedro-dagster/pull/157)) by @gtauzin
 - Stop a PR title reaching the release shell as code  ([#158](https://github.com/stateful-y/kedro-dagster/pull/158)) by @gtauzin
@@ -31,23 +31,23 @@ This **minor release** includes 39 commits.
 - Move throwaway build output to .artifacts/ and CODEOWNERS to .github/  ([#159](https://github.com/stateful-y/kedro-dagster/pull/159)) by @gtauzin
 
 ### Miscellaneous Tasks
-- Update from template v0.26.1  ([#123](https://github.com/stateful-y/kedro-dagster/pull/123)) by @gtauzin
-- Update from template v0.27.0  ([#124](https://github.com/stateful-y/kedro-dagster/pull/124)) by @gtauzin
-- Update from python-package-copier v0.27.0 to v0.27.3  ([#129](https://github.com/stateful-y/kedro-dagster/pull/129)) by @gtauzin
-- Update from python-package-copier v0.27.3 to v0.28.1  ([#130](https://github.com/stateful-y/kedro-dagster/pull/130)) by @gtauzin
-- Update from python-package-copier v0.28.1 to v0.28.3  ([#132](https://github.com/stateful-y/kedro-dagster/pull/132)) by @gtauzin
-- Update from python-package-copier v0.28.3 to v0.28.4  ([#133](https://github.com/stateful-y/kedro-dagster/pull/133)) by @gtauzin
-- Update from python-package-copier v0.28.4 to v0.29.3  ([#134](https://github.com/stateful-y/kedro-dagster/pull/134)) by @gtauzin
-- Update from template v0.31.1 (Renovate replaces Dependabot)  by @gtauzin
-- Update to v0.32.1 (pre-push gates + CI roll-up)  ([#141](https://github.com/stateful-y/kedro-dagster/pull/141)) by @gtauzin
+- Fix See Also links and root export 404s in the API docs (template v0.26.1)  ([#123](https://github.com/stateful-y/kedro-dagster/pull/123)) by @gtauzin
+- Run pre-commit hooks with prek and filter changelog entries (template v0.27.0)  ([#124](https://github.com/stateful-y/kedro-dagster/pull/124)) by @gtauzin
+- Exempt the docs build scripts from ruff's lint rules (template v0.27.3)  ([#129](https://github.com/stateful-y/kedro-dagster/pull/129)) by @gtauzin
+- Render API page structure from mkdocstrings templates (template v0.28.1)  ([#130](https://github.com/stateful-y/kedro-dagster/pull/130)) by @gtauzin
+- Discover the API surface with Griffe (template v0.28.3)  ([#132](https://github.com/stateful-y/kedro-dagster/pull/132)) by @gtauzin
+- Replace stale git hooks by installing with prek install -f (template v0.28.4)  ([#133](https://github.com/stateful-y/kedro-dagster/pull/133)) by @gtauzin
+- Make the generated docs build engine-independent (template v0.29.3)  ([#134](https://github.com/stateful-y/kedro-dagster/pull/134)) by @gtauzin
+- Replace Dependabot with Renovate for dependency updates (template v0.31.1)  by @gtauzin
+- Add pre-push gates and a single CI roll-up check (template v0.32.1)  ([#141](https://github.com/stateful-y/kedro-dagster/pull/141)) by @gtauzin
 - Add Versions passed roll-up to gate the version matrix  ([#142](https://github.com/stateful-y/kedro-dagster/pull/142)) by @gtauzin
-- Sync to v0.35.0  ([#143](https://github.com/stateful-y/kedro-dagster/pull/143)) by @gtauzin
-- Sync to v0.36.0 (Codecov OIDC + scorecard pin)  ([#144](https://github.com/stateful-y/kedro-dagster/pull/144)) by @gtauzin
-- Sync to v0.37.0 (gitsign tag-signing docs)  ([#145](https://github.com/stateful-y/kedro-dagster/pull/145)) by @gtauzin
-- Update from python-package-copier v0.38.0  ([#146](https://github.com/stateful-y/kedro-dagster/pull/146)) by @gtauzin
-- Update from template v0.39.0  ([#148](https://github.com/stateful-y/kedro-dagster/pull/148)) by @gtauzin
-- Update from template v0.39.1  ([#149](https://github.com/stateful-y/kedro-dagster/pull/149)) by @gtauzin
-- Update from template v0.40.0  ([#150](https://github.com/stateful-y/kedro-dagster/pull/150)) by @gtauzin
+- Restrict workflow permissions and add secret scanning (template v0.35.0)  ([#143](https://github.com/stateful-y/kedro-dagster/pull/143)) by @gtauzin
+- Switch Codecov to OIDC and pin the Scorecard action (template v0.36.0)  ([#144](https://github.com/stateful-y/kedro-dagster/pull/144)) by @gtauzin
+- Document signing release tags with gitsign (template v0.37.0)  ([#145](https://github.com/stateful-y/kedro-dagster/pull/145)) by @gtauzin
+- Add a CLAUDE.md project-instructions file for AI assistants (template v0.38.0)  ([#146](https://github.com/stateful-y/kedro-dagster/pull/146)) by @gtauzin
+- Fix three release-pipeline defects (template v0.39.0)  ([#148](https://github.com/stateful-y/kedro-dagster/pull/148)) by @gtauzin
+- Let Renovate see the SBOM tool's version pin (template v0.39.1)  ([#149](https://github.com/stateful-y/kedro-dagster/pull/149)) by @gtauzin
+- Add a nightly job that exercises the release path (template v0.40.0)  ([#150](https://github.com/stateful-y/kedro-dagster/pull/150)) by @gtauzin
 
 ### Build
 - Bump codecov/codecov-action from 6 to 7  ([#115](https://github.com/stateful-y/kedro-dagster/pull/115)) by @dependabot[bot]
