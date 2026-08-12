@@ -1,0 +1,34 @@
+# How to cite Kedro-Dagster, in the one form machines read. GitHub renders the
+# "Cite this repository" button from this file, and reads it from the default
+# branch's ROOT only: moving it under `.github/` or `docs/` does not relocate the
+# consumer, it removes the only one. Same reason `LICENSE` stays at the root.
+#
+# There is deliberately no `version:` and no `date-released:` here. Both are optional
+# in the format, GitHub's button works without them, and both are wrong the day after
+# the next release. Keeping them right would mean a step in the release workflow, and
+# what it would buy is a version number a reader can already get from PyPI. Add them
+# yourself if you need version-specific citation.
+#
+# The prose copies of this citation live in README.md and
+# docs/pages/reference/citation.md. All three render from the same answers.
+cff-version: 1.2.0
+message: "If you use Kedro-Dagster in your work, please cite it as below."
+title: "Kedro-Dagster"
+abstract: "Kedro-Dagster makes it easy to deploy Kedro projects to Dagster"
+type: software
+authors:
+  # Recorded as a single `name`, which the format treats as an entity rather than a
+  # person. That is deliberate: splitting "Guillaume Tauzin" into given and family
+  # names means guessing where one ends and the other begins, and a template that
+  # guesses wrong ships a misattributed citation. If the author is a person, replace
+  # `name` with `given-names` and `family-names` here. This file is merge-required,
+  # not template-managed, so that edit survives template updates.
+  - name: "Guillaume Tauzin"
+    email: "gtauzin@stateful-y.io"
+repository-code: "https://github.com/stateful-y/kedro-dagster"
+url: "https://kedro-dagster.readthedocs.io/"
+license: Apache-2.0
+# No DOI is assigned to this project. If you deposit a release (Zenodo, for
+# example), uncomment the line below and paste the CONCEPT DOI, the one that always
+# resolves to the latest version, rather than a single release's DOI.
+# doi: 10.5281/zenodo.XXXXXXX

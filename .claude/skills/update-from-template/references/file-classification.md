@@ -95,6 +95,14 @@ docs/index.md
 docs/pages/reference/api.md
 docs/pages/how-to/contribute.md
 docs/pages/explanation/security.md
+docs/pages/reference/citation.md   # prose copy of the citation; a project may add a
+                                   # paper or a DOI to it
+CITATION.cff                       # renders entirely from copier answers, which argues
+                                   # for Tier 1. Against that: the commented `doi:` line
+                                   # exists precisely so a project can fill it in, and a
+                                   # Tier 1 overwrite would delete that DOI with no
+                                   # conflict, no .rej and no output, the same silent
+                                   # loss as the logos.
 .github/workflows/tests.yml        # conditional: include_actions
 .github/workflows/pr-title.yml     # conditional: include_actions
 .github/workflows/renovate-automerge.yml  # conditional: include_actions. The guard is

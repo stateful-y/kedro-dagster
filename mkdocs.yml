@@ -290,6 +290,7 @@ nav:
     - API: pages/reference/api.md
     - Datasets: pages/reference/datasets.md
     - Changelog: pages/reference/changelog.md
+    - Citation: pages/reference/citation.md
 
 extra:
   social:
