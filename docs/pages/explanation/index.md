@@ -6,3 +6,4 @@ Background and context to deepen your understanding of Kedro-Dagster's design an
 - **[Architecture](architecture.md)**: How Kedro projects are translated into Dagster code locations: catalog, node, pipeline, and hook mapping.
 - **[Data Flow](data-flow.md)**: How the catalog resolves at run time, and how IO managers move data between nodes as Dagster assets or in-memory results.
 - **[Hook Lifecycle](hook-lifecycle.md)**: Which Kedro hooks fire under Dagster, when each one runs, and how they survive the execution boundary.
+- **[Security](security.md)**: The hardened release pipeline, what each measure protects against, and how to verify a published release.
