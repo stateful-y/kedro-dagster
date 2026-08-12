@@ -15,7 +15,69 @@ permissions:
   pull-requests: read
 
 jobs:
+  # A human creates the release tag, and that push is what triggers this workflow, so
+  # no automation exists at the moment the tag comes into being: by the time anything
+  # can object, the tag is already public. This job is the first automated thing to see
+  # it, and it runs before the changelog pull request opens and long before anything is
+  # published, so a rejected release costs a force-deleted tag rather than a withdrawn
+  # artifact.
+  #
+  # It exists because "release tags are signed" was written in the contributing guide
+  # and in the security posture, believed, and measured by nothing -- five consecutive
+  # releases of the template that generates this workflow carried no signature at all
+  # and no one found out until someone went looking. A control nothing measures is a
+  # claim, so this is deliberately the cheapest possible job: no checkout, no actions,
+  # no third party in the release path.
+  verify-tag-signature:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify the release tag carries a verifiable signature
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Read from the environment, never through an Actions expression: those are
+          # substituted into the script body before bash parses it, and a tag name is
+          # attacker-influenced text.
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+
+          # A lightweight tag is a ref pointing straight at a commit, with no tag object
+          # to carry a signature. Report it separately from an unsigned annotated tag,
+          # because "you forgot -s" and "you forgot -a" read identically in the failure
+          # and are fixed the same way only by accident.
+          REF=$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG_NAME}" \
+            --jq '.object.type + " " + .object.sha')
+          OBJECT_TYPE="${REF%% *}"
+          OBJECT_SHA="${REF##* }"
+
+          if [ "$OBJECT_TYPE" != "tag" ]; then
+            echo "::error::${TAG_NAME} is a lightweight tag, so there is no tag object to sign." \
+              "Delete it (git push --delete origin ${TAG_NAME}) and recreate it with" \
+              "'git tag -s ${TAG_NAME} -m \"Release ${TAG_NAME}\"'."
+            exit 1
+          fi
+
+          # Ask the forge whether the signature verifies, rather than grepping the tag
+          # body for a PGP block. A malformed or unknown-key signature contains the
+          # block and proves nothing, so a grep would be a check that passes on exactly
+          # the input it exists to reject.
+          TAG_JSON=$(gh api "repos/${GITHUB_REPOSITORY}/git/tags/${OBJECT_SHA}")
+          VERIFIED=$(printf '%s' "$TAG_JSON" | jq -r '.verification.verified')
+          REASON=$(printf '%s' "$TAG_JSON" | jq -r '.verification.reason')
+
+          if [ "$VERIFIED" != "true" ]; then
+            echo "::error::${TAG_NAME} has no verifiable signature (reason: ${REASON})." \
+              "Sign release tags with 'git tag -s', and make sure the public half of the" \
+              "signing key is registered on the tagger's account so the signature can be" \
+              "checked by someone who is not you. See the release section of the" \
+              "contributing guide."
+            exit 1
+          fi
+
+          echo "${TAG_NAME} is signed and the signature verifies."
+
   changelog:
+    needs: verify-tag-signature
     runs-on: ubuntu-latest
     steps:
       # Mint a short-lived, scoped token from the fleet automation GitHub App. A PR

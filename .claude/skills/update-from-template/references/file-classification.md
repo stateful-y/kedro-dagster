@@ -97,6 +97,11 @@ docs/pages/how-to/contribute.md
 docs/pages/explanation/security.md
 .github/workflows/tests.yml        # conditional: include_actions
 .github/workflows/pr-title.yml     # conditional: include_actions
+.github/workflows/renovate-automerge.yml  # conditional: include_actions. The guard is
+                                   # template-owned: it must keep requiring the
+                                   # `automerge` label, or the workflow starts approving
+                                   # updates nothing chose to automate. A project may add
+                                   # its own steps, so merge rather than overwrite.
 .github/workflows/publish-release.yml  # conditional: include_actions
 .github/workflows/nightly.yml      # conditional: include_actions
 .github/workflows/changelog.yml    # conditional: include_actions

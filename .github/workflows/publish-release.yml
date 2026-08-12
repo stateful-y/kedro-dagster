@@ -5,6 +5,20 @@ on:
     types: [closed]
     branches:
       - main
+  # A publish can fail for reasons that have nothing to do with the release: an
+  # upstream action shipping a broken dependency, a registry outage, a revoked
+  # token. Without this trigger the `pull_request: closed` event is spent the
+  # moment it fires, so the only way to retry was to delete the tag and cut a new
+  # version -- which also rewrites the changelog and burns a version number for a
+  # fault the release never had. Dispatch re-runs the same pipeline against an
+  # existing tag. The `pypi` environment gate still applies, so a retry is no
+  # less reviewed than the original.
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Existing release tag to publish, e.g. v1.2.3"
+        required: true
+        type: string
 
 # Least-privilege default: read-only token unless a job widens it explicitly.
 permissions:
@@ -20,26 +34,36 @@ jobs:
   # build previously lived in changelog.yml and was fetched across workflows with a
   # third-party action; keeping it here removes that third party from the release path.
   build:
-    # Only run if PR was merged and has the changelog label
-    if: github.event.pull_request.merged == true && contains(github.event.pull_request.labels.*.name, 'changelog')
+    # A merged, changelog-labelled PR, or an explicit dispatch naming a tag.
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      || (github.event.pull_request.merged == true
+      && contains(github.event.pull_request.labels.*.name, 'changelog'))
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.find_tag.outputs.version }}
     steps:
       - name: Find release tag
         id: find_tag
-        # The PR title reaches the shell through the environment, never through
-        # an expression inside `run:`. An expression is substituted into the
-        # script before bash parses it, so a title carrying shell metacharacters
-        # would execute here -- in a job that goes on to publish. An env var is data.
+        # Both the PR title and the dispatch input reach the shell through the
+        # environment, never through an expression inside `run:`. An expression is
+        # substituted into the script before bash parses it, so a value carrying
+        # shell metacharacters would execute here -- in a job that goes on to
+        # publish. An env var is data. The dispatch input is attacker-reachable by
+        # anyone who can run a workflow, so it gets the same treatment as the title.
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
+          INPUT_VERSION: ${{ inputs.version }}
         run: |
-          # Extract version from PR title (e.g., "chore(release): update CHANGELOG.md for v0.2.0" or "v0.1.0-alpha.1")
-          VERSION=$(printf '%s' "$PR_TITLE" | grep -oP 'v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+(\.[0-9]+)?)?' || echo "")
+          # One extraction validates both paths, so a dispatch input that is not a
+          # version fails closed here rather than reaching `checkout` as a ref.
+          # Extract from the dispatch input, else the PR title (e.g.
+          # "chore(release): update CHANGELOG.md for v0.2.0" or "v0.1.0-alpha.1").
+          SOURCE="${INPUT_VERSION:-$PR_TITLE}"
+          VERSION=$(printf '%s' "$SOURCE" | grep -oP 'v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+(\.[0-9]+)?)?' || echo "")
 
           if [ -z "$VERSION" ]; then
-            echo "No version found in PR title"
+            echo "No version found in ${INPUT_VERSION:+the workflow_dispatch input}${INPUT_VERSION:-the PR title}"
             exit 1
           fi
 
@@ -154,16 +178,35 @@ jobs:
       # is public until the `pypi` environment gate has been approved and the upload
       # has succeeded. `finalize-release` undrafts it. If the gate is rejected or the
       # upload fails, the draft is all that exists and can simply be deleted.
-      - name: Create draft GitHub Release
+      - name: Create or refresh the draft GitHub Release
+        # RELEASE_NOTES is an env var, not an expression inside `run:`, for the same
+        # reason the PR title is: the notes are built from commit subjects, so a
+        # subject containing shell metacharacters would otherwise be pasted into this
+        # script and executed. VERSION is interpolated because it cannot be anything
+        # else -- it is whatever the `find_tag` regex matched, and nothing wider.
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_NOTES: ${{ steps.release_notes.outputs.notes }}
         run: |
           VERSION="${{ needs.build.outputs.version }}"
-          gh release create "$VERSION" \
-            --draft \
-            --title "$VERSION" \
-            --notes "${{ steps.release_notes.outputs.notes }}" \
-            dist/* sbom/sbom.cdx.json
+          # A retry reaches this job with the previous attempt's release already in
+          # place -- that is the normal case, since a publish that fails at the upload
+          # leaves its draft behind. `gh release create` exits non-zero on an existing
+          # tag, so without this branch the dispatch trigger could never serve the one
+          # situation it exists for. Refresh the existing release instead, and do not
+          # re-draft one that is already public: undrafting is `finalize-release`'s
+          # decision, taken only after a successful upload.
+          if gh release view "$VERSION" >/dev/null 2>&1; then
+            echo "Release $VERSION already exists; refreshing its notes and artifacts"
+            gh release upload "$VERSION" dist/* sbom/sbom.cdx.json --clobber
+            gh release edit "$VERSION" --notes "$RELEASE_NOTES"
+          else
+            gh release create "$VERSION" \
+              --draft \
+              --title "$VERSION" \
+              --notes "$RELEASE_NOTES" \
+              dist/* sbom/sbom.cdx.json
+          fi
 
   pypi-publish:
     name: Publish to PyPI

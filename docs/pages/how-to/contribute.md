@@ -547,49 +547,75 @@ graph LR
 
 ### How It Works
 
-1. **Tag a release** (signed with [gitsign](https://github.com/sigstore/gitsign) keyless Sigstore signing):
+1. **Tag a release** (the tag must be signed, and CI rejects it if it is not):
 
     ```bash
    git tag -s v0.2.0 -m "Release v0.2.0"
    git push origin v0.2.0
     ```
 
-    One-time gitsign setup so `git tag -s` signs via Sigstore, with no long-lived GPG key to manage:
+    One-time setup so `git tag -s` works, and so the signature is verifiable by someone who is not you:
 
     ```bash
-   git config --local gpg.x509.program gitsign
-   git config --local gpg.format x509
+   git config --local user.signingkey <your-key-id>
    git config --local tag.gpgSign true
     ```
 
-    The first signing authenticates via your identity provider in a browser; verify a tag with `gitsign verify-tag`. Signed tags complement the PEP 740 artifact attestations the publish workflow already produces, so both the tag and the published artifacts are verifiable.
+    Upload the public half of that key to your account's SSH and GPG keys settings. This is not optional bookkeeping: the release check asks the forge whether the signature verifies, and a signature made with a key nobody can look up fails exactly like no signature at all. Signed tags complement the PEP 740 artifact attestations the publish workflow already produces, so both the tag and the published artifacts are verifiable.
 
-2. **Automated changelog workflow** (`changelog.yml`):
+2. **Signature check** (`changelog.yml`, job `verify-tag-signature`):
+    - Runs before every other job, and gates them through `needs`
+    - Rejects a lightweight tag (there is no tag object to sign) and an unverifiable signature, with a different message for each
+    - Pushing the tag is what starts the workflow, so this is detection rather than prevention: the tag is already public when the check runs. It fires before the changelog PR opens and long before anything reaches PyPI, so recovery is `git push --delete origin v0.2.0` and a re-tag
+
+3. **Automated changelog workflow** (`changelog.yml`):
     - Generates changelog from conventional commits using git-cliff
     - Creates a **Pull Request** with the updated CHANGELOG.md
     - Builds the package distributions (wheels and sdist) for **immediate validation**
     - Stores distributions as workflow artifacts (reused later to avoid rebuilding)
 
-3. **Review and merge the changelog PR:**
+4. **Review and merge the changelog PR:**
     - A maintainer reviews the generated changelog
     - Once approved, merge the PR to main
 
-4. **Automated release workflow** (`publish-release.yml`):
+5. **Automated release workflow** (`publish-release.yml`):
     - Creates a GitHub Release with generated release notes
     - Attaches distribution files to the release
     - **Waits for manual approval** before proceeding to PyPI
 
-5. **Manual approval for PyPI publishing:**
+6. **Manual approval for PyPI publishing:**
     - Designated reviewers receive a notification
     - Review the GitHub Release to verify everything is correct
     - Approve the deployment to publish to PyPI
     - Package is published using Trusted Publishing (OIDC, no tokens needed)
 
-6. **Release notes generation:**
+7. **Release notes generation:**
     - All commits since the last tag are analyzed
     - Commits are grouped by type (Added, Fixed, Documentation, etc.)
     - Only commits following conventional format are included
     - Breaking changes are highlighted
+
+### If the publish fails
+
+A publish can fail for reasons that have nothing to do with the release: an upstream
+action shipping a broken dependency, a registry outage, a revoked token. The merge that
+started it cannot be replayed, and re-running the failed job reuses the old workflow
+file, so fixing the cause on `main` is not enough on its own.
+
+Fix the cause, then re-run the pipeline against the **same tag**:
+
+```bash
+gh workflow run publish-release.yml -f version=v0.2.0
+```
+
+The retry rebuilds from the tag, refreshes the existing GitHub Release rather than
+failing on it, and still stops at the `pypi` approval gate. Do **not** delete the tag and
+cut a new version to work around a failed publish: that rewrites the changelog and spends
+a version number on a fault the release never had.
+
+One case this does not cover: if the previous attempt uploaded some files to PyPI before
+failing, the retry stops on the duplicates, because PyPI does not accept a re-upload of a
+file it already has. Bump to a new version for that.
 
 ### Version Numbering
 
