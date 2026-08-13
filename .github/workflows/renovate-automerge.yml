@@ -30,12 +30,24 @@ jobs:
     # `renovate[bot]` of the hosted Mend app. Hardcoding either one gives a workflow
     # that passes its own syntax checks and then silently never fires.
     #
-    # The `automerge` label is the authorization signal. renovate.json applies it on
-    # exactly the rules that also set `automerge: true`, and nowhere else, so major
-    # bumps and the grouped runtime dependency PR carry no label and stay fully
-    # manual. Applying a label needs write access, so an outside contributor cannot
-    # forge the signal, and the branch-prefix and Bot-author checks keep a human PR
-    # from ever being auto-approved.
+    # The `automerge` label is the authorization signal, applied on exactly the rules
+    # that also set `automerge: true` and nowhere else, so major bumps and the grouped
+    # runtime dependency PR carry no label and stay fully manual. Applying a label needs
+    # write access, so an outside contributor cannot forge the signal, and the
+    # branch-prefix and Bot-author checks keep a human PR from ever being auto-approved.
+    #
+    # WHERE those rules live depends on how this project is configured, and the answer
+    # is not always this repository:
+    #
+    #   - No `renovate_preset`: they are in `.github/renovate.json` here.
+    #   - A `renovate_preset` is set: `.github/renovate.json` is a four-line stub that
+    #     extends the preset, and the rules are in THAT repository. Nothing in this repo
+    #     mentions them.
+    #
+    # This comment named only the first case until the v0.42.0 fan-out, which is the
+    # case that does not apply to any repository generated with a preset. Someone
+    # debugging "why did nothing get approved" would have opened a file containing none
+    # of the relevant configuration.
     if: >-
       github.event.pull_request.user.type == 'Bot'
       && startsWith(github.event.pull_request.head.ref, 'renovate/')

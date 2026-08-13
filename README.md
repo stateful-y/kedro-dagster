@@ -153,6 +153,25 @@ For questions and discussions, you can also open a [discussion](https://github.c
 
 This project is licensed under the terms of the [Apache-2.0 License](https://github.com/stateful-y/kedro-dagster/blob/main/LICENSE).
 
+## How do I cite Kedro-Dagster?
+
+If you use Kedro-Dagster in work you publish, please cite it:
+
+Guillaume Tauzin. Kedro-Dagster: Deploy Kedro projects to Dagster. https://github.com/stateful-y/kedro-dagster
+
+Or in BibTeX:
+
+```bibtex
+@software{kedro_dagster,
+  author  = "Guillaume Tauzin",
+  title   = "{Kedro-Dagster: Deploy Kedro projects to Dagster}",
+  url     = "https://github.com/stateful-y/kedro-dagster",
+  license = "Apache-2.0"
+}
+```
+
+Reference managers can read [CITATION.cff](https://github.com/stateful-y/kedro-dagster/blob/main/CITATION.cff) directly. To cite a specific version, see the [citation page](https://kedro-dagster.readthedocs.io/en/latest/pages/reference/citation/).
+
 ## Acknowledgements
 
 This project is maintained by [stateful-y](https://stateful-y.io), an ML consultancy specializing in MLOps and data science & engineering. If you're interested in collaborating or learning more about our services, please visit our website.

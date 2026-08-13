@@ -23,8 +23,9 @@ build:
     # on sys.path (via the wheel's `dev-mode-dirs`) so the build loads the
     # `docs_build` markdown extensions by module name. `uv run` uses that venv.
     - asdf plugin add uv || true
-    - asdf install uv latest
-    - asdf global uv latest
+    # renovate: datasource=github-releases depName=astral-sh/uv
+    - asdf install uv 0.10.0
+    - asdf global uv 0.10.0
     - uv sync --group docs
     # Generate the API pages and export the notebooks -- the explicit step that
     # replaced the deleted on_pre_build hook.
