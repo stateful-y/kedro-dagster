@@ -1,6 +1,6 @@
 # Kedro-Dagster
 
-Kedro-Dagster makes it easy to deploy Kedro projects to Dagster
+Deploy Kedro projects to Dagster
 
 Instructions for AI coding assistants working in this repository.
 
