@@ -1,0 +1,99 @@
+name: Drain Automerge Queue
+
+# A branch protection rule that requires branches to be up to date deadlocks
+# unattended dependency updates. GitHub's auto-merge refuses to merge a PR whose
+# branch is behind its base, and it does NOT update the branch itself. Renovate does
+# rebase stale branches, but only when it next runs, and the moment one PR merges every
+# other open branch is behind again. The result is roughly one merge per run: the queue
+# never drains, while every PR in it looks approved, green and ready.
+#
+# This workflow closes that gap. On every push to the default branch it advances exactly
+# ONE pull request: the oldest automerge-labelled bot PR that is behind. Updating the
+# branch reruns its checks, auto-merge then lands it, and that merge pushes the default
+# branch again, which runs this workflow for the next one. The queue drains itself, one
+# CI run per merge, with no schedule and nothing to maintain.
+#
+# It does nothing at all when no PR is waiting, and it stops on its own once the queue is
+# empty, so there is no loop to break.
+
+on:
+  push:
+    branches: [main]
+
+# Least-privilege default. This job needs no GITHUB_TOKEN scopes at all, because every
+# API call is made with the App token minted below.
+permissions: {}
+
+# One at a time. Several merges landing together would otherwise each pick a PR, and a
+# burst of branch updates is the CI storm this design exists to avoid.
+concurrency:
+  group: drain-automerge-queue
+  cancel-in-progress: false
+
+jobs:
+  advance-one:
+    name: Advance the automerge queue
+    runs-on: ubuntu-latest
+    steps:
+      # The App token is not decoration. A branch updated with the default GITHUB_TOKEN
+      # does NOT trigger a new workflow run: GitHub suppresses that to prevent recursion.
+      # The updated head commit would therefore carry none of the required checks, they
+      # would sit "Expected -- waiting for status to be reported" forever, and auto-merge
+      # would never fire. The PR would look freshly updated and be more stuck than before.
+      # An App token is a different identity, so its push does trigger the checks.
+      - name: Generate a token from the fleet automation GitHub App
+        id: app-token
+        uses: actions/create-github-app-token@v2.2.2
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Update the oldest automerge PR that is behind
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          # Oldest first, so the queue is FIFO and a PR cannot be starved by newer ones.
+          # The same three conditions as renovate-automerge.yml, for the same reasons:
+          # a Bot author, a `renovate/` branch, and the `automerge` label that the
+          # Renovate config applies only to rules it also marks `automerge: true`.
+          candidates=$(gh api \
+            "repos/$REPO/pulls?state=open&sort=created&direction=asc&per_page=100" \
+            --jq '.[]
+                  | select(.user.type == "Bot")
+                  | select(.head.ref | startswith("renovate/"))
+                  | select([.labels[].name] | index("automerge"))
+                  | .number')
+
+          if [ -z "$candidates" ]; then
+            echo "No automerge-labelled bot pull requests are open. Nothing to do."
+            exit 0
+          fi
+
+          for number in $candidates; do
+            # `mergeable_state` is computed lazily: the first read can legitimately
+            # return "unknown" and resolve on a retry. Treating that as "not behind"
+            # would skip a PR that is in fact waiting, so ask again before giving up.
+            state=""
+            for _ in 1 2 3; do
+              state=$(gh api "repos/$REPO/pulls/$number" --jq '.mergeable_state')
+              [ "$state" != "unknown" ] && break
+              sleep 5
+            done
+
+            echo "PR #${number}: mergeable_state=${state}"
+
+            if [ "$state" = "behind" ]; then
+              echo "Updating #${number} so its checks rerun against the current base."
+              gh api -X PUT "repos/$REPO/pulls/${number}/update-branch"
+              echo "Done. Auto-merge lands it once the required checks pass, and that"
+              echo "merge triggers this workflow again for the next one."
+              exit 0
+            fi
+          done
+
+          # Everything else is already current, or blocked on its own checks, or has a
+          # real conflict. None of those is something a branch update can fix.
+          echo "No automerge pull request is behind its base. Nothing to advance."
