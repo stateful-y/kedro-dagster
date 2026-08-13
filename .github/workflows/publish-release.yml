@@ -163,13 +163,13 @@ jobs:
           echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Download the distribution packages
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: ${{ env.dists-artifact-name }}
           path: dist/
 
       - name: Download the SBOM
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: ${{ env.sbom-artifact-name }}
           path: sbom/
@@ -221,7 +221,7 @@ jobs:
       id-token: write
     steps:
       - name: Download the distribution packages
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: ${{ env.dists-artifact-name }}
           path: dist/
