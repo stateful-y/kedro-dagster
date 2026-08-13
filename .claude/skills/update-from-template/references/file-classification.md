@@ -119,6 +119,12 @@ CITATION.cff                       # renders entirely from copier answers, which
                                    # `automerge` label, or the workflow starts approving
                                    # updates nothing chose to automate. A project may add
                                    # its own steps, so merge rather than overwrite.
+.github/workflows/drain-automerge-queue.yml  # conditional: include_actions. Advances one
+                                   # automerge PR per push to the default branch. The
+                                   # App-token step is load-bearing, not boilerplate: a
+                                   # branch updated with GITHUB_TOKEN triggers no checks,
+                                   # so the PR would stall with its required checks never
+                                   # reported. Do not "simplify" it to GITHUB_TOKEN.
 .github/workflows/publish-release.yml  # conditional: include_actions
 .github/workflows/nightly.yml      # conditional: include_actions
 .github/workflows/changelog.yml    # conditional: include_actions
