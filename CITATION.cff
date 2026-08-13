@@ -13,8 +13,12 @@
 # docs/pages/reference/citation.md. All three render from the same answers.
 cff-version: 1.2.0
 message: "If you use Kedro-Dagster in your work, please cite it as below."
-title: "Kedro-Dagster"
-abstract: "Kedro-Dagster makes it easy to deploy Kedro projects to Dagster"
+# Name and description in one field, because that is what a citation renders. A
+# reference list shows the title and nothing else, so a bare package name tells a
+# reader who has not met the project what it was called and not what it is. There
+# is deliberately no separate `abstract`: it duplicated this text, and the field a
+# citation actually prints is this one.
+title: "Kedro-Dagster: Deploy Kedro projects to Dagster"
 type: software
 authors:
   # Recorded as a single `name`, which the format treats as an entity rather than a

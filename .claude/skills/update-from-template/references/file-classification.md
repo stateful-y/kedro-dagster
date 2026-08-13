@@ -73,9 +73,18 @@ docs/stylesheets/theme.css
 .github/PULL_REQUEST_TEMPLATE.md
 SECURITY.md
 .claude/skills/**                   # Skill files managed by template (the tracked copy)
-.github/skills/**                   # Byte-identical Copilot mirror; gitignored, so an
-                                    # update never delivers it -- copier works through
-                                    # git and skips ignored paths. Edit .claude/skills.
+.github/skills/**                   # Byte-identical Copilot mirror. Gitignored, so an
+                                    # update writes it to disk UNTRACKED: the change is
+                                    # delivered, and no one reviews it because it never
+                                    # reaches a diff. Measured on the v0.43.0 fan-out,
+                                    # where copier updated this very file in all seven
+                                    # repos while `git status` stayed silent.
+                                    #
+                                    # This entry used to say copier "skips ignored
+                                    # paths" and that an update "never delivers it".
+                                    # Both halves are wrong. Do not rely on either:
+                                    # if you need to know what landed here, look at
+                                    # the file on disk, not at git. Edit .claude/skills.
 ```
 
 ---

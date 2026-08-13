@@ -1,7 +1,7 @@
 [project]
 name = "kedro_dagster"
 dynamic = ["version"]
-description = "Kedro-Dagster makes it easy to deploy Kedro projects to Dagster"
+description = "Deploy Kedro projects to Dagster"
 readme = "README.md"
 maintainers = [
     { name = "Guillaume Tauzin", email = "gtauzin@stateful-y.io" }

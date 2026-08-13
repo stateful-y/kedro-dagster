@@ -8,14 +8,14 @@ If you use Kedro-Dagster in work you publish, please cite it.
 
 ## Plain text
 
-Guillaume Tauzin. Kedro-Dagster. https://github.com/stateful-y/kedro-dagster
+Guillaume Tauzin. Kedro-Dagster: Deploy Kedro projects to Dagster. https://github.com/stateful-y/kedro-dagster
 
 ## BibTeX
 
 ```bibtex
 @software{kedro_dagster,
   author  = "Guillaume Tauzin",
-  title   = "{Kedro-Dagster}",
+  title   = "{Kedro-Dagster: Deploy Kedro projects to Dagster}",
   url     = "https://github.com/stateful-y/kedro-dagster",
   license = "Apache-2.0"
 }
