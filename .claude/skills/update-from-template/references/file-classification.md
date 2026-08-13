@@ -73,9 +73,18 @@ docs/stylesheets/theme.css
 .github/PULL_REQUEST_TEMPLATE.md
 SECURITY.md
 .claude/skills/**                   # Skill files managed by template (the tracked copy)
-.github/skills/**                   # Byte-identical Copilot mirror; gitignored, so an
-                                    # update never delivers it -- copier works through
-                                    # git and skips ignored paths. Edit .claude/skills.
+.github/skills/**                   # Byte-identical Copilot mirror. Gitignored, so an
+                                    # update writes it to disk UNTRACKED: the change is
+                                    # delivered, and no one reviews it because it never
+                                    # reaches a diff. Measured on the v0.43.0 fan-out,
+                                    # where copier updated this very file in all seven
+                                    # repos while `git status` stayed silent.
+                                    #
+                                    # This entry used to say copier "skips ignored
+                                    # paths" and that an update "never delivers it".
+                                    # Both halves are wrong. Do not rely on either:
+                                    # if you need to know what landed here, look at
+                                    # the file on disk, not at git. Edit .claude/skills.
 ```
 
 ---
@@ -95,6 +104,14 @@ docs/index.md
 docs/pages/reference/api.md
 docs/pages/how-to/contribute.md
 docs/pages/explanation/security.md
+docs/pages/reference/citation.md   # prose copy of the citation; a project may add a
+                                   # paper or a DOI to it
+CITATION.cff                       # renders entirely from copier answers, which argues
+                                   # for Tier 1. Against that: the commented `doi:` line
+                                   # exists precisely so a project can fill it in, and a
+                                   # Tier 1 overwrite would delete that DOI with no
+                                   # conflict, no .rej and no output, the same silent
+                                   # loss as the logos.
 .github/workflows/tests.yml        # conditional: include_actions
 .github/workflows/pr-title.yml     # conditional: include_actions
 .github/workflows/renovate-automerge.yml  # conditional: include_actions. The guard is
@@ -102,6 +119,12 @@ docs/pages/explanation/security.md
                                    # `automerge` label, or the workflow starts approving
                                    # updates nothing chose to automate. A project may add
                                    # its own steps, so merge rather than overwrite.
+.github/workflows/drain-automerge-queue.yml  # conditional: include_actions. Advances one
+                                   # automerge PR per push to the default branch. The
+                                   # App-token step is load-bearing, not boilerplate: a
+                                   # branch updated with GITHUB_TOKEN triggers no checks,
+                                   # so the PR would stall with its required checks never
+                                   # reported. Do not "simplify" it to GITHUB_TOKEN.
 .github/workflows/publish-release.yml  # conditional: include_actions
 .github/workflows/nightly.yml      # conditional: include_actions
 .github/workflows/changelog.yml    # conditional: include_actions
