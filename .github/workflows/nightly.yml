@@ -40,7 +40,7 @@ jobs:
 
       - name: Install nox
         # renovate: datasource=pypi depName=nox
-        run: uv tool install nox==2026.8.10
+        run: uv tool install nox==2026.8.17
 
       # `test_coverage` is pinned to the minimum Python, so `nox -s test_coverage`
       # runs that interpreter whatever the matrix entry says. Asking for it on every

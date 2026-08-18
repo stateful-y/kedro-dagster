@@ -57,7 +57,7 @@ jobs:
 
       - name: Install nox
         # renovate: datasource=pypi depName=nox
-        run: uv tool install --python-preference only-managed nox==2026.8.10
+        run: uv tool install --python-preference only-managed nox==2026.8.17
 
       - name: Install Python ${{ matrix.python-version }}
         run: uv python install --python-preference only-managed ${{ matrix.python-version }}
