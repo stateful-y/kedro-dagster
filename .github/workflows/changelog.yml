@@ -97,7 +97,7 @@ jobs:
           fetch-depth: 0
 
       - name: Install git-cliff
-        uses: taiki-e/install-action@742a3317eac7bd62f91cd888b4eead5e784ba833 # v2
+        uses: taiki-e/install-action@1ed6d7be6168f6c9046541087ff549b6bc581fdf # v2
         with:
           # renovate: datasource=github-releases depName=orhun/git-cliff
           tool: git-cliff@2.13.1
