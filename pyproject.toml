@@ -39,7 +39,7 @@ mlflow = [
     # a security bump to a version its `cryptography` pin excludes) silently
     # backtracks instead of failing, and the breakage only surfaces as a pyarrow
     # source build on Python 3.14.
-    "mlflow>=3.13",
+    "mlflow>=3.16.0",
     "dagster-mlflow",
 ]
 
