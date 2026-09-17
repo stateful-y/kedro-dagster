@@ -58,7 +58,7 @@ jobs:
         run: nox -s test_docstrings
 
       - name: Upload coverage reports
-        uses: codecov/codecov-action@0b35c9ecc4f0529d0eb674914510c22f85b196b4 # v7
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7
         # Gated on the entry that PRODUCES the report. This was a hardcoded '3.12'
         # while `test_coverage` is pinned to the minimum Python, so it uploaded that
         # run's coverage under a 3.12 label -- and in a project whose matrix has no
