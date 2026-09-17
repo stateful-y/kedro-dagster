@@ -102,7 +102,7 @@ jobs:
           # two lines below -- it parses as a comment, is silently read by nothing, and
           # the pin rots at whatever it was set to.
           # renovate: datasource=pypi depName=cyclonedx-bom
-          uvx --from cyclonedx-bom==7.3.1 cyclonedx-py requirements sbom-requirements.txt \
+          uvx --from cyclonedx-bom==7.4.0 cyclonedx-py requirements sbom-requirements.txt \
             --output-format JSON --output-file sbom.cdx.json
 
       - name: Store the distribution packages
