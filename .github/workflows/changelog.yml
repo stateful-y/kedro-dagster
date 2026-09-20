@@ -100,7 +100,7 @@ jobs:
         uses: taiki-e/install-action@9114bf4d891761788c546334fd37538eae1bf8b3 # v2
         with:
           # renovate: datasource=github-releases depName=orhun/git-cliff
-          tool: git-cliff@2.14.1
+          tool: git-cliff@2.14.2
 
       - name: Generate changelog
         id: changelog
