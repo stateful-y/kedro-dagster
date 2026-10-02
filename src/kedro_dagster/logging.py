@@ -79,6 +79,7 @@ class _DagsterProcessorFormatter(structlog.stdlib.ProcessorFormatter):
 
     @staticmethod
     def _renderer() -> structlog.typing.Processor:  # pragma: no cover - always overridden
+        """Return the structlog processor that renders the final log line."""
         raise NotImplementedError
 
 
@@ -109,6 +110,7 @@ class DagsterRichFormatter(_DagsterProcessorFormatter):
 
     @staticmethod
     def _renderer() -> structlog.typing.Processor:
+        """Render records as human-readable console lines."""
         return structlog.dev.ConsoleRenderer()
 
 
@@ -139,6 +141,7 @@ class DagsterJsonFormatter(_DagsterProcessorFormatter):
 
     @staticmethod
     def _renderer() -> structlog.typing.Processor:
+        """Render records as sorted-key JSON objects."""
         return structlog.processors.JSONRenderer(sort_keys=True, ensure_ascii=False)
 
 
