@@ -457,6 +457,26 @@ class TestGetMlflowRunUrl:
 
         assert url == "http://localhost:5000/#/experiments/789/runs/local123run"
 
+    @pytest.mark.parametrize(
+        "tracking_uri",
+        ["sqlite:///mlflow.db", "postgresql://user:pw@db:5432/mlflow", "mysql+pymysql://user@db/mlflow"],
+    )
+    def test_database_tracking_uri(self, monkeypatch, tracking_uri):
+        """Build URL from a database tracking backend with UI config."""
+        pytest.importorskip("mlflow")
+        import mlflow  # noqa: F401
+
+        mock_run = SimpleNamespace(info=SimpleNamespace(experiment_id="789", run_id="db123run"))
+
+        monkeypatch.setattr("mlflow.active_run", lambda: mock_run)
+        monkeypatch.setattr("mlflow.get_tracking_uri", lambda: tracking_uri)
+
+        mock_config = SimpleNamespace(ui=SimpleNamespace(host="localhost", port=5000))
+
+        url = get_mlflow_run_url(mock_config)
+
+        assert url == "http://localhost:5000/#/experiments/789/runs/db123run"
+
     def test_no_active_run_raises_runtime_error(self, monkeypatch):
         """Raise RuntimeError when no active MLflow run."""
         pytest.importorskip("mlflow")

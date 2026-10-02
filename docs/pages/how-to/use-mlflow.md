@@ -7,7 +7,7 @@ If your Kedro project uses [kedro-mlflow](https://github.com/Galileo-Galilei/ked
 When a Kedro node executes within a Dagster context and an active MLflow run is detected, Kedro-Dagster:
 
 1. **Captures run metadata**: Extracts experiment ID, run ID, and tracking URI from the active MLflow run.
-2. **Generates run URLs**: Creates clickable links to view the MLflow run in the MLflow UI.
+2. **Generates run URLs**: Creates clickable links to view the MLflow run in the MLflow UI. With a remote tracking server (`http(s)://`), links point at that server. With a file or database backend (`file://`, `sqlite://`, `postgresql://`, `mysql://`, `mssql://`), they point at the UI configured under `ui` in `mlflow.yml`.
 3. **Logs to Dagster**: Records MLflow run information in Dagster logs, run tags, and asset materialization metadata.
 
 No Dagster-specific MLflow code is needed; Kedro-MLflow hooks fire automatically during Dagster runs.
