@@ -407,6 +407,9 @@ class TestFormatterClasses:
         """Kedro's logging validation accepts the classes once ``kedro_dagster`` is allowlisted."""
         from kedro.framework.project import _ProjectLogging
 
+        if not hasattr(_ProjectLogging, "_validate_logging_config"):
+            pytest.skip("Kedro < 1.3 does not validate logging configuration")
+
         project_logging = object.__new__(_ProjectLogging)
         project_logging._logging_module_allowlist = ("logging", "kedro.logging", "kedro_dagster")
         config = {"formatters": {"custom": {"class": f"kedro_dagster.logging.{formatter_class.__name__}"}}}
