@@ -1,5 +1,6 @@
 import importlib
 import logging as std_logging
+import logging.config
 
 import coloredlogs
 import pytest
@@ -7,6 +8,9 @@ import structlog
 from dagster._utils.log import configure_loggers
 
 from kedro_dagster.logging import (
+    DagsterColoredFormatter,
+    DagsterJsonFormatter,
+    DagsterRichFormatter,
     dagster_colored_formatter,
     dagster_json_formatter,
     dagster_rich_formatter,
@@ -355,3 +359,59 @@ class TestFormatterExceptionHandling:
                 assert "Test message with exception" in formatted
             except Exception as e:
                 pytest.fail(f"Formatter {type(formatter).__name__} raised exception: {e}")
+
+
+_FORMATTER_CLASSES = [DagsterColoredFormatter, DagsterJsonFormatter, DagsterRichFormatter]
+
+
+class TestFormatterClasses:
+    """Tests for the formatter classes referenced from a Kedro ``logging.yml``."""
+
+    @pytest.mark.parametrize("formatter_class", _FORMATTER_CLASSES)
+    def test_factory_returns_class_instance(self, formatter_class):
+        """The factory functions return instances of the matching class."""
+        factories = {
+            DagsterColoredFormatter: dagster_colored_formatter,
+            DagsterJsonFormatter: dagster_json_formatter,
+            DagsterRichFormatter: dagster_rich_formatter,
+        }
+
+        assert isinstance(factories[formatter_class](), formatter_class)
+
+    @pytest.mark.parametrize("formatter_class", _FORMATTER_CLASSES)
+    def test_dictconfig_builds_formatter_from_class_key(self, formatter_class):
+        """``dictConfig`` instantiates each formatter through the ``class`` key."""
+        class_path = f"kedro_dagster.logging.{formatter_class.__name__}"
+        logger_name = f"test_dictconfig_{formatter_class.__name__}"
+        logging.config.dictConfig({
+            "version": 1,
+            "disable_existing_loggers": False,
+            "formatters": {"custom": {"class": class_path, "format": "%(message)s"}},
+            "handlers": {"null": {"class": "logging.NullHandler", "formatter": "custom"}},
+            "loggers": {logger_name: {"handlers": ["null"], "propagate": False}},
+        })
+
+        handler = std_logging.getLogger(logger_name).handlers[0]
+
+        assert isinstance(handler.formatter, formatter_class)
+
+    def test_colored_formatter_honours_custom_format(self):
+        """A ``format`` given in configuration overrides the default one."""
+        formatter = DagsterColoredFormatter(fmt="%(levelname)s|%(message)s")
+        record = std_logging.LogRecord("n", std_logging.INFO, "p.py", 1, "hello", (), None)
+
+        assert "|" in formatter.format(record)
+
+    @pytest.mark.parametrize("formatter_class", _FORMATTER_CLASSES)
+    def test_kedro_accepts_class_key_when_module_allowlisted(self, formatter_class):
+        """Kedro's logging validation accepts the classes once ``kedro_dagster`` is allowlisted."""
+        from kedro.framework.project import _ProjectLogging
+
+        if not hasattr(_ProjectLogging, "_validate_logging_config"):
+            pytest.skip("Kedro < 1.3 does not validate logging configuration")
+
+        project_logging = object.__new__(_ProjectLogging)
+        project_logging._logging_module_allowlist = ("logging", "kedro.logging", "kedro_dagster")
+        config = {"formatters": {"custom": {"class": f"kedro_dagster.logging.{formatter_class.__name__}"}}}
+
+        assert project_logging._validate_logging_config(config) == config
