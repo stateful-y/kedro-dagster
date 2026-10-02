@@ -6,6 +6,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.8.1] - 2026-10-02
+
+This **patch release** includes 9 commits.
+
+
+### Bug Fixes
+- Bump gitpython, pyjwt and urllib3 to patch security advisories  ([#241](https://github.com/stateful-y/kedro-dagster/pull/241)) by @gtauzin
+- Add formatter classes usable from kedro>=1.3 logging.yml  ([#243](https://github.com/stateful-y/kedro-dagster/pull/243)) by @gtauzin
+- Build run URLs for database tracking backends  ([#244](https://github.com/stateful-y/kedro-dagster/pull/244)) by @gtauzin
+
+### Documentation
+- Link the security page from the section index  ([#167](https://github.com/stateful-y/kedro-dagster/pull/167)) by @gtauzin
+- Tell users how to cite kedro-dagster  ([#168](https://github.com/stateful-y/kedro-dagster/pull/168)) by @gtauzin
+
+### Miscellaneous Tasks
+- Verify tag signatures, allow publish retries, and automerge dep updates  ([#166](https://github.com/stateful-y/kedro-dagster/pull/166)) by @gtauzin
+- Drain the dependency queue one PR at a time  ([#176](https://github.com/stateful-y/kedro-dagster/pull/176)) by @gtauzin
+
+### Build
+- Bump sqlparse in the uv group across 1 directory  ([#184](https://github.com/stateful-y/kedro-dagster/pull/184)) by @dependabot[bot]
+- Bump the uv group across 1 directory with 2 updates  ([#210](https://github.com/stateful-y/kedro-dagster/pull/210)) by @dependabot[bot]
+
+### Contributors
+
+Thanks to all contributors for this release:
+- @gtauzin
+- @dependabot[bot]
+
 ## [0.8.0] - 2026-08-12
 
 This **minor release** includes 39 commits.
