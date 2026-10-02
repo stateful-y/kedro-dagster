@@ -12,21 +12,21 @@ This **patch release** includes 9 commits.
 
 
 ### Bug Fixes
-- Bump gitpython, pyjwt and urllib3 to patch security advisories  ([#241](https://github.com/stateful-y/kedro-dagster/pull/241)) by @gtauzin
-- Add formatter classes usable from kedro>=1.3 logging.yml  ([#243](https://github.com/stateful-y/kedro-dagster/pull/243)) by @gtauzin
-- Build run URLs for database tracking backends  ([#244](https://github.com/stateful-y/kedro-dagster/pull/244)) by @gtauzin
+- Add logging formatter classes that Kedro 1.3 and later accept in logging.yml  ([#243](https://github.com/stateful-y/kedro-dagster/pull/243)) by @gtauzin
+- Fix node runs failing when MLflow tracks to a database backend such as SQLite  ([#244](https://github.com/stateful-y/kedro-dagster/pull/244)) by @gtauzin
 
 ### Documentation
-- Link the security page from the section index  ([#167](https://github.com/stateful-y/kedro-dagster/pull/167)) by @gtauzin
-- Tell users how to cite kedro-dagster  ([#168](https://github.com/stateful-y/kedro-dagster/pull/168)) by @gtauzin
+- Link the security page from the Explanation section index  ([#167](https://github.com/stateful-y/kedro-dagster/pull/167)) by @gtauzin
+- Add CITATION.cff and a docs page on how to cite kedro-dagster (template v0.43.1)  ([#168](https://github.com/stateful-y/kedro-dagster/pull/168)) by @gtauzin
 
 ### Miscellaneous Tasks
-- Verify tag signatures, allow publish retries, and automerge dep updates  ([#166](https://github.com/stateful-y/kedro-dagster/pull/166)) by @gtauzin
-- Drain the dependency queue one PR at a time  ([#176](https://github.com/stateful-y/kedro-dagster/pull/176)) by @gtauzin
+- Verify tag signatures, allow publish retries and auto-merge Renovate PRs (template v0.42.0)  ([#166](https://github.com/stateful-y/kedro-dagster/pull/166)) by @gtauzin
+- Keep auto-merge dependency PRs up to date with main so they can merge (template v0.44.0)  ([#176](https://github.com/stateful-y/kedro-dagster/pull/176)) by @gtauzin
 
-### Build
-- Bump sqlparse in the uv group across 1 directory  ([#184](https://github.com/stateful-y/kedro-dagster/pull/184)) by @dependabot[bot]
-- Bump the uv group across 1 directory with 2 updates  ([#210](https://github.com/stateful-y/kedro-dagster/pull/210)) by @dependabot[bot]
+### Security
+- Bump sqlparse to 0.6.0 to patch security advisories  ([#184](https://github.com/stateful-y/kedro-dagster/pull/184)) by @dependabot[bot]
+- Require mlflow>=3.16.0 in the mlflow extra and bump cryptography to 50.0.0 for a security fix  ([#210](https://github.com/stateful-y/kedro-dagster/pull/210)) by @dependabot[bot]
+- Bump gitpython, pyjwt and urllib3 to patch security advisories  ([#241](https://github.com/stateful-y/kedro-dagster/pull/241)) by @gtauzin
 
 ### Contributors
 
