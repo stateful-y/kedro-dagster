@@ -792,6 +792,9 @@ def get_mlflow_resource_from_config(mlflow_config: "BaseModel") -> dg.ResourceDe
     return mlflow_resource
 
 
+_LOCAL_MLFLOW_STORE_SCHEMES = frozenset({"file", "sqlite", "postgresql", "mysql", "mssql"})
+
+
 def get_mlflow_run_url(mlflow_config: "BaseModel") -> str:
     """Return a fully functional MLflow UI URL for the currently active run.
 
@@ -827,8 +830,10 @@ def get_mlflow_run_url(mlflow_config: "BaseModel") -> str:
         base = tracking_uri.rstrip("/")
         return f"{base}/#/experiments/{exp_id}/runs/{run_id}"
 
-    # Local file-based tracking URI: UI must be configured separately
-    if tracking_uri.startswith("file://"):
+    # File or database backend (MLflow 3 recommends e.g. sqlite:///mlflow.db over
+    # ./mlruns): no UI is served from the URI, so it must be configured separately
+    scheme = tracking_uri.split("://", 1)[0].split("+", 1)[0]
+    if scheme in _LOCAL_MLFLOW_STORE_SCHEMES:
         host = mlflow_config.ui.host
         port = mlflow_config.ui.port
         base = f"http://{host}:{port}"
