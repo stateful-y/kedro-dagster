@@ -41,27 +41,13 @@ def getLogger(name: str | None = None) -> _logging.Logger:
     return _logging.getLogger(name)
 
 
-def dagster_rich_formatter() -> structlog.stdlib.ProcessorFormatter:
-    """Create a rich console formatter for Dagster logging.
+_COLORED_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+_COLORED_DATEFMT = "%Y-%m-%d %H:%M:%S %z"
 
-    This formatter provides human-readable, colorized console output suitable
-    for development and interactive use. It includes timestamps, logger names,
-    log levels, and stack info when available.
 
-    Returns
-    -------
-    structlog.stdlib.ProcessorFormatter
-        A formatter configured for rich console output with automatic
-        fallback for older structlog versions.
-
-    See Also
-    --------
-    `kedro_dagster.logging.dagster_json_formatter` :
-        JSON formatter for log aggregation systems.
-    `kedro_dagster.logging.dagster_colored_formatter` :
-        Colored formatter using coloredlogs.
-    """
-    foreign_pre_chain = [
+def _foreign_pre_chain() -> list[structlog.typing.Processor]:
+    """Return the processors applied to records coming from standard logging."""
+    return [
         structlog.stdlib.add_logger_name,
         structlog.stdlib.add_log_level,
         structlog.processors.TimeStamper(fmt="iso", utc=True),
@@ -69,110 +55,176 @@ def dagster_rich_formatter() -> structlog.stdlib.ProcessorFormatter:
         structlog.stdlib.ExtraAdder(),
     ]
 
-    processors = [
-        structlog.stdlib.ProcessorFormatter.remove_processors_meta,
-        structlog.dev.ConsoleRenderer(),
-    ]
 
-    try:
-        # Try the newer API with processors list
-        return structlog.stdlib.ProcessorFormatter(
-            foreign_pre_chain=foreign_pre_chain,
-            processors=processors,
+class _DagsterProcessorFormatter(structlog.stdlib.ProcessorFormatter):
+    """Base for the structlog-backed formatters, configurable through a ``class`` key.
+
+    Kedro 1.3 and later reject the ``()`` factory key in ``logging.yml``, so a
+    formatter must be a ``logging.Formatter`` subclass that ``dictConfig`` can
+    build from ``format``, ``datefmt`` and ``style`` alone. Rendering is done by
+    structlog, so those arguments are accepted for compatibility and ignored.
+    """
+
+    def __init__(self, fmt: str | None = None, datefmt: str | None = None, style: str = "%") -> None:  # noqa: ARG002
+        renderer = self._renderer()
+        try:
+            # Try the newer API with processors list
+            super().__init__(
+                foreign_pre_chain=_foreign_pre_chain(),
+                processors=[structlog.stdlib.ProcessorFormatter.remove_processors_meta, renderer],
+            )
+        except TypeError:
+            # Fallback to older API with single processor
+            super().__init__(foreign_pre_chain=_foreign_pre_chain(), processor=renderer)
+
+    @staticmethod
+    def _renderer() -> structlog.typing.Processor:  # pragma: no cover - always overridden
+        raise NotImplementedError
+
+
+class DagsterRichFormatter(_DagsterProcessorFormatter):
+    """Rich console formatter for Dagster logging.
+
+    Provides human-readable, colorized console output suitable for development
+    and interactive use, with timestamps, logger names, log levels, and stack
+    info when available. Usable from a Kedro ``logging.yml`` through the
+    ``class`` key.
+
+    Parameters
+    ----------
+    fmt : str or None, optional
+        Accepted for ``logging.config.dictConfig`` compatibility and ignored.
+    datefmt : str or None, optional
+        Accepted for ``logging.config.dictConfig`` compatibility and ignored.
+    style : str, optional
+        Accepted for ``logging.config.dictConfig`` compatibility and ignored.
+
+    See Also
+    --------
+    `kedro_dagster.logging.DagsterJsonFormatter` :
+        JSON formatter for log aggregation systems.
+    `kedro_dagster.logging.DagsterColoredFormatter` :
+        Colored formatter using coloredlogs.
+    """
+
+    @staticmethod
+    def _renderer() -> structlog.typing.Processor:
+        return structlog.dev.ConsoleRenderer()
+
+
+class DagsterJsonFormatter(_DagsterProcessorFormatter):
+    """JSON formatter for Dagster logging.
+
+    Produces structured JSON output suitable for log aggregation systems,
+    monitoring tools, and production environments. Each log entry is a single
+    JSON object with consistent field names and ISO timestamps. Usable from a
+    Kedro ``logging.yml`` through the ``class`` key.
+
+    Parameters
+    ----------
+    fmt : str or None, optional
+        Accepted for ``logging.config.dictConfig`` compatibility and ignored.
+    datefmt : str or None, optional
+        Accepted for ``logging.config.dictConfig`` compatibility and ignored.
+    style : str, optional
+        Accepted for ``logging.config.dictConfig`` compatibility and ignored.
+
+    See Also
+    --------
+    `kedro_dagster.logging.DagsterRichFormatter` :
+        Rich console formatter for development use.
+    `kedro_dagster.logging.DagsterColoredFormatter` :
+        Colored formatter using coloredlogs.
+    """
+
+    @staticmethod
+    def _renderer() -> structlog.typing.Processor:
+        return structlog.processors.JSONRenderer(sort_keys=True, ensure_ascii=False)
+
+
+class DagsterColoredFormatter(coloredlogs.ColoredFormatter):
+    """Colored formatter for Dagster logging using coloredlogs.
+
+    Provides colorized console output with blue level names, green timestamps,
+    and red error messages. Usable from a Kedro ``logging.yml`` through the
+    ``class`` key.
+
+    Parameters
+    ----------
+    fmt : str or None, optional
+        Log record format. Defaults to timestamp, logger name, level and message.
+    datefmt : str or None, optional
+        Timestamp format. Defaults to ``"%Y-%m-%d %H:%M:%S %z"``.
+    style : str, optional
+        Format style, as in ``logging.Formatter``.
+
+    See Also
+    --------
+    `kedro_dagster.logging.DagsterRichFormatter` :
+        Rich console formatter for development use.
+    `kedro_dagster.logging.DagsterJsonFormatter` :
+        JSON formatter for log aggregation systems.
+    """
+
+    def __init__(self, fmt: str | None = None, datefmt: str | None = None, style: str = "%") -> None:
+        super().__init__(
+            fmt=fmt or _COLORED_FORMAT,
+            datefmt=datefmt or _COLORED_DATEFMT,
+            style=style,
+            field_styles={
+                "levelname": {"color": "blue"},
+                "asctime": {"color": "green"},
+            },
+            level_styles={
+                "debug": {},
+                "error": {"color": "red"},
+            },
         )
-    except TypeError:
-        # Fallback to older API with single processor
-        # Chain the processors manually for older versions
-        processor = structlog.dev.ConsoleRenderer()
-        return structlog.stdlib.ProcessorFormatter(
-            foreign_pre_chain=foreign_pre_chain,
-            processor=processor,
-        )
+
+
+def dagster_rich_formatter() -> structlog.stdlib.ProcessorFormatter:
+    """Create a rich console formatter for Dagster logging.
+
+    Returns
+    -------
+    structlog.stdlib.ProcessorFormatter
+        A `DagsterRichFormatter` instance.
+
+    See Also
+    --------
+    `kedro_dagster.logging.DagsterRichFormatter` :
+        The formatter class, to reference from a Kedro ``logging.yml``.
+    """
+    return DagsterRichFormatter()
 
 
 def dagster_json_formatter() -> structlog.stdlib.ProcessorFormatter:
     """Create a JSON formatter for Dagster logging.
 
-    This formatter produces structured JSON output suitable for log aggregation
-    systems, monitoring tools, and production environments. Each log entry is
-    a single JSON object with consistent field names and ISO timestamps.
-
     Returns
     -------
     structlog.stdlib.ProcessorFormatter
-        A formatter configured for JSON output with automatic fallback
-        for older structlog versions.
+        A `DagsterJsonFormatter` instance.
 
     See Also
     --------
-    `kedro_dagster.logging.dagster_rich_formatter` :
-        Rich console formatter for development use.
-    `kedro_dagster.logging.dagster_colored_formatter` :
-        Colored formatter using coloredlogs.
+    `kedro_dagster.logging.DagsterJsonFormatter` :
+        The formatter class, to reference from a Kedro ``logging.yml``.
     """
-    foreign_pre_chain = [
-        structlog.stdlib.add_logger_name,
-        structlog.stdlib.add_log_level,
-        structlog.processors.TimeStamper(fmt="iso", utc=True),
-        structlog.processors.StackInfoRenderer(),
-        structlog.stdlib.ExtraAdder(),
-    ]
-
-    json_renderer = structlog.processors.JSONRenderer(sort_keys=True, ensure_ascii=False)
-    processors = [
-        structlog.stdlib.ProcessorFormatter.remove_processors_meta,
-        json_renderer,
-    ]
-
-    try:
-        # Try the newer API with processors list
-        return structlog.stdlib.ProcessorFormatter(
-            foreign_pre_chain=foreign_pre_chain,
-            processors=processors,
-        )
-    except TypeError:
-        # Fallback to older API with single processor
-        return structlog.stdlib.ProcessorFormatter(
-            foreign_pre_chain=foreign_pre_chain,
-            processor=json_renderer,
-        )
+    return DagsterJsonFormatter()
 
 
 def dagster_colored_formatter() -> coloredlogs.ColoredFormatter:
     """Create a colored formatter for Dagster logging using coloredlogs.
 
-    This formatter provides colorized console output with customizable field
-    and level styling. It uses a traditional logging format with timestamps,
-    logger names, log levels, and messages, but with color highlighting for
-    better readability in terminal environments.
-
     Returns
     -------
     coloredlogs.ColoredFormatter
-        A formatter with blue level names, green timestamps, and red error
-        messages.
+        A `DagsterColoredFormatter` instance.
 
     See Also
     --------
-    `kedro_dagster.logging.dagster_rich_formatter` :
-        Rich console formatter for development use.
-    `kedro_dagster.logging.dagster_json_formatter` :
-        JSON formatter for log aggregation systems.
+    `kedro_dagster.logging.DagsterColoredFormatter` :
+        The formatter class, to reference from a Kedro ``logging.yml``.
     """
-    fmt = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    datefmt = "%Y-%m-%d %H:%M:%S %z"
-    field_styles = {
-        "levelname": {"color": "blue"},
-        "asctime": {"color": "green"},
-    }
-    level_styles = {
-        "debug": {},
-        "error": {"color": "red"},
-    }
-
-    return coloredlogs.ColoredFormatter(
-        fmt=fmt,
-        datefmt=datefmt,
-        field_styles=field_styles,
-        level_styles=level_styles,
-    )
+    return DagsterColoredFormatter()

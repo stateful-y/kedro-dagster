@@ -4,7 +4,7 @@ Dagster CLI and API override logger settings, so Kedro's `logging.yml` cannot be
 
 ## Unify terminal log formatting
 
-If you want consistent log formatting between Kedro and Dagster on the terminal, use Kedro-Dagster's Dagster formatter implementations in your Kedro `logging.yml`:
+If you want consistent log formatting between Kedro and Dagster on the terminal, use Kedro-Dagster's Dagster formatter classes in your Kedro `logging.yml`:
 
 ```yaml
 formatters:
@@ -12,13 +12,13 @@ formatters:
     format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 
   colored:
-    "()": kedro_dagster.dagster_colored_formatter
+    class: kedro_dagster.logging.DagsterColoredFormatter
 
   json:
-    "()": kedro_dagster.dagster_json_formatter
+    class: kedro_dagster.logging.DagsterJsonFormatter
 
   rich:
-    "()": kedro_dagster.dagster_rich_formatter
+    class: kedro_dagster.logging.DagsterRichFormatter
 
 handlers:
   console:
@@ -37,6 +37,15 @@ loggers:
 root:
   handlers: [console]
 ```
+
+Kedro only imports logging classes from `logging`, `kedro.logging`, and the modules listed in the `KEDRO_LOGGING_MODULE_ALLOWLIST` environment variable, so allow `kedro_dagster` wherever Kedro runs (shell, CI, Docker image):
+
+```bash
+export KEDRO_LOGGING_MODULE_ALLOWLIST=kedro_dagster
+```
+
+!!! warning
+    Since Kedro 1.3, `logging.yml` rejects the `"()"` factory key for security reasons. Configurations that reference `kedro_dagster.dagster_colored_formatter`, `dagster_json_formatter` or `dagster_rich_formatter` through `"()"` fail with `ValueError: The '()' key is not allowed in logging configuration`. Switch them to the `class` key shown above. The factory functions remain available for use from Python.
 
 The three Dagster formatters available are `colored`, `json`, and `rich`. These match the `--log-format` options accepted by `kedro dagster <command>`.
 

@@ -11,7 +11,15 @@ from .catalog import CatalogTranslator
 from .dagster import ExecutorCreator, LoggerCreator, ScheduleCreator
 from .datasets import NOTHING_OUTPUT, DagsterNothingDataset, DagsterPartitionedDataset
 from .kedro import KedroRunTranslator
-from .logging import dagster_colored_formatter, dagster_json_formatter, dagster_rich_formatter, getLogger
+from .logging import (
+    DagsterColoredFormatter,
+    DagsterJsonFormatter,
+    DagsterRichFormatter,
+    dagster_colored_formatter,
+    dagster_json_formatter,
+    dagster_rich_formatter,
+    getLogger,
+)
 from .nodes import NodeTranslator
 from .pipelines import PipelineTranslator
 from .translator import DagsterCodeLocation, KedroProjectTranslator
@@ -32,6 +40,9 @@ __all__ = [
     "PipelineTranslator",
     "DagsterCodeLocation",
     "KedroProjectTranslator",
+    "DagsterRichFormatter",
+    "DagsterJsonFormatter",
+    "DagsterColoredFormatter",
     "dagster_rich_formatter",
     "dagster_json_formatter",
     "dagster_colored_formatter",
