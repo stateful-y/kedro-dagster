@@ -183,7 +183,9 @@ jobs:
         run: uv tool install nox==2026.8.17
 
       - name: Set up Python
-        run: uv python install
+        # Pin the newest supported Python: a bare `uv python install` takes the newest
+        # CPython release, which dependencies may not ship wheels for yet.
+        run: uv python install 3.14
 
       - name: Run hooks with nox
         run: |
