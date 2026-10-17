@@ -49,7 +49,9 @@ jobs:
 
       - name: Set up Python
         if: ${{ github.event.pull_request.commits == 1 }}
-        run: uv python install
+        # Pin the newest supported Python: a bare `uv python install` takes the newest
+        # CPython release, which dependencies may not ship wheels for yet.
+        run: uv python install 3.14
 
       - name: Validate the commit message that becomes the squash title
         if: ${{ github.event.pull_request.commits == 1 }}
