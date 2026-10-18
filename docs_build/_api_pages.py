@@ -456,16 +456,28 @@ def _build_members_tables(package_name, module_name, members):
     return "\n\n".join(sections)
 
 
+def _write_if_changed(path, content):
+    """Write ``content`` to ``path`` unless the file already holds it.
+
+    The live preview rebuilds the site on every write under ``docs/``. A page
+    rewritten with the same content would start a build for nothing, once per
+    page, on every regeneration.
+    """
+    if path.exists() and path.read_text(encoding="utf-8") == content:
+        return
+    path.write_text(content, encoding="utf-8")
+
+
 def _write_member_pages(generated_dir, page_template, module_name, members):
-    """Write one detail page per public class/function. Returns how many."""
-    written = 0
+    """Write one detail page per public class/function. Returns the pages."""
+    pages = []
     for kind in ("classes", "functions"):
         for entry in members[kind]:
             qualified = _qualified_name(module_name, entry["name"])
             page = generated_dir / f"{qualified}.md"
-            page.write_text(page_template.format(name=entry["name"], qualified=qualified))
-            written += 1
-    return written
+            _write_if_changed(page, page_template.format(name=entry["name"], qualified=qualified))
+            pages.append(page)
+    return pages
 
 
 def _generate_api_pages(project_root):
@@ -493,10 +505,6 @@ def _generate_api_pages(project_root):
     generated_dir = api_dir / "generated"
     generated_dir.mkdir(parents=True, exist_ok=True)
 
-    # Clean stale generated pages
-    for old in generated_dir.glob("*.md"):
-        old.unlink()
-
     modules = _get_submodules(project_root)
 
     _page_template = (
@@ -513,7 +521,7 @@ def _generate_api_pages(project_root):
         "<!-- EXAMPLES_FOR:{qualified} -->\n"
     )
 
-    member_count = 0
+    member_pages = []
     for mod in modules:
         # Discovery is keyed on the module NAME now, not on a source path: a
         # single-file module and a package directory are the same thing to
@@ -534,20 +542,26 @@ def _generate_api_pages(project_root):
             members_tables=members_tables,
         )
         dest = api_dir / f"{mod['module_name']}.md"
-        dest.write_text(content, encoding="utf-8")
+        _write_if_changed(dest, content)
         print(f"[docs] generated api page: pages/api/{mod['module_name']}.md")
 
         # Generate per-class/function detail pages
-        member_count += _write_member_pages(generated_dir, _page_template, mod["module_name"], members)
+        member_pages += _write_member_pages(generated_dir, _page_template, mod["module_name"], members)
 
     # Symbols exported only from the package root have no submodule and so no
     # module page; they still need a detail page for the table and See Also to
     # link at. Without this the link resolves to nothing and, being raw HTML,
     # nothing validates it.
-    member_count += _write_member_pages(generated_dir, _page_template, "", _get_root_members(project_root))
+    member_pages += _write_member_pages(generated_dir, _page_template, "", _get_root_members(project_root))
 
-    if member_count:
-        print(f"[docs] generated {member_count} API member pages in pages/api/generated/")
+    # Stale pages go last, after the current ones are written. The live preview
+    # builds as soon as a page changes: deleting every page first let it build
+    # while pages were missing, and the server stopped on a missing file.
+    for old in set(generated_dir.glob("*.md")) - set(member_pages):
+        old.unlink()
+
+    if member_pages:
+        print(f"[docs] generated {len(member_pages)} API member pages in pages/api/generated/")
 
 
 def generate(project_root):

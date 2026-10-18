@@ -62,6 +62,7 @@ Every step must produce something the user can see. Start with the smallest poss
 ```python
 # Step 1: Verify installation
 import my_package
+
 print(my_package.__version__)
 # Output: 1.0.0
 ```
