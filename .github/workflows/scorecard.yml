@@ -16,7 +16,12 @@ jobs:
   analysis:
     name: Scorecard analysis
     runs-on: ubuntu-latest
+    # A job-level block replaces the workflow-level one. The two reads are what
+    # OpenSSF's own example workflow asks for on a private repository; without them
+    # checkout fails with "repository not found" until the repo is public.
     permissions:
+      contents: read
+      actions: read
       # Upload the results to the Security tab and publish to the OpenSSF API.
       security-events: write
       id-token: write

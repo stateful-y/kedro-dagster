@@ -17,7 +17,14 @@ jobs:
   analyze:
     name: Analyze (Python)
     runs-on: ubuntu-latest
+    # A job-level block replaces the workflow-level one, so every scope the job needs is
+    # listed. The two reads are invisible on a public repo, where checkout works
+    # anonymously, and fatal while a repo is still private: without `contents: read`
+    # checkout fails with "repository not found", and without `actions: read` the
+    # analyze step cannot read the run it belongs to.
     permissions:
+      contents: read
+      actions: read
       # Required to upload CodeQL results to the Security tab.
       security-events: write
     steps:

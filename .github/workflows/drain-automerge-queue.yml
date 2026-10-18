@@ -87,10 +87,40 @@ jobs:
 
             if [ "$state" = "behind" ]; then
               echo "Updating #${number} so its checks rerun against the current base."
-              gh api -X PUT "repos/$REPO/pulls/${number}/update-branch"
-              echo "Done. Auto-merge lands it once the required checks pass, and that"
-              echo "merge triggers this workflow again for the next one."
-              exit 0
+
+              # Capture rather than let `set -e` kill the run: one specific failure here
+              # is a configuration gap, not a fault, and it must not paint the default
+              # branch red on every push until someone fixes it.
+              if response=$(gh api -X PUT "repos/$REPO/pulls/${number}/update-branch" 2>&1); then
+                echo "$response"
+                echo "Done. Auto-merge lands it once the required checks pass, and that"
+                echo "merge triggers this workflow again for the next one."
+                exit 0
+              fi
+
+              # The App needs `workflows: write` to push a branch whose diff touches
+              # `.github/workflows/*`. Most dependency updates in this fleet do exactly
+              # that -- action pins and tool versions live in the workflows -- so without
+              # that permission the drain works on the minority of PRs and refuses the
+              # rest. Nothing here can grant it: App permissions are changed by the App
+              # owner and then accepted on the installation.
+              if printf '%s' "$response" | grep -q 'without .workflows. permission'; then
+                echo "::warning title=Automerge queue is stalled::The GitHub App used by this workflow lacks the 'Workflows' write permission, so it cannot update #${number} (its diff touches .github/workflows/*). Grant that permission to the App and accept it on the installation. Until then the automerge queue will not drain."
+                {
+                  echo "### Automerge queue stalled"
+                  echo
+                  echo "Could not update **#${number}**: the GitHub App lacks **Workflows: write**."
+                  echo
+                  echo "Most dependency updates here touch \`.github/workflows/*\`, so the queue"
+                  echo "will not drain until that permission is granted to the App and accepted"
+                  echo "on the installation. No other action is needed in this repository."
+                } >> "$GITHUB_STEP_SUMMARY"
+                exit 0
+              fi
+
+              # Anything else is a real failure and should be loud.
+              echo "::error::Failed to update #${number}: ${response}"
+              exit 1
             fi
           done
 

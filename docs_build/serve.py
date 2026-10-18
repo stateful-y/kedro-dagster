@@ -44,6 +44,10 @@ SRC = PROJECT_ROOT / "src"
 # short coalescing window turns a burst into one regeneration.
 _DEBOUNCE_SECONDS = 0.5
 _POLL_SECONDS = 0.2
+# inotify reports a read of a file as two events. The documentation build and
+# the regeneration both read the source, so a read counted as a change would
+# make each regeneration start the next one.
+_READ_EVENT_TYPES = frozenset({"opened", "closed_no_write"})
 
 # The one line that knows which engine renders the docs. This project builds
 # with Zensical (the maintained successor to Material for MkDocs); its serve
@@ -83,8 +87,16 @@ class _SourceChangeHandler(FileSystemEventHandler):
         self._pending_since = None
 
     def on_any_event(self, event):
-        """Note the time of any ``.py`` change; a directory event is ignored."""
-        if event.is_directory or not str(event.src_path).endswith(".py"):
+        """Note the time of any ``.py`` change; a directory event and a read are ignored.
+
+        A tool that saves by writing a temporary file and renaming it over the
+        target gives one ``moved`` event whose source is the temporary file, so
+        the destination of an event is checked too.
+        """
+        if event.is_directory or event.event_type in _READ_EVENT_TYPES:
+            return
+        paths = (str(event.src_path), str(getattr(event, "dest_path", "") or ""))
+        if not any(path.endswith(".py") for path in paths):
             return
         self._pending_since = time.monotonic()
 

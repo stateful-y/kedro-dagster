@@ -92,7 +92,7 @@ git checkout -b template-update/$VERSION
 ### Step 4: Run copier update
 
 ```bash
-copier update --trust --conflict rej --skip-answered
+copier update --trust --skip-answered
 ```
 
 If the template has new variables (added since `_commit`), copier will prompt for them. Provide answers by:

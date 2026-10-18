@@ -23,9 +23,16 @@ build:
     # on sys.path (via the wheel's `dev-mode-dirs`) so the build loads the
     # `docs_build` markdown extensions by module name. `uv run` uses that venv.
     - asdf plugin add uv || true
+    # Both lines carry an annotation, and both must. Renovate's regex manager matches
+    # per annotated occurrence, so a single annotation covering only `asdf install`
+    # would bump that line and leave `asdf global` behind -- selecting a uv version
+    # that was never installed, which fails the docs build in every generated project.
+    # Nothing would flag it first: the pin scans are scoped to workflow files and this
+    # is not one, so the half-bumped state would ship and only surface on Read the Docs.
     # renovate: datasource=github-releases depName=astral-sh/uv
-    - asdf install uv 0.10.0
-    - asdf global uv 0.10.0
+    - asdf install uv 0.13.1
+    # renovate: datasource=github-releases depName=astral-sh/uv
+    - asdf global uv 0.13.1
     - uv sync --group docs
     # Generate the API pages and export the notebooks -- the explicit step that
     # replaced the deleted on_pre_build hook.

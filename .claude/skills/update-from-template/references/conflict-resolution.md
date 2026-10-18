@@ -1,10 +1,10 @@
 # Conflict Resolution Patterns
 
-How to resolve conflicts produced by `copier update --conflict rej` for each file tier and type.
+How to resolve conflicts from `copier update` for each file tier and type.
 
 ## Table of Contents
 
-- [Why --conflict rej](#why---conflict-rej)
+- [Use the default inline merge](#use-the-default-inline-merge-not---conflict-rej)
 - [Resolution by Tier](#resolution-by-tier)
 - [.rej File Format](#rej-file-format)
 - [TOML Merge (pyproject.toml)](#toml-merge-pyprojecttoml)
@@ -16,56 +16,83 @@ How to resolve conflicts produced by `copier update --conflict rej` for each fil
 
 ---
 
-## Why --conflict rej
+## Use the default inline merge, NOT --conflict rej
 
-`copier update` supports two conflict modes:
+**Do not pass `--conflict rej`. Use copier's default, which is a three-way inline merge.**
 
-| Mode | Behavior | AI suitability |
-|------|----------|----------------|
-| `--conflict inline` | Inserts `<<<<<<<`/`=======`/`>>>>>>>` markers into files | Harder to parse — markers interleave with file content |
-| `--conflict rej` | Applies the hunks that apply, writes the rest to `<file>.rej` | Easier to parse — the `.rej` is a plain diff, not markers interleaved with content |
+This file used to prescribe `--conflict rej` on the grounds that a `.rej` is easier for an
+assistant to parse than markers interleaved with content. That reasoning is about *reading*
+the outcome and ignores what the two modes do to the file. They are not two presentations of
+the same result. Measured on one repository, one release, the same commit, only the flag
+differing:
 
-Use `--conflict rej`. This produces:
-- The **local file** with every hunk that applied cleanly already written to it — *not* the
-  untouched original. `git apply --reject` is all-or-nothing per hunk, not per file.
-- A **`.rej` file** containing only the hunks that could not be applied.
+| | `--conflict rej` | default (inline) |
+|---|---|---|
+| `.rej` files | 5 | **0** |
+| digest-pinned `uses:` lines | 49 → **26** | 49 → **49** |
+| local `exclude:` block in `tests.yml` | **destroyed** | intact |
+| tracked files changed | 7 | **2** |
 
-That distinction is load-bearing. For a Tier 3 file, deleting the `.rej` does not restore
-the project's version: the hunks that applied are still there. Use
-`git checkout HEAD -- <file>` to undo them. Check with `git diff HEAD -- <file>` whenever a
-`.rej` exists — a non-empty diff means the file was partially updated.
+`--conflict rej` applies hunks with `git apply --reject`, which is all-or-nothing **per hunk**
+and has no knowledge of the merge base. A hunk carrying the template's change plus context
+lines the project has legitimately edited fails as a unit, and what lands is the template's
+version of everything that did apply. The inline mode performs a real three-way merge, so
+where base, local and template agree it simply keeps the agreement, and it only marks genuine
+divergence.
+
+The damage is not limited to things you would think to recount. In one repository the reject
+mode also replaced a live `Compat tests` pin set with the template's **disabled** placeholder,
+and dropped `lfs: true` from a checkout step. A digest recount would have reported those files
+clean.
+
+If an inline conflict does appear, it is a real one. Resolve it in place: the markers sit
+exactly where the two sides genuinely disagree, which is far less than `--conflict rej`
+rejects.
+
+### If you inherit a --conflict rej run
+
+The **local file** already contains every hunk that applied — *not* the untouched original.
+So deleting the `.rej` does not restore the project's version. Use
+`git checkout HEAD -- <file>` to undo them, and check with `git diff HEAD -- <file>` whenever
+a `.rej` exists: a non-empty diff means the file was partially updated. Better still, discard
+the whole run and redo it without the flag.
 
 ---
 
 ## Resolution by Tier
 
+With the default inline merge a conflict appears as `<<<<<<<` / `=======` / `>>>>>>>` markers
+**in the file**, at exactly the lines where the two sides genuinely disagree. There is no
+`.rej` to read. The tier rules below decide which side of each marker block to keep. Where
+this section says "the template's side", read the block between `=======` and `>>>>>>>`.
+
+Sweep for markers with `^(<<<<<<<|>>>>>>>|=======)( |$)` before committing. The anchored form
+without that trailing group misses `<<<<<<< HEAD` and `>>>>>>> theirs`.
+
 ### Tier 1 — Template-managed (template wins)
 
-1. Read the `.rej` file to understand what the template wanted
-2. Apply those changes to the local file (the template version is correct)
-3. Delete the `.rej` file
+1. Keep the template's side of every marker block.
+2. If the file updated with no conflict, it is already correct — no action.
 
-If copier updated the file without conflict (no `.rej`), the update is already correct — no action needed.
+Verify by diffing against a fresh `copier copy` at the same ref: a Tier 1 file should end
+byte-identical to the pristine render.
 
 ### Tier 2 — Merge-required (intelligent merge)
 
-1. Read the **local file** (current project state with customizations)
-2. Read the **`.rej` file** (what the template wanted to change)
-3. Understand the intent of BOTH:
+1. Read both sides of each marker block, and understand the intent of each:
     - Template change: bug fix? dependency bump? structural improvement? new feature?
     - Local state: custom content? extended functionality? project-specific additions?
-4. Apply template changes while preserving local additions (see file-type patterns below)
-5. Delete the `.rej` file
+2. Apply the template's change while preserving the local addition (see file-type patterns
+   below). Both sides usually want to survive; that is what makes it Tier 2.
 
-If copier updated a Tier 2 file without conflict (no `.rej`) BUT the file was classified as customized in Step 2:
-- The update may have **overwritten local customizations**
-- Compare the updated file against the baseline diff from Step 2
-- Restore any lost local additions
+If a Tier 2 file updated with **no** conflict but you classified it as customized, do not
+assume it was left alone. Take a whole-file pre/post diff and confirm the only changes are the
+template's intended ones.
 
 ### Tier 3 — Local-owned (local wins)
 
-1. If a `.rej` file exists: delete it (ignore template changes)
-2. If copier modified the file without conflict: restore from git with `git checkout HEAD -- <file>`
+1. Keep the local side of every marker block.
+2. If copier modified the file with no conflict, restore it: `git checkout HEAD -- <file>`.
 
 ---
 
