@@ -212,6 +212,7 @@ ignore = [
     "SIM102",  # collapsible if (clarity over brevity)
     "SIM105",  # contextlib.suppress (comments on except clauses preferred)
     "PLR0913", # too many args in func def
+    "PLR0917", # too many positional args (made stable in ruff 0.17; same reasoning as PLR0913)
     "PLR0915", # too many statements
     "PLR0912", # too many branches
     "PLR2004", # magic value used in comparison
