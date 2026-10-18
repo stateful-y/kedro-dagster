@@ -1,5 +1,8 @@
 blank_issues_enabled: false
 contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/stateful-y/kedro-dagster/security/advisories/new
+    about: Report security vulnerabilities privately. Do not open a public issue.
   - name: Question or Discussion
     url: https://github.com/stateful-y/kedro-dagster/discussions
     about: Please use GitHub Discussions for questions and general discussions
