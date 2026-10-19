@@ -14,7 +14,9 @@ audited release workflow.
 **Signed artifacts (PEP 740 attestations).** Every published distribution carries a
 cryptographic attestation, produced with Sigstore, binding the artifact to the exact
 workflow run that built it. You can verify that what you install is what this project
-actually released, not a tampered copy.
+actually released, not a tampered copy. The same holds for files downloaded from a GitHub
+Release: each one sits next to a `.sigstore.json` bundle, checked with
+`sigstore verify github <file> --bundle <file>.sigstore.json --repository stateful-y/kedro-dagster`.
 
 **A software bill of materials (SBOM).** Each release ships a CycloneDX SBOM enumerating
 every dependency it resolves. When a vulnerability is disclosed in a transitive
