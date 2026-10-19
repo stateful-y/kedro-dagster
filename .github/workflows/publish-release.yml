@@ -123,6 +123,10 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      # Keyless Sigstore signing below exchanges this job's OIDC token for a
+      # short-lived certificate naming this workflow. Granted here rather than in
+      # `build`, which runs the project's own build hooks.
+      id-token: write
     steps:
       # Check out main (not the tag): main carries the CHANGELOG entry the merged
       # changelog PR just added, which the tag does not yet have.
@@ -174,6 +178,21 @@ jobs:
           name: ${{ env.sbom-artifact-name }}
           path: sbom/
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+        with:
+          # renovate: datasource=github-releases depName=astral-sh/uv
+          version: "0.13.1"
+
+      # One `<file>.sigstore.json` bundle per release file, attached to the release
+      # next to it. PyPI already carries attestations for the distributions, but a
+      # download from the GitHub Release had nothing to verify against, which is what
+      # Scorecard's Signed-Releases check reports. Verify a download with
+      # `sigstore verify github <file> --bundle <file>.sigstore.json --repository <owner>/<repo>`.
+      - name: Sign the release artifacts with Sigstore
+        # renovate: datasource=pypi depName=sigstore
+        run: uvx sigstore==4.5.0 sign dist/* sbom/sbom.cdx.json
+
       # Created as a draft: a draft release is visible to maintainers only, so nothing
       # is public until the `pypi` environment gate has been approved and the upload
       # has succeeded. `finalize-release` undrafts it. If the gate is rejected or the
@@ -198,14 +217,14 @@ jobs:
           # decision, taken only after a successful upload.
           if gh release view "$VERSION" >/dev/null 2>&1; then
             echo "Release $VERSION already exists; refreshing its notes and artifacts"
-            gh release upload "$VERSION" dist/* sbom/sbom.cdx.json --clobber
+            gh release upload "$VERSION" dist/* sbom/* --clobber
             gh release edit "$VERSION" --notes "$RELEASE_NOTES"
           else
             gh release create "$VERSION" \
               --draft \
               --title "$VERSION" \
               --notes "$RELEASE_NOTES" \
-              dist/* sbom/sbom.cdx.json
+              dist/* sbom/*
           fi
 
   pypi-publish:
