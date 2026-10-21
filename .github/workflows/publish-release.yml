@@ -80,7 +80,7 @@ jobs:
         uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
         with:
           # renovate: datasource=github-releases depName=astral-sh/uv
-          version: "0.13.3"
+          version: "0.13.4"
           enable-cache: true
           cache-dependency-glob: "pyproject.toml"
 
@@ -182,7 +182,7 @@ jobs:
         uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
         with:
           # renovate: datasource=github-releases depName=astral-sh/uv
-          version: "0.13.3"
+          version: "0.13.4"
 
       # One `<file>.sigstore.json` bundle per release file, attached to the release
       # next to it. PyPI already carries attestations for the distributions, but a
@@ -191,7 +191,7 @@ jobs:
       # `sigstore verify github <file> --bundle <file>.sigstore.json --repository <owner>/<repo>`.
       - name: Sign the release artifacts with Sigstore
         # renovate: datasource=pypi depName=sigstore
-        run: uvx sigstore==4.5.0 sign dist/* sbom/sbom.cdx.json
+        run: uvx sigstore==4.5.1 sign dist/* sbom/sbom.cdx.json
 
       # Created as a draft: a draft release is visible to maintainers only, so nothing
       # is public until the `pypi` environment gate has been approved and the upload
@@ -255,7 +255,7 @@ jobs:
         # are rate-limited: this one sat on the dependency dashboard for two weeks
         # while noisier digest bumps took the weekly slots, so a release-blocking
         # bump can be queued and invisible. Check the dashboard before releasing.
-        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+        uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
         with:
           attestations: true
           verify-metadata: false
