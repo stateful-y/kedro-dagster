@@ -30,9 +30,9 @@ build:
     # Nothing would flag it first: the pin scans are scoped to workflow files and this
     # is not one, so the half-bumped state would ship and only surface on Read the Docs.
     # renovate: datasource=github-releases depName=astral-sh/uv
-    - asdf install uv 0.13.1
+    - asdf install uv 0.13.4
     # renovate: datasource=github-releases depName=astral-sh/uv
-    - asdf global uv 0.13.1
+    - asdf global uv 0.13.4
     - uv sync --group docs
     # Generate the API pages and export the notebooks -- the explicit step that
     # replaced the deleted on_pre_build hook.

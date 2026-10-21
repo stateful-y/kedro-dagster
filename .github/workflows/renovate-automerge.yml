@@ -61,6 +61,28 @@ jobs:
       # or this step fails with a 403.
       pull-requests: write
     steps:
+      # Auto-merge only waits for checks the base branch *requires*. With none, the PR
+      # is mergeable the moment it is approved, GitHub refuses to arm auto-merge
+      # ("Pull request is in clean/unstable status"), and `gh pr merge --auto` falls
+      # back to merging on the spot, before CI has run. That is how yohou and
+      # python-package-copier merged uv bumps 13 seconds after Renovate opened them,
+      # once the org ruleset stopped covering them; the concurrent runs then collided
+      # ("Merge already in progress") and stranded the next PRs half-handled. So
+      # nothing is approved or merged unless the base branch requires a status check,
+      # from a ruleset (org or repo) or from classic branch protection.
+      - name: Refuse to merge into a branch that requires no checks
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          BASE: ${{ github.event.pull_request.base.ref }}
+        run: |
+          rules=$(gh api "repos/$REPO/rules/branches/$BASE" --jq '[.[] | select(.type == "required_status_checks")] | length')
+          classic=$(gh api "repos/$REPO/branches/$BASE" --jq '.protection.required_status_checks.contexts // [] | length')
+          if [ "$rules" -eq 0 ] && [ "$classic" -eq 0 ]; then
+            echo "::error::$BASE requires no status checks, so auto-merge would merge this PR before CI runs. Restore the branch ruleset (Settings > Rules, or the organization ruleset's target repositories) and re-run this job."
+            exit 1
+          fi
+
       - name: Approve the update
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
