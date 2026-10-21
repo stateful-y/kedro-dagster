@@ -191,7 +191,7 @@ jobs:
       # `sigstore verify github <file> --bundle <file>.sigstore.json --repository <owner>/<repo>`.
       - name: Sign the release artifacts with Sigstore
         # renovate: datasource=pypi depName=sigstore
-        run: uvx sigstore==4.5.0 sign dist/* sbom/sbom.cdx.json
+        run: uvx sigstore==4.5.1 sign dist/* sbom/sbom.cdx.json
 
       # Created as a draft: a draft release is visible to maintainers only, so nothing
       # is public until the `pypi` environment gate has been approved and the upload
