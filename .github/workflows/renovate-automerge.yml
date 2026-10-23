@@ -54,8 +54,9 @@ jobs:
       && contains(github.event.pull_request.labels.*.name, 'automerge')
     runs-on: ubuntu-latest
     permissions:
-      # `gh pr merge --auto` writes the auto-merge setting on the PR.
-      contents: write
+      # Read only: the guard reads the branch rules, and auto-merge is enabled with the
+      # App token minted below, not with this one.
+      contents: read
       # `gh pr review --approve` needs write, and the org or repository setting
       # "Allow GitHub Actions to create and approve pull requests" must be enabled
       # or this step fails with a 403.
@@ -93,9 +94,25 @@ jobs:
           gh pr review --approve "$PR_URL" \
             --body "Approved automatically: this update is in the automerge scope set by .github/renovate.json. The required status checks still gate the merge."
 
+      # Auto-merge is enabled as the fleet App, not as GITHUB_TOKEN, because GitHub
+      # performs the eventual merge as whoever enabled it. A merge made as
+      # github-actions[bot] pushes to main with GITHUB_TOKEN, and that push triggers no
+      # workflow -- so drain-automerge-queue.yml never runs, and every other automerge
+      # PR waits "behind" main with nothing to update it. Whether Renovate or this step
+      # enabled auto-merge first was a race, which is why the queue drained on some days
+      # and silently stalled on others. The App token also carries the `workflows`
+      # permission that GITHUB_TOKEN lacks, which enabling auto-merge requires on a PR
+      # that touches `.github/workflows/*`.
+      - name: Generate a token from the fleet automation GitHub App
+        id: app-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
       - name: Hand the PR to GitHub auto-merge
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           PR_URL: ${{ github.event.pull_request.html_url }}
         run: |
           # Renovate's `platformAutomerge` normally does this at creation time. Doing
