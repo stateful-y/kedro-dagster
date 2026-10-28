@@ -553,7 +553,12 @@ class CeleryExecutorOptions(BaseModel):
     retries: int | None = Field(default=None, description="Number of retries for the Celery tasks.")
 
 
-class CeleryDockerExecutorOptions(CeleryExecutorOptions, DockerExecutorOptions):
+# `retries` is `int | None` in CeleryExecutorOptions and a retry-policy model in
+# DockerExecutorOptions. The Celery declaration wins by MRO, so that is what the field
+# validates today; ty >= 0.0.92 reports the conflicting parent types.
+class CeleryDockerExecutorOptions(  # ty: ignore[invalid-attribute-override]
+    CeleryExecutorOptions, DockerExecutorOptions
+):
     """Options for the Celery-based executor which launches tasks as Docker containers.
 
     Uses fields from both ``CeleryExecutorOptions`` and ``DockerExecutorOptions``
@@ -811,7 +816,12 @@ class K8sJobExecutorOptions(MultiprocessExecutorOptions):
     )
 
 
-class CeleryK8sJobExecutorOptions(CeleryExecutorOptions, K8sJobExecutorOptions):
+# `retries` is `int | None` in CeleryExecutorOptions and a retry-policy model in
+# K8sJobExecutorOptions. The Celery declaration wins by MRO, so that is what the field
+# validates today; ty >= 0.0.92 reports the conflicting parent types.
+class CeleryK8sJobExecutorOptions(  # ty: ignore[invalid-attribute-override]
+    CeleryExecutorOptions, K8sJobExecutorOptions
+):
     """Options for the Celery-based executor which launches tasks as Kubernetes jobs.
 
     Parameters
