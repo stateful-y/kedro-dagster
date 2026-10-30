@@ -65,7 +65,7 @@ lint = [
     "interrogate>=1.7.0",
     "ruff>=0.8.0",
     "rumdl>=0.1.33",
-    "ty==0.0.94",
+    "ty==0.0.95",
 ]
 docs = [
     # Griffe is imported directly by docs_build/_api_pages.py to discover the package's
