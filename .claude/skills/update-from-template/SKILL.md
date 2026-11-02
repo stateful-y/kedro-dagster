@@ -55,10 +55,10 @@ Generate a clean baseline to identify which files have local customizations:
 
 ```bash
 TMPDIR=$(mktemp -d)
-copier copy --trust --defaults --data-file .copier-answers.yml <_src_path> "$TMPDIR" --vcs-ref <_commit>
+copier copy --trust --defaults --data-file .copier-answers.yml --data generate_logos=false <_src_path> "$TMPDIR" --vcs-ref <_commit>
 ```
 
-This creates a pristine copy of the project at the current template version with the same answers. Then diff:
+This creates a pristine copy of the project at the current template version with the same answers. `generate_logos=false` keeps the baseline's logos as the template's placeholders, which is what the template shipped, and skips the render step, which needs `uv` and network access. Then diff:
 
 ```bash
 diff -rq "$TMPDIR" . --exclude=.git --exclude=__pycache__ --exclude='*.pyc' --exclude=.venv --exclude=node_modules --exclude=site --exclude='*.egg-info'
