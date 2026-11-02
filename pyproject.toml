@@ -65,6 +65,13 @@ lint = [
     "interrogate>=1.7.0",
     "ruff>=0.8.0",
     "rumdl>=0.1.33",
+    # Pinned exactly, unlike the rest of this group. ty is pre-1.0 and its patch
+    # releases add checks: 0.0.92 introduced `invalid-attribute-override` and turned
+    # the automerged weekly lockfile refresh red in two repos, because a `>=` floor
+    # let that refresh move ty along with everything else. Pinned, it moves only in
+    # the `lint-tools` Renovate PR, where any code the new checks need can land with
+    # it. The annotation lets Renovate bump this template seed too.
+    # renovate: datasource=pypi depName=ty
     "ty==0.0.95",
 ]
 docs = [
