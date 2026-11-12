@@ -264,15 +264,17 @@ omit-covered-files = false
 
 [tool.ty.rules]
 # Gradually adopt ty: demote noisy rules to warnings while the codebase is adapted
-unresolved-attribute = "warn"
-unresolved-import = "warn"
+missing-attribute = "warn"
+# ty 0.0.100 split attributes missing on only some union members out of the rule above.
+missing-union-attribute = "warn"
+import-not-found = "warn"
 invalid-assignment = "warn"
 invalid-argument-type = "warn"
 invalid-parameter-default = "warn"
 not-subscriptable = "warn"
 no-matching-overload = "warn"
 invalid-return-type = "warn"
-invalid-method-override = "warn"
+incompatible-method-override = "warn"
 call-non-callable = "warn"
 unsupported-operator = "warn"
 missing-argument = "warn"

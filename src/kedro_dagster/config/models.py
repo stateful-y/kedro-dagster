@@ -556,7 +556,7 @@ class CeleryExecutorOptions(BaseModel):
 # `retries` is `int | None` in CeleryExecutorOptions and a retry-policy model in
 # DockerExecutorOptions. The Celery declaration wins by MRO, so that is what the field
 # validates today; ty >= 0.0.92 reports the conflicting parent types.
-class CeleryDockerExecutorOptions(  # ty: ignore[invalid-attribute-override]
+class CeleryDockerExecutorOptions(  # ty: ignore[incompatible-attribute-override]
     CeleryExecutorOptions, DockerExecutorOptions
 ):
     """Options for the Celery-based executor which launches tasks as Docker containers.
@@ -819,7 +819,7 @@ class K8sJobExecutorOptions(MultiprocessExecutorOptions):
 # `retries` is `int | None` in CeleryExecutorOptions and a retry-policy model in
 # K8sJobExecutorOptions. The Celery declaration wins by MRO, so that is what the field
 # validates today; ty >= 0.0.92 reports the conflicting parent types.
-class CeleryK8sJobExecutorOptions(  # ty: ignore[invalid-attribute-override]
+class CeleryK8sJobExecutorOptions(  # ty: ignore[incompatible-attribute-override]
     CeleryExecutorOptions, K8sJobExecutorOptions
 ):
     """Options for the Celery-based executor which launches tasks as Kubernetes jobs.
