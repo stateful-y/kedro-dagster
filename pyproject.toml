@@ -72,7 +72,7 @@ lint = [
     # the `lint-tools` Renovate PR, where any code the new checks need can land with
     # it. The annotation lets Renovate bump this template seed too.
     # renovate: datasource=pypi depName=ty
-    "ty==0.0.100",
+    "ty==0.0.101",
 ]
 docs = [
     # Griffe is imported directly by docs_build/_api_pages.py to discover the package's
