@@ -135,7 +135,7 @@ class DagsterPartitionedDataset(PartitionedDataset):
       partition:
         type: dagster.StaticPartitionsDefinition
         partition_keys: ["1.csv", "2.csv"]
-      partition_mappings:
+      partition_mapping:
         downstream:
           type: dagster.StaticPartitionMapping
           downstream_partition_keys_by_upstream_partition_key:
@@ -154,7 +154,7 @@ class DagsterPartitionedDataset(PartitionedDataset):
       partition:
         type: dagster.StaticPartitionsDefinition
         partition_keys: ["2024-01.pkl", "2024-02.pkl"]
-      partition_mappings:
+      partition_mapping:
         downstream:
           type: dagster.IdentityPartitionMapping
     ```

@@ -16,6 +16,33 @@ if TYPE_CHECKING:
     from kedro.io import CatalogProtocol
 
 
+def _error_info_to_exception(error_info: Any) -> Exception:
+    """Rebuild an exception from the serialized error of a failed Dagster run.
+
+    Dagster stores the class name and the formatted message of the error, not
+    the exception object.
+
+    Parameters
+    ----------
+    error_info : SerializableErrorInfo
+        Serialized error taken from a Dagster failure event.
+
+    Returns
+    -------
+    Exception
+        Exception whose type has the name of the original class and whose
+        message is the original message. The serialized cause, if any, is
+        rebuilt the same way and set as ``__cause__``.
+    """
+    cls_name = error_info.cls_name or "Exception"
+    # The serialized message has the form "module.ClassName: message\n".
+    message = error_info.message.split(f"{cls_name}: ", 1)[-1].strip()
+    error: Exception = type(cls_name, (Exception,), {})(message)
+    if error_info.cause is not None:
+        error.__cause__ = _error_info_to_exception(error_info.cause)
+    return error
+
+
 class KedroRunTranslator:
     """Translator for Kedro run params.
 
@@ -240,17 +267,22 @@ class KedroRunTranslator:
         )
         def on_pipeline_error_sensor(context: dg.RunFailureSensorContext) -> None:
             """Sensor that fires Kedro on_pipeline_error hooks on run failure."""
-            kedro_context_resource = context.resource_defs["kedro_run"]
-            run_params = kedro_context_resource.run_params
-            pipeline = kedro_context_resource.pipeline
+            # The sensor requires no resource, so Dagster provides none in
+            # `context.resource_defs`. Build the `kedro_run` resource of the
+            # failed job, which holds the run params and filters of that job.
+            job = next(job for job in named_jobs.values() if job.name == context.dagster_run.job_name)
+            with dg.build_resources(
+                {"kedro_run": job.resource_defs["kedro_run"]}, instance=context.instance
+            ) as resources:
+                run_params = resources.kedro_run.run_params
+                pipeline = resources.kedro_run.pipeline
 
-            error_class_name = context.failure_event.event_specific_data.error.cls_name
-            error_message = context.failure_event.event_specific_data.error.message
+            error_info = context.failure_event.event_specific_data.error
 
-            context.log.error(f"{error_class_name}: {error_message}")
+            context.log.error(f"{error_info.cls_name}: {error_info.message}")
 
             self._hook_manager.hook.on_pipeline_error(
-                error=error_class_name(error_message),
+                error=_error_info_to_exception(error_info),
                 run_params=run_params,
                 pipeline=pipeline,
                 catalog=self._catalog,

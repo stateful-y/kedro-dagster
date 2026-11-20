@@ -31,7 +31,7 @@ If a node depends on or produces a `DagsterPartitionedDataset`, the translator c
 
 ## Map partitions to downstream datasets
 
-If you want to map upstream partition keys to downstream partition keys, use `partition_mappings` on the upstream dataset:
+If you want to map upstream partition keys to downstream partition keys, use `partition_mapping` on the upstream dataset:
 
 ```yaml
 my_upstream_dataset:
@@ -42,7 +42,7 @@ my_upstream_dataset:
   partition:
     type: dagster.StaticPartitionsDefinition
     partition_keys: ["1.csv", "2.csv", "3.csv"]
-  partition_mappings:
+  partition_mapping:
     my_downstream_dataset:
       type: dagster.StaticPartitionMapping
       downstream_partition_keys_by_upstream_partition_key:
@@ -73,7 +73,7 @@ my_upstream_dataset:
   partition:
     type: dagster.StaticPartitionsDefinition
     partition_keys: ["A.pkl", "B.pkl", "C.pkl"]
-  partition_mappings:
+  partition_mapping:
     my_downstream_dataset:
       type: dagster.IdentityPartitionMapping
 ```

@@ -276,3 +276,67 @@ class TestKedroRunHooks:
         assert isinstance(sensor_def.description, str) and len(sensor_def.description) > 0
         assert sensor_def.monitored_jobs == list(named_jobs.values())
         assert sensor_def.default_status == "RUNNING"
+
+    def test_on_pipeline_error_sensor_calls_hook_on_failed_run(
+        self, kedro_context_base, kedro_project_exec_filebacked_base
+    ):
+        """The sensor passes an exception and the run params of the failed job to the Kedro hook."""
+        options = kedro_project_exec_filebacked_base
+        translator = KedroRunTranslator(
+            context=kedro_context_base,
+            catalog=kedro_context_base.catalog,
+            project_path=str(options.project_path),
+            env=options.env,
+            run_id="sid-123",
+        )
+        fake_hook_mgr = _FakeHookManager()
+        translator._hook_manager = fake_hook_mgr
+
+        @dg.op
+        def failing_op():
+            raise ValueError("kaboom")
+
+        @dg.job(resource_defs={"kedro_run": translator.to_dagster(pipeline_name="__default__", filter_params={})})
+        def other_job():
+            failing_op()
+
+        @dg.job(
+            resource_defs={"kedro_run": translator.to_dagster(pipeline_name="pipe", filter_params={"tags": ["tag2"]})}
+        )
+        def failing_job():
+            failing_op()
+
+        sensors = translator._translate_on_pipeline_error_hook({"other": other_job, "failing": failing_job})
+        sensor_def = sensors["on_pipeline_error_sensor"]
+
+        with dg.DagsterInstance.ephemeral() as instance:
+            result = failing_job.execute_in_process(instance=instance, raise_on_error=False)
+            assert not result.success
+
+            # As in a deployment, the sensor gets no resource: it requires none.
+            assert sensor_def.required_resource_keys == set()
+            sensor_context = dg.build_run_status_sensor_context(
+                sensor_name="on_pipeline_error_sensor",
+                dagster_event=result.get_run_failure_event(),
+                dagster_instance=instance,
+                dagster_run=result.dagster_run,
+            ).for_run_failure()
+
+            sensor_def(sensor_context)
+
+        assert len(fake_hook_mgr.hook.on_pipeline_error_called_with) == 1
+        hook_call = fake_hook_mgr.hook.on_pipeline_error_called_with[0]
+
+        error = hook_call["error"]
+        assert isinstance(error, Exception)
+        assert type(error).__name__ == "DagsterExecutionStepExecutionError"
+        assert str(error) == 'Error occurred while executing op "failing_op":'
+        assert isinstance(error.__cause__, Exception)
+        assert type(error.__cause__).__name__ == "ValueError"
+        assert str(error.__cause__) == "kaboom"
+
+        assert hook_call["run_params"]["pipeline_name"] == "pipe"
+        assert hook_call["run_params"]["tags"] == ["tag2"]
+        assert hook_call["run_params"]["run_id"] == "sid-123"
+        assert {node.name for node in hook_call["pipeline"].nodes} == {"node3", "node4"}
+        assert hook_call["catalog"] is translator._catalog
