@@ -43,6 +43,39 @@ def _error_info_to_exception(error_info: Any) -> Exception:
     return error
 
 
+def _get_failure_error_info(context: dg.RunFailureSensorContext) -> Any | None:
+    """Return the serialized error of a failed run, if Dagster recorded one.
+
+    Parameters
+    ----------
+    context : RunFailureSensorContext
+        Context of the run failure sensor.
+
+    Returns
+    -------
+    SerializableErrorInfo or None
+        Error of the run failure event. When that event carries no error,
+        the error of the first failed step. ``None`` when neither exists,
+        for example for a run reported as failed from outside an execution.
+
+    Notes
+    -----
+    Dagster before 1.13 leaves the run failure event without an error when
+    the run failed because a step failed. The error is then only on the
+    step failure events.
+    """
+    error_info = getattr(context.failure_event.event_specific_data, "error", None)
+    if error_info is not None:
+        return error_info
+
+    for step_failure_event in context.get_step_failure_events():
+        step_error_info = getattr(step_failure_event.event_specific_data, "error", None)
+        if step_error_info is not None:
+            return step_error_info
+
+    return None
+
+
 class KedroRunTranslator:
     """Translator for Kedro run params.
 
@@ -277,12 +310,17 @@ class KedroRunTranslator:
                 run_params = resources.kedro_run.run_params
                 pipeline = resources.kedro_run.pipeline
 
-            error_info = context.failure_event.event_specific_data.error
-
-            context.log.error(f"{error_info.cls_name}: {error_info.message}")
+            error_info = _get_failure_error_info(context)
+            if error_info is None:
+                # Dagster recorded no error, so only the event message is known.
+                error: Exception = RuntimeError(context.failure_event.message or "The Dagster run failed.")
+                context.log.error(str(error))
+            else:
+                error = _error_info_to_exception(error_info)
+                context.log.error(f"{error_info.cls_name}: {error_info.message}")
 
             self._hook_manager.hook.on_pipeline_error(
-                error=_error_info_to_exception(error_info),
+                error=error,
                 run_params=run_params,
                 pipeline=pipeline,
                 catalog=self._catalog,

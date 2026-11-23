@@ -11,7 +11,7 @@ import pytest
 from kedro.framework.session import KedroSession
 from kedro.framework.startup import bootstrap_project
 
-from kedro_dagster.kedro import KedroRunTranslator
+from kedro_dagster.kedro import KedroRunTranslator, _get_failure_error_info
 
 
 class _FakeHook:
@@ -340,3 +340,100 @@ class TestKedroRunHooks:
         assert hook_call["run_params"]["run_id"] == "sid-123"
         assert {node.name for node in hook_call["pipeline"].nodes} == {"node3", "node4"}
         assert hook_call["catalog"] is translator._catalog
+
+
+@dataclass
+class _FakeEvent:
+    event_specific_data: Any
+    message: str | None = None
+
+
+@dataclass
+class _FakeFailureData:
+    error: Any
+
+
+@dataclass
+class _FakeSensorContext:
+    failure_event: _FakeEvent
+    step_failure_events: list[_FakeEvent]
+
+    def get_step_failure_events(self) -> list[_FakeEvent]:
+        return self.step_failure_events
+
+
+class TestFailureErrorInfo:
+    """Tests for the error lookup of the `on_pipeline_error` sensor."""
+
+    def test_error_of_the_run_failure_event_is_preferred(self):
+        """The error of the run failure event is returned when it exists."""
+        context = _FakeSensorContext(
+            failure_event=_FakeEvent(_FakeFailureData(error="run error")),
+            step_failure_events=[_FakeEvent(_FakeFailureData(error="step error"))],
+        )
+
+        assert _get_failure_error_info(context) == "run error"
+
+    def test_falls_back_to_the_first_failed_step(self):
+        """Dagster before 1.13 records the error on the step failure events only."""
+        context = _FakeSensorContext(
+            failure_event=_FakeEvent(_FakeFailureData(error=None)),
+            step_failure_events=[
+                _FakeEvent(_FakeFailureData(error=None)),
+                _FakeEvent(_FakeFailureData(error="step error")),
+            ],
+        )
+
+        assert _get_failure_error_info(context) == "step error"
+
+    def test_returns_none_when_no_error_was_recorded(self):
+        """A run reported as failed from outside an execution has no error."""
+        context = _FakeSensorContext(failure_event=_FakeEvent(None), step_failure_events=[])
+
+        assert _get_failure_error_info(context) is None
+
+    def test_sensor_reports_a_run_that_failed_without_error(self, kedro_context_base):
+        """The hook receives a `RuntimeError` with the event message when Dagster recorded no error."""
+        translator = KedroRunTranslator(
+            context=kedro_context_base,
+            catalog=kedro_context_base.catalog,
+            project_path=str(kedro_context_base.project_path),
+            env="base",
+            run_id="sid-123",
+        )
+        fake_hook_mgr = _FakeHookManager()
+        translator._hook_manager = fake_hook_mgr
+
+        @dg.op
+        def passing_op():
+            return 1
+
+        @dg.job(resource_defs={"kedro_run": translator.to_dagster(pipeline_name="__default__", filter_params={})})
+        def reported_job():
+            passing_op()
+
+        sensor_def = translator._translate_on_pipeline_error_hook({"reported": reported_job})[
+            "on_pipeline_error_sensor"
+        ]
+
+        with dg.DagsterInstance.ephemeral() as instance:
+            run = instance.create_run_for_job(reported_job)
+            instance.report_run_failed(run, "stopped from outside")
+            failure_event = next(
+                record.event_log_entry.dagster_event
+                for record in instance.get_records_for_run(run.run_id).records
+                if record.event_log_entry.dagster_event is not None
+                and record.event_log_entry.dagster_event.event_type == dg.DagsterEventType.RUN_FAILURE
+            )
+            sensor_context = dg.build_run_status_sensor_context(
+                sensor_name="on_pipeline_error_sensor",
+                dagster_instance=instance,
+                dagster_run=instance.get_run_by_id(run.run_id),
+                dagster_event=failure_event,
+            ).for_run_failure()
+            sensor_def(sensor_context)
+
+        assert len(fake_hook_mgr.hook.on_pipeline_error_called_with) == 1
+        error = fake_hook_mgr.hook.on_pipeline_error_called_with[0]["error"]
+        assert type(error) is RuntimeError
+        assert "stopped from outside" in str(error)
