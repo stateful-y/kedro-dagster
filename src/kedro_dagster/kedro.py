@@ -16,6 +16,66 @@ if TYPE_CHECKING:
     from kedro.io import CatalogProtocol
 
 
+def _error_info_to_exception(error_info: Any) -> Exception:
+    """Rebuild an exception from the serialized error of a failed Dagster run.
+
+    Dagster stores the class name and the formatted message of the error, not
+    the exception object.
+
+    Parameters
+    ----------
+    error_info : SerializableErrorInfo
+        Serialized error taken from a Dagster failure event.
+
+    Returns
+    -------
+    Exception
+        Exception whose type has the name of the original class and whose
+        message is the original message. The serialized cause, if any, is
+        rebuilt the same way and set as ``__cause__``.
+    """
+    cls_name = error_info.cls_name or "Exception"
+    # The serialized message has the form "module.ClassName: message\n".
+    message = error_info.message.split(f"{cls_name}: ", 1)[-1].strip()
+    error: Exception = type(cls_name, (Exception,), {})(message)
+    if error_info.cause is not None:
+        error.__cause__ = _error_info_to_exception(error_info.cause)
+    return error
+
+
+def _get_failure_error_info(context: dg.RunFailureSensorContext) -> Any | None:
+    """Return the serialized error of a failed run, if Dagster recorded one.
+
+    Parameters
+    ----------
+    context : RunFailureSensorContext
+        Context of the run failure sensor.
+
+    Returns
+    -------
+    SerializableErrorInfo or None
+        Error of the run failure event. When that event carries no error,
+        the error of the first failed step. ``None`` when neither exists,
+        for example for a run reported as failed from outside an execution.
+
+    Notes
+    -----
+    Dagster before 1.13 leaves the run failure event without an error when
+    the run failed because a step failed. The error is then only on the
+    step failure events.
+    """
+    error_info = getattr(context.failure_event.event_specific_data, "error", None)
+    if error_info is not None:
+        return error_info
+
+    for step_failure_event in context.get_step_failure_events():
+        step_error_info = getattr(step_failure_event.event_specific_data, "error", None)
+        if step_error_info is not None:
+            return step_error_info
+
+    return None
+
+
 class KedroRunTranslator:
     """Translator for Kedro run params.
 
@@ -240,17 +300,27 @@ class KedroRunTranslator:
         )
         def on_pipeline_error_sensor(context: dg.RunFailureSensorContext) -> None:
             """Sensor that fires Kedro on_pipeline_error hooks on run failure."""
-            kedro_context_resource = context.resource_defs["kedro_run"]
-            run_params = kedro_context_resource.run_params
-            pipeline = kedro_context_resource.pipeline
+            # The sensor requires no resource, so Dagster provides none in
+            # `context.resource_defs`. Build the `kedro_run` resource of the
+            # failed job, which holds the run params and filters of that job.
+            job = next(job for job in named_jobs.values() if job.name == context.dagster_run.job_name)
+            with dg.build_resources(
+                {"kedro_run": job.resource_defs["kedro_run"]}, instance=context.instance
+            ) as resources:
+                run_params = resources.kedro_run.run_params
+                pipeline = resources.kedro_run.pipeline
 
-            error_class_name = context.failure_event.event_specific_data.error.cls_name
-            error_message = context.failure_event.event_specific_data.error.message
-
-            context.log.error(f"{error_class_name}: {error_message}")
+            error_info = _get_failure_error_info(context)
+            if error_info is None:
+                # Dagster recorded no error, so only the event message is known.
+                error: Exception = RuntimeError(context.failure_event.message or "The Dagster run failed.")
+                context.log.error(str(error))
+            else:
+                error = _error_info_to_exception(error_info)
+                context.log.error(f"{error_info.cls_name}: {error_info.message}")
 
             self._hook_manager.hook.on_pipeline_error(
-                error=error_class_name(error_message),
+                error=error,
                 run_params=run_params,
                 pipeline=pipeline,
                 catalog=self._catalog,
