@@ -62,15 +62,20 @@ tests = [
     "pandas>=2.3",
 ]
 lint = [
-    "interrogate>=1.7.0",
-    "ruff>=0.8.0",
-    "rumdl>=0.1.33",
-    # Pinned exactly, unlike the rest of this group. ty is pre-1.0 and its patch
-    # releases add checks: 0.0.92 introduced `invalid-attribute-override` and turned
-    # the automerged weekly lockfile refresh red in two repos, because a `>=` floor
-    # let that refresh move ty along with everything else. Pinned, it moves only in
-    # the `lint-tools` Renovate PR, where any code the new checks need can land with
-    # it. The annotation lets Renovate bump this template seed too.
+    # Every tool in this group is pinned exactly. A linter release that adds a rule
+    # fails the lint check on code that has not changed, and a `>=` floor lets the
+    # automerged weekly lockfile refresh pull that release in, so the refresh goes
+    # red with nothing to merge it: ty 0.0.92 (`invalid-attribute-override`) and
+    # rumdl 0.3.5 (MD076) both did this across the fleet. Pinned, a linter moves only
+    # in its own Renovate PR (`lint-tools`, or the monthly `ty` one), where any fix
+    # the new rules need lands with the bump. The annotations let Renovate bump these
+    # template seeds too; each must sit directly above its pin.
+    # renovate: datasource=pypi depName=interrogate
+    "interrogate==1.7.0",
+    # renovate: datasource=pypi depName=ruff
+    "ruff==0.17.6",
+    # renovate: datasource=pypi depName=rumdl
+    "rumdl==0.3.5",
     # renovate: datasource=pypi depName=ty
     "ty==0.0.104",
 ]
