@@ -2071,7 +2071,7 @@ dev = [
     { name = "covdefaults", specifier = ">=2.3" },
     { name = "griffe", specifier = ">=1.0" },
     { name = "hypothesis", specifier = ">=6.100" },
-    { name = "interrogate", specifier = ">=1.7.0" },
+    { name = "interrogate", specifier = "==1.7.0" },
     { name = "mkdocs", specifier = ">=1.6.0" },
     { name = "mkdocs-autorefs", specifier = ">=1.0" },
     { name = "mkdocs-glightbox", specifier = ">=0.5" },
@@ -2087,8 +2087,8 @@ dev = [
     { name = "pytest-mock", specifier = ">=3.14" },
     { name = "pytest-xdist", specifier = ">=3.8" },
     { name = "pyyaml", specifier = ">=6.0" },
-    { name = "ruff", specifier = ">=0.8.0" },
-    { name = "rumdl", specifier = ">=0.1.33" },
+    { name = "ruff", specifier = "==0.17.6" },
+    { name = "rumdl", specifier = "==0.3.5" },
     { name = "ty", specifier = "==0.0.104" },
     { name = "watchdog", specifier = ">=4.0" },
     { name = "zensical", specifier = ">=0.0.51" },
@@ -2107,9 +2107,9 @@ docs = [
 ]
 fix = [{ name = "prek", specifier = ">=0.4.10" }]
 lint = [
-    { name = "interrogate", specifier = ">=1.7.0" },
-    { name = "ruff", specifier = ">=0.8.0" },
-    { name = "rumdl", specifier = ">=0.1.33" },
+    { name = "interrogate", specifier = "==1.7.0" },
+    { name = "ruff", specifier = "==0.17.6" },
+    { name = "rumdl", specifier = "==0.3.5" },
     { name = "ty", specifier = "==0.0.104" },
 ]
 tests = [
